@@ -1,5 +1,7 @@
 # Personal Infrastructure Setup with Ansible
 
+[![Test playbooks](https://github.com/k4black/personal-infra/actions/workflows/test.yml/badge.svg)](https://github.com/k4black/personal-infra/actions/workflows/test.yml)
+
 This repository contains Ansible playbooks to set up a personal MacBook and home server. 
 This README provides instructions on how to customize variables and run the playbooks.
 
