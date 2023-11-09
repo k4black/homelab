@@ -12,3 +12,4 @@ rules:
 
 ignore: |
   .github/workflows/*
+  .venv/*
