@@ -1,0 +1,84 @@
+name: "Test playbooks"
+
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+  schedule:
+    - cron: "23 2 * * 2"  # semi-random time once a week
+
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.12
+          cache: 'pip' # caching pip dependencies
+
+      - name: Install dependencies
+        run: |
+          python -m pip install yamllint ansible ansible-lint
+
+      - name: Lint code.
+        run: |
+          yamllint .
+          ansible-lint
+
+  test-macos:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os:
+          - macos-latest
+          - macos-13
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Uninstall GitHub Actions' built-in Homebrew
+        run: tests/uninstall-homebrew.sh
+
+      - name: Uninstall GitHub Actions' built-in browser installs
+        run: |
+          ls -lah /Applications
+          sudo rm -rf /Applications/Firefox.app
+          sudo rm -rf /Applications/Google\ Chrome.app
+          sudo rm -rf /usr/local/bin/firefox
+
+      - name: Install ansible and requirements_macbook.yml
+        run: |
+          sudo pip3 install ansible
+          ansible-galaxy install -r requirements_macbook.yml
+
+      - name: Test the playbook's syntax
+        run: ansible-playbook playbook_macbook.yml --syntax-check
+
+      - name: Test the playbook
+        run: ansible-playbook playbook_macbook.yml
+        env:
+          ANSIBLE_FORCE_COLOR: '1'
+
+      - name: Idempotence check
+        run: |
+          idempotence=$(mktemp)
+          ansible-playbook playbook_macbook.yml | tee -a ${idempotence}
+          tail ${idempotence} | grep -q 'changed=0.*failed=0' && (echo 'Idempotence test: pass' && exit 0) || (echo 'Idempotence test: fail' && exit 1)
+        env:
+          ANSIBLE_FORCE_COLOR: '1'
+
+          
+      
+          
+      
+

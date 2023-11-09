@@ -1,0 +1,59 @@
+device_name: "k4pro-i7"
+
+
+homebrew_cask_appdir: /Applications
+homebrew_cask_apps:
+  - google-drive
+  - google-chrome
+  - notion
+  - slack
+  - zoom
+  - telegram
+  - beeper
+  - sublime-text
+  - jetbrains-toolbox
+  - docker
+  - chromedriver
+  - transmit
+  - tunnelblick
+  - the-unarchiver
+  - autodesk-fusion360
+homebrew_installed_packages:
+  - git
+  - git-lfs
+  - pyenv
+  - go
+  - sqlite
+  - ssh-copy-id
+  - openssl
+homebrew_taps:
+  - homebrew/core
+  - homebrew/cask
+
+
+dockitems_remove:
+ - Launchpad
+ - TV
+ - Podcasts
+ - 'App Store'
+dockitems_persist:
+ - name: "Terminal"
+   path: "/System/Applications/Utilities/Terminal.app"
+   pos: 5
+ - name: "Activity Monitor"
+   path: "/System/Applications/Utilities/Activity Monitor.app"
+   pos: 6
+ - name: "Sublime Text"
+   path: "/Applications/Sublime Text.app/"
+   pos: 7
+ - name: "Notion"
+   path: "/Applications/Notion.app/"
+   pos: 8
+
+
+mas_installed_apps: []
+mas_email: ""
+mas_password: ""
+mas_uninstalled_apps:
+  - { id: 408981434, name: "iMovie" }
+  - { id: 682658836, name: "GarageBand" }
