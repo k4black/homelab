@@ -34,7 +34,7 @@ jobs:
           yamllint .
           ansible-lint
 
-  test-macos:
+  test-macbook-playbook:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -56,29 +56,62 @@ jobs:
           sudo rm -rf /usr/local/bin/firefox
           sudo rm -rf /usr/local/bin/chromedriver
 
-      - name: Install ansible and requirements_macbook.yml
+      - name: Install python and ansible requirements
         run: |
           python -m pip install -r requirements.txt
-          ansible-galaxy install -r requirements_macbook.yml
+          ansible-galaxy install -r requirements.yml
+
+      - name: Create .vault_pass.txt
+        run: |
+          echo "test" > .vault_pass.txt
 
       - name: Test the playbook's syntax
         run: ansible-playbook playbook_macbook.yml --syntax-check
 
       - name: Test the playbook
-        run: ansible-playbook playbook_macbook.yml
+        run: ansible-playbook playbook_macbook.yml -e "environment=testing" --skip-tags "mas"
         env:
           ANSIBLE_FORCE_COLOR: '1'
 
       - name: Idempotence check
         run: |
           idempotence=$(mktemp)
-          ansible-playbook playbook_macbook.yml | tee -a ${idempotence}
+          ansible-playbook playbook_macbook.yml -e "environment=testing" --skip-tags "mas" | tee -a ${idempotence}
           tail ${idempotence} | grep -q 'changed=0.*failed=0' && (echo 'Idempotence test: pass' && exit 0) || (echo 'Idempotence test: fail' && exit 1)
         env:
           ANSIBLE_FORCE_COLOR: '1'
 
-          
-      
+  test-vps-playbook:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install python and ansible requirements
+        run: |
+          python -m pip install -r requirements.txt
+          ansible-galaxy install -r requirements.yml
+
+      - name: Create .vault_pass.txt
+        run: |
+          echo "test" > .vault_pass.txt
+
+      - name: Test the playbook's syntax
+        run: ansible-playbook playbook_macbook.yml --syntax-check
+
+      - name: Test the playbook
+        run: ansible-playbook playbook_macbook.yml -e "environment=testing" --skip-tags "run_docker"
+        env:
+          ANSIBLE_FORCE_COLOR: '1'
+
+      - name: Idempotence check
+        run: |
+          idempotence=$(mktemp)
+          ansible-playbook playbook_macbook.yml -e "environment=testing" --skip-tags "run_docker" | tee -a ${idempotence}
+          tail ${idempotence} | grep -q 'changed=0.*failed=0' && (echo 'Idempotence test: pass' && exit 0) || (echo 'Idempotence test: fail' && exit 1)
+        env:
+          ANSIBLE_FORCE_COLOR: '1'
           
       
 

@@ -1,0 +1,15 @@
+# {{ ansible_managed }}
+# Default PF configuration file.
+
+#
+# com.apple anchor point
+#
+scrub-anchor "com.apple/*"
+nat-anchor "com.apple/*"
+rdr-anchor "com.apple/*"
+dummynet-anchor "com.apple/*"
+anchor "com.apple/*"
+load anchor "com.apple" from "/etc/pf.anchors/com.apple"
+
+pass quick on { lo0, en0 } from any to 192.168.1.0/24
+pass quick on { lo0, en0 } from 192.168.1.0/24 to any

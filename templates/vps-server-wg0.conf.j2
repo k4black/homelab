@@ -1,0 +1,19 @@
+# {{ ansible_managed }}
+
+[Interface]
+# The IP address range for the VPN network
+Address = 10.0.1.1/24
+# The port number on which the server will listen for connections
+ListenPort = 51820
+# The server's private key
+PrivateKey = {{ wg0_server_private_key }}
+# Optionally, you can configure PostUp and PostDown rules, e.g., for iptables
+#PostUp   = iptables -A FORWARD -i %i -j ACCEPT; iptables -A FORWARD -o %i -j ACCEPT; iptables -t nat -A POSTROUTING -o enp9s0 -j MASQUERADE
+#PostDown = iptables -D FORWARD -i %i -j ACCEPT; iptables -D FORWARD -o %i -j ACCEPT; iptables -t nat -D POSTROUTING -o enp9s0 -j MASQUERADE
+PostUp = iptables -A FORWARD -i %i -j ACCEPT; iptables -A FORWARD -o %i -j ACCEPT; iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
+PostDown = iptables -D FORWARD -i %i -j ACCEPT; iptables -D FORWARD -o %i -j ACCEPT; iptables -t nat -D POSTROUTING -o eth0 -j MASQUERADE
+# SaveConfig = true
+
+[Peer]
+PublicKey = {{ wg0_client_public_key }}
+AllowedIPs = 10.0.1.2/32

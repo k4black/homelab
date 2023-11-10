@@ -1,0 +1,83 @@
+---
+- name: Configure VPS personal server.
+  hosts: vps
+
+  vars_files:
+    - vars/all.yml
+    - vars/vps.yml
+
+  roles:
+    - role: hifis.unattended_upgrades
+      unattended_automatic_reboot_time: 04:00
+      # apt-daily timer
+      unattended_apt_daily_oncalendar: "*-*-* 01:00"
+      unattended_apt_daily_randomizeddelaysec: "60m"
+      # apt-daily-upgrade timer
+      unattended_apt_daily_upgrade_oncalendar: "*-*-* 2:00"
+      unattended_apt_daily_upgrade_randomizeddelaysec: "60m"
+    - role: geerlingguy.security
+      security_ssh_port: 22
+      security_ssh_permit_root_login: "yes"
+    - role: geerlingguy.docker
+
+
+  tasks:
+    - include_vars: vars/all-test.yml
+      when: environment == 'testing'
+
+    - name: Update packages
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 3600
+        upgrade: safe
+        autoremove: true
+
+    - name: Install packages
+      ansible.builtin.apt:
+        name: "{{ apps_to_install }}"
+        state: present
+
+    - name: Setup cron to clean docker images
+      ansible.builtin.cron:
+        name: "Clean docker images"
+        minute: "0"
+        hour: "0"
+        job: "docker system prune -a -f"
+        cron_file: "clean_docker_images"
+        user: "{{ username }}"
+
+    - name: Create base directory
+      file:
+        path: "{{ infra_dir }}"
+        state: directory
+    - name: Make soft link to home
+      file:
+        src: "{{ infra_dir }}"
+        dest: "~/infra"
+        state: link
+        force: yes
+
+    - name: Copy the compose file
+      template:
+        src: templates/vps-docker-compose.yml.j2
+        dest: "{{ infra_dir }}/docker-compose.yml"
+
+    - name: Copy the wineguard config file
+      template:
+        src: templates/vps-server-wg0.conf.j2
+        dest: "{{ infra_dir }}/server_wg0.conf"
+        mode: 0600
+      register: copy_wineguard_config
+
+    - name: Start containers
+      command:
+        cmd: docker compose up -d --pull always --build
+        chdir: "{{ infra_dir }}"
+      tags: run_docker
+
+    - name: Restart wineguard container
+      command:
+        cmd: docker compose restart
+        chdir: "{{ infra_dir }}"
+      tags: run_docker
+      when: copy_wineguard_config.changed

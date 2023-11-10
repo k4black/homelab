@@ -1,0 +1,12 @@
+timezone: Europe/Berlin
+
+
+vps_duckdns_subdomain: test
+duckdns_token: some-token
+
+
+wg0_server_private_key: 1234567890
+wg0_server_public_key: 1234567890
+
+wg0_client_private_key: 1234567890
+wg0_client_public_key: 1234567890

@@ -4,6 +4,7 @@
   connection: local
 
   vars_files:
+    - vars/all.yml
     - vars/macbook.yml
 
   roles:
@@ -13,9 +14,9 @@
 #    - role: geerlingguy.dotfiles
 #      when: configure_dotfiles
 #      tags: ['dotfiles']
-#    - role: geerlingguy.mac.mas
-#      when: mas_installed_apps or mas_installed_app_ids
-#      tags: ['mas']
+    - role: geerlingguy.mac.mas
+      when: mas_installed_apps or mas_uninstalled_apps
+      tags: ['mas']
     - role: geerlingguy.mac.dock
       tags: ['dock']
 
@@ -28,6 +29,40 @@
       - name: Rename computer name
         command: scutil --set ComputerName {{ device_name }}
         become: yes
+
+    # Setup vpn and killswitch
+    - block:
+      - name: Install Wireguard and killswitch
+        homebrew:
+          name: "{{ item }}"
+          state: present
+        with_items:
+          - wireguard-tools
+          - killswitch
+      - name: Create wireguard configs directory
+        file:
+          path: "~/.config/wireguard"
+          state: directory
+          mode: 0755
+      - name: Copy the wineguard config file
+        template:
+          src: templates/macbook-client-wg0.conf.j2
+          dest: "~/.config/wireguard/macbook_wg0.conf"
+          mode: 0600
+#      - name: Set pf.conf permissions
+#        file:
+#          path: /etc/pf.conf
+#          mode: 0666
+#      - name: Enable killswitch
+#        command: killswitch -e -local -p
+#      - name: Copy the pf.conf file
+#        template:
+#          src: templates/macbook-pf.conf.j2
+#          dest: /etc/pf.conf
+#          mode: 0666
+#      - name: Enable pf
+#        command: pfctl -e
+
 
     # Setup Accounts
 #    - block:

@@ -1,0 +1,13 @@
+---
+roles:
+  - name: elliotweiser.osx-command-line-tools
+  - name: geerlingguy.dotfiles
+  - name: hifis.unattended_upgrades
+  - name: geerlingguy.repo-epel
+  - name: geerlingguy.security
+  - name: geerlingguy.docker
+  - name: geerlingguy.ntp
+  - name: chriswayg.msmtp-mailer
+
+collections:
+  - name: geerlingguy.mac
