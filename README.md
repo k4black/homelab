@@ -27,3 +27,12 @@ To run the playbooks, execute the following command:
 ansible-playbook macbook_playbook.yml
 ansible-playbook homeserver_playbook.yml
 ```
+
+
+
+
+1. create vault password file .vault_pass.txt
+2. to encrypt smth ansible-vault encrypt_string --stdin-name mas_email  
+3. to decrypt ansible-vault decrypt_string --stdin-name mas_email
+4. to run ansible-playbook -i inventory.ini playbook_macbook.yml  
+5. to run ansible-playbook -i inventory.ini playbook_vps.yml  
