@@ -1,4 +1,13 @@
 ---
+- name: Setup ssh port
+  hosts: vps
+  gather_facts: no
+
+  tasks:
+    - import_tasks: tasks/sshd_port_juggling.yml
+      when: environment != 'testing'
+
+
 - name: Configure VPS personal server.
   hosts: vps
 
@@ -17,7 +26,7 @@
       unattended_apt_daily_upgrade_randomizeddelaysec: "60m"  # noqa: var-naming[no-role-prefix]
       become: true
     - role: geerlingguy.security
-      security_ssh_port: 22
+      security_ssh_port: "{{ ssh_port }}"
       security_ssh_permit_root_login: "yes"
       become: true
     - role: geerlingguy.docker

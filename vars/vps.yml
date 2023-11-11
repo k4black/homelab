@@ -1,5 +1,6 @@
 username: "root"
 device_name: "iceland"
+ssh_port: 4221
 
 
 infra_dir: /opt/infra
