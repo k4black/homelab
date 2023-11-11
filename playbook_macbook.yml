@@ -27,34 +27,34 @@
 
     - name: Setup Hostname
       block:
-      - name: Rename device (network name)
-        ansible.builtin.command: scutil --set HostName {{ device_name }}
-        changed_when: false
-        become: yes
-      - name: Rename computer name
-        ansible.builtin.command: scutil --set ComputerName {{ device_name }}
-        changed_when: false
-        become: yes
+        - name: Rename device (network name)
+          ansible.builtin.command: scutil --set HostName {{ device_name }}
+          changed_when: false
+          become: yes
+        - name: Rename computer name
+          ansible.builtin.command: scutil --set ComputerName {{ device_name }}
+          changed_when: false
+          become: yes
 
     - name: Setup VPN
       block:
-      - name: Install Wireguard and killswitch
-        community.general.homebrew:
-          name: "{{ item }}"
-          state: present
-        with_items:
-          - wireguard-tools
-          - killswitch
-      - name: Create wireguard configs directory
-        ansible.builtin.file:
-          path: "~/.config/wireguard"
-          state: directory
-          mode: 0755
-      - name: Copy the wineguard config file
-        ansible.builtin.template:
-          src: templates/macbook-client-wg0.conf.j2
-          dest: "~/.config/wireguard/macbook_wg0.conf"
-          mode: 0600
+        - name: Install Wireguard and killswitch
+          community.general.homebrew:
+            name: "{{ item }}"
+            state: present
+          with_items:
+            - wireguard-tools
+            - killswitch
+        - name: Create wireguard configs directory
+          ansible.builtin.file:
+            path: "~/.config/wireguard"
+            state: directory
+            mode: 0755
+        - name: Copy the wineguard config file
+          ansible.builtin.template:
+            src: templates/macbook-client-wg0.conf.j2
+            dest: "~/.config/wireguard/macbook_wg0.conf"
+            mode: 0600
 #      - name: Set pf.conf permissions
 #        file:
 #          path: /etc/pf.conf
