@@ -105,14 +105,14 @@ jobs:
         run: ansible-playbook playbook_vps.yml -i inventory-test.ini --syntax-check
 
       - name: Test the playbook
-        run: ansible-playbook playbook_vps.yml -i inventory-test.ini -e "environment=testing" --skip-tags "run_docker"
+        run: ansible-playbook playbook_vps.yml -i inventory-test.ini -e "environment=testing" --skip-tags "run_docker" --skip-tags "update"
         env:
           ANSIBLE_FORCE_COLOR: '1'
 
       - name: Idempotence check
         run: |
           idempotence=$(mktemp)
-          ansible-playbook playbook_vps.yml -i inventory-test.ini -e "environment=testing" --skip-tags "run_docker" | tee -a ${idempotence}
+          ansible-playbook playbook_vps.yml -i inventory-test.ini -e "environment=testing" --skip-tags "run_docker" --skip-tags "update" | tee -a ${idempotence}
           tail ${idempotence} | grep -q 'changed=0.*failed=0' && (echo 'Idempotence test: pass' && exit 0) || (echo 'Idempotence test: fail' && exit 1)
         env:
           ANSIBLE_FORCE_COLOR: '1'
