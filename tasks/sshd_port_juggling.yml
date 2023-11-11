@@ -21,23 +21,23 @@
 #     - import_tasks: _sshd_port_juggling.yml
 
 - name: SSH Port Juggle | define the fallback default SSH port
-  set_fact:
+  ansible.builtin.set_fact:
     _default_ssh_port: 22
 
 - name: SSH Port Juggle | Try configured ansible_port {{ ansible_port }}
-  wait_for_connection:
+  ansible.builtin.wait_for_connection:
     timeout: 10
   ignore_errors: true
   register: _ssh_port_result
 
 - name: SSH Port Juggle | Set the ansible_port to the fallback default port {{ _default_ssh_port }}
-  set_fact:
+  ansible.builtin.set_fact:
     ansible_port: "{{ _default_ssh_port }}"
   when:
     - _ssh_port_result is failed
 
 - name: SSH Port Juggle | Check fallback default port {{ ansible_port }}
-  wait_for_connection:
+  ansible.builtin.wait_for_connection:
     timeout: 10
   ignore_errors: true
   register: _ssh_port_default_result
@@ -45,7 +45,8 @@
     - _ssh_port_result is failed
 
 - name: SSH Port Juggle | Fail
-  fail: msg="Neither the configured ansible_port {{ ansible_port }} nor the fallback port {{ _default_ssh_port }} were reachable"
+  ansible.builtin.fail:
+    msg: "Neither the configured ansible_port {{ ansible_port }} nor the fallback port {{ _default_ssh_port }} were reachable"
   when:
     - _ssh_port_result is failed
     - _ssh_port_default_result is defined

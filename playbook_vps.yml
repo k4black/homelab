@@ -4,7 +4,8 @@
   gather_facts: no
 
   tasks:
-    - import_tasks: tasks/sshd_port_juggling.yml
+    - name: SSH Port Juggle
+      ansible.builtin.import_tasks: tasks/sshd_port_juggling.yml
       when: environment != 'testing'
 
 
