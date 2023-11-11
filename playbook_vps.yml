@@ -51,6 +51,7 @@
         job: "docker system prune -a -f"
         cron_file: "clean_docker_images"
         user: "{{ username }}"
+      become: true
 
     - name: Create base directory
       file:
@@ -74,6 +75,11 @@
         dest: "{{ infra_dir }}/server_wg0.conf"
         mode: 0600
       register: copy_wineguard_config
+
+    - name: Validate docker compose file
+      command:
+        cmd: docker compose config
+        chdir: "{{ infra_dir }}"
 
     - name: Start containers
       command:
