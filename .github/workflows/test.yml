@@ -39,11 +39,7 @@ jobs:
           ansible-lint
 
   test-macbook-playbook:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os:
-          - macos-13
+    runs-on: macos-13
 
     steps:
       - name: Checkout code
@@ -65,9 +61,9 @@ jobs:
           python -m pip install -r requirements.txt
           ansible-galaxy install -r requirements.yml
 
-      - name: Create dummy .vault_pass.txt
+      - name: Create .vault_pass.txt
         run: |
-          echo "test" > .vault_pass.txt
+          echo "${{ secrets.VAULT_PASS }}" > .vault_pass.txt
 
       - name: Test the playbook's syntax
         run: ansible-playbook playbook_macbook.yml -i inventory-test.ini --syntax-check
@@ -97,9 +93,9 @@ jobs:
           python -m pip install -r requirements.txt
           ansible-galaxy install -r requirements.yml
 
-      - name: Create dummy .vault_pass.txt
+      - name: Create .vault_pass.txt
         run: |
-          echo "test" > .vault_pass.txt
+          echo "${{ secrets.VAULT_PASS }}" > .vault_pass.txt
 
       - name: Test the playbook's syntax
         run: ansible-playbook playbook_vps.yml -i inventory-test.ini --syntax-check

@@ -25,9 +25,9 @@
 
 
   tasks:
-    - name: Override the secret vars with non-secret for testing
-      include_vars: vars/all-test.yml
-      when: environment == 'testing'
+#    - name: Override the secret vars with non-secret for testing
+#      include_vars: vars/all-test.yml
+#      when: environment == 'testing'
 
     - name: Update packages
       ansible.builtin.apt:
