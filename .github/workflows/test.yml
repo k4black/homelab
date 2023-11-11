@@ -102,17 +102,17 @@ jobs:
           echo "test" > .vault_pass.txt
 
       - name: Test the playbook's syntax
-        run: sudo ansible-playbook playbook_vps.yml -i inventory-test.ini --syntax-check
+        run: ansible-playbook playbook_vps.yml -i inventory-test.ini --syntax-check
 
       - name: Test the playbook
-        run: sudo ansible-playbook playbook_vps.yml -i inventory-test.ini -e "environment=testing" --skip-tags "run_docker" --skip-tags "update"
+        run: ansible-playbook playbook_vps.yml -i inventory-test.ini -e "environment=testing" --skip-tags "run_docker"
         env:
           ANSIBLE_FORCE_COLOR: '1'
 
       - name: Idempotence check
         run: |
           idempotence=$(mktemp)
-          sudo ansible-playbook playbook_vps.yml -i inventory-test.ini -e "environment=testing" --skip-tags "run_docker" --skip-tags "update" | tee -a ${idempotence}
+          ansible-playbook playbook_vps.yml -i inventory-test.ini -e "environment=testing" --skip-tags "run_docker" | tee -a ${idempotence}
           tail ${idempotence} | grep -q 'changed=0.*failed=0' && (echo 'Idempotence test: pass' && exit 0) || (echo 'Idempotence test: fail' && exit 1)
         env:
           ANSIBLE_FORCE_COLOR: '1'

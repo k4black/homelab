@@ -15,11 +15,14 @@
       # apt-daily-upgrade timer
       unattended_apt_daily_upgrade_oncalendar: "*-*-* 2:00"
       unattended_apt_daily_upgrade_randomizeddelaysec: "60m"
+      become: true
       tags: update
     - role: geerlingguy.security
       security_ssh_port: 22
       security_ssh_permit_root_login: "yes"
+      become: true
     - role: geerlingguy.docker
+      become: true
 
 
   tasks:
@@ -33,7 +36,7 @@
         cache_valid_time: 3600
         upgrade: safe
         autoremove: true
-      tags: update
+      become: true
 
     - name: Install packages
       ansible.builtin.apt:
