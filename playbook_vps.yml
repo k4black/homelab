@@ -16,7 +16,6 @@
       unattended_apt_daily_upgrade_oncalendar: "*-*-* 2:00"
       unattended_apt_daily_upgrade_randomizeddelaysec: "60m"
       become: true
-      tags: update
     - role: geerlingguy.security
       security_ssh_port: 22
       security_ssh_permit_root_login: "yes"
@@ -42,6 +41,7 @@
       ansible.builtin.apt:
         name: "{{ apps_to_install }}"
         state: present
+      become: true
 
     - name: Setup cron to clean docker images
       ansible.builtin.cron:
