@@ -8,13 +8,13 @@
 
   roles:
     - role: hifis.unattended_upgrades
-      unattended_automatic_reboot_time: 04:00
+      unattended_automatic_reboot_time: 04:00  # noqa: var-naming[no-role-prefix]
       # apt-daily timer
-      unattended_apt_daily_oncalendar: "*-*-* 01:00"
-      unattended_apt_daily_randomizeddelaysec: "60m"
+      unattended_apt_daily_oncalendar: "*-*-* 01:00"  # noqa: var-naming[no-role-prefix]
+      unattended_apt_daily_randomizeddelaysec: "60m"  # noqa: var-naming[no-role-prefix]
       # apt-daily-upgrade timer
-      unattended_apt_daily_upgrade_oncalendar: "*-*-* 2:00"
-      unattended_apt_daily_upgrade_randomizeddelaysec: "60m"
+      unattended_apt_daily_upgrade_oncalendar: "*-*-* 2:00"  # noqa: var-naming[no-role-prefix]
+      unattended_apt_daily_upgrade_randomizeddelaysec: "60m"  # noqa: var-naming[no-role-prefix]
       become: true
     - role: geerlingguy.security
       security_ssh_port: 22
@@ -54,42 +54,49 @@
       become: true
 
     - name: Create base directory
-      file:
+      ansible.builtin.file:
         path: "{{ infra_dir }}"
         state: directory
+        mode: 0755
     - name: Make soft link to home
-      file:
+      ansible.builtin.file:
         src: "{{ infra_dir }}"
         dest: "~/infra"
         state: link
         force: yes
 
     - name: Copy the compose file
-      template:
+      ansible.builtin.template:
         src: templates/vps-docker-compose.yml.j2
         dest: "{{ infra_dir }}/docker-compose.yml"
+        mode: 0755
+      register: copy_docker_compose
 
     - name: Copy the wineguard config file
-      template:
+      ansible.builtin.template:
         src: templates/vps-server-wg0.conf.j2
         dest: "{{ infra_dir }}/server_wg0.conf"
         mode: 0600
       register: copy_wineguard_config
 
     - name: Validate docker compose file
-      command:
+      ansible.builtin.command:
         cmd: docker compose config
         chdir: "{{ infra_dir }}"
+      changed_when: false
 
     - name: Start containers
-      command:
+      ansible.builtin.command:
         cmd: docker compose up -d --pull always --build
         chdir: "{{ infra_dir }}"
+      changed_when: false
       tags: run_docker
 
+  handlers:
     - name: Restart wineguard container
-      command:
+      ansible.builtin.command:
         cmd: docker compose restart
         chdir: "{{ infra_dir }}"
+      listen: copy_wineguard_config
+      changed_when: false
       tags: run_docker
-      when: copy_wineguard_config.changed

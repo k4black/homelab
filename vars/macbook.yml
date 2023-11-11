@@ -34,23 +34,23 @@ homebrew_taps:
 
 
 dockitems_remove:
- - Launchpad
- - TV
- - Podcasts
- - 'App Store'
+  - Launchpad
+  - TV
+  - Podcasts
+  - 'App Store'
 dockitems_persist:
- - name: "Terminal"
-   path: "/System/Applications/Utilities/Terminal.app"
-   pos: 5
- - name: "Activity Monitor"
-   path: "/System/Applications/Utilities/Activity Monitor.app"
-   pos: 6
- - name: "Sublime Text"
-   path: "/Applications/Sublime Text.app/"
-   pos: 7
- - name: "Notion"
-   path: "/Applications/Notion.app/"
-   pos: 8
+  - name: "Terminal"
+    path: "/System/Applications/Utilities/Terminal.app"
+    pos: 5
+  - name: "Activity Monitor"
+    path: "/System/Applications/Utilities/Activity Monitor.app"
+    pos: 6
+  - name: "Sublime Text"
+    path: "/Applications/Sublime Text.app/"
+    pos: 7
+  - name: "Notion"
+    path: "/Applications/Notion.app/"
+    pos: 8
 
 
 mas_email: !vault |

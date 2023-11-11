@@ -1,0 +1,15 @@
+exclude_paths:
+  - .cache/  # implicit unless exclude_paths is defined in config
+  - roles/
+
+warn_list:
+  - skip_this_tag
+  - experimental  # experimental is included in the implicit list
+  - yaml[comments-indentation]
+
+skip_list:
+  - yaml[document-start]
+  - yaml[truthy]
+  - yaml[indentation]
+
+offline: false
