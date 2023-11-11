@@ -13,3 +13,4 @@ rules:
 ignore: |
   .github/workflows/*
   .venv/*
+  roles/*

@@ -21,6 +21,10 @@
       tags: ['dock']
 
   tasks:
+    # Override the secret vars with non-secret for testing
+    - include_vars: vars/all-test.yml
+      when: environment == 'testing'
+
     # Setup Hostname
     - block:
       - name: Rename device (network name)
