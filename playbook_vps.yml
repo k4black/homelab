@@ -39,6 +39,11 @@
 #      include_vars: vars/all-test.yml
 #      when: environment == 'testing'
 
+    - name: Change hostname
+      ansible.builtin.hostname:
+        name: "{{ device_name }}"
+      become: true
+
     - name: Update packages
       ansible.builtin.apt:
         update_cache: true
