@@ -52,6 +52,7 @@ dockitems_persist:
   - name: "Notion"
     path: "/Applications/Notion.app/"
     pos: 8
+dockutil_install: true
 
 
 mas_email: !vault |

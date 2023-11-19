@@ -7,6 +7,16 @@
     - vars/all.yml
     - vars/macbook.yml
 
+
+#  vars_prompt:
+#    - name: "username"
+#      prompt: "Enter the username for the new admin user"
+#      private: no
+#    - name: "password"
+#      prompt: "Enter the password for the new admin user"
+#      private: yes
+
+
   roles:
     - role: elliotweiser.osx-command-line-tools
     - role: geerlingguy.mac.homebrew
@@ -19,6 +29,19 @@
       tags: ['mas']
     - role: geerlingguy.mac.dock
       tags: ['dock']
+
+
+#  pre_tasks:
+#    - name: Create new admin user
+#      become: yes
+#      user:
+#        name: "{{ username }}"
+#        password: "{{ password | password_hash('sha512') }}"
+#        group: admin
+#        shell: /bin/bash
+#        create_home: yes
+#        state: present
+
 
   tasks:
 #    - name: Override the secret vars with non-secret for testing
@@ -35,6 +58,43 @@
           ansible.builtin.command: scutil --set ComputerName {{ device_name }}
           changed_when: false
           become: yes
+
+    - name: Enable MonitorControl in System Preferences -> Privacy & Security -> Privacy -> Accessibility
+      block:
+        - name: Install MonitorControl
+          community.general.homebrew:
+            name: MonitorControl
+            state: present
+#        - name: Enable MonitorControl in System Preferences -> Privacy & Security -> Privacy -> Accessibility
+
+    - name: Setup dock (position right, items size and magnification)
+      block:
+        - name: Set dock position to right
+          ansible.builtin.command: defaults write com.apple.dock orientation -string right
+          changed_when: false
+        - name: Set dock item size
+          ansible.builtin.command: defaults write com.apple.dock tilesize -int 50
+          changed_when: false
+        - name: Set dock magnification size
+          ansible.builtin.command: defaults write com.apple.dock largesize -int 70
+          changed_when: false
+        - name: Restart dock
+          ansible.builtin.command: killall Dock
+          changed_when: false
+      tags: ['dock']
+
+
+    - name: Set Brave as default browser
+      block:
+        - name: Set Brave as default browser
+          ansible.builtin.command: open -a "Brave Browser" --args --make-default-browser
+          changed_when: false
+          become: yes
+        - name: Set Brave as default browser
+          ansible.builtin.command: open -a "Brave Browser" --args --always-authorize-plugins
+          changed_when: false
+          become: yes
+
 
     - name: Setup VPN
       block:
