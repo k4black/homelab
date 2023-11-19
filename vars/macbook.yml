@@ -5,7 +5,7 @@ device_name: "k4pro-i7"
 homebrew_cask_appdir: /Applications
 homebrew_cask_apps:
   - google-drive
-  - google-chrome
+  - brave-browser
   - notion
   - slack
   - zoom
@@ -20,6 +20,8 @@ homebrew_cask_apps:
   - the-unarchiver
   - lulu
   - autodesk-fusion360
+  - MonitorControl  # TODO: add permissions to Accessibility and login item
+  - zotero
 homebrew_installed_packages:
   - git
   - git-lfs
@@ -37,7 +39,6 @@ dockitems_remove:
   - Launchpad
   - TV
   - Podcasts
-  - 'App Store'
 dockitems_persist:
   - name: "Terminal"
     path: "/System/Applications/Utilities/Terminal.app"
