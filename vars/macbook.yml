@@ -22,6 +22,7 @@ homebrew_cask_apps:
   - autodesk-fusion360
   - MonitorControl  # TODO: add permissions to Accessibility and login item
   - zotero
+  - steam
 homebrew_installed_packages:
   - git
   - git-lfs
