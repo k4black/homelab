@@ -65,6 +65,8 @@
           community.general.homebrew:
             name: MonitorControl
             state: present
+          if: 'MonitorControl' not in homebrew_cask_apps
+
 #        - name: Enable MonitorControl in System Preferences -> Privacy & Security -> Privacy -> Accessibility
 
     - name: Setup dock (position right, items size and magnification)
