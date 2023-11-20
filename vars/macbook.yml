@@ -7,6 +7,7 @@ homebrew_cask_apps:
   - google-drive
   - brave-browser
   - notion
+  - obsidian
   - slack
   - zoom
   - telegram
