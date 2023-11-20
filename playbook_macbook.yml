@@ -30,7 +30,6 @@
     - role: geerlingguy.mac.dock
       tags: ['dock']
 
-
 #  pre_tasks:
 #    - name: Create new admin user
 #      become: yes
@@ -65,11 +64,12 @@
           community.general.homebrew:
             name: MonitorControl
             state: present
-          if: 'MonitorControl' not in homebrew_cask_apps
+          when: not 'MonitorControl' in homebrew_cask_apps
 
 #        - name: Enable MonitorControl in System Preferences -> Privacy & Security -> Privacy -> Accessibility
 
-    - name: Setup dock (position right, items size and magnification)
+    - name: Setup dock
+      tags: ['dock']
       block:
         - name: Set dock position to right
           ansible.builtin.command: defaults write com.apple.dock orientation -string right
@@ -83,7 +83,6 @@
         - name: Restart dock
           ansible.builtin.command: killall Dock
           changed_when: false
-      tags: ['dock']
 
 
     - name: Set Brave as default browser
