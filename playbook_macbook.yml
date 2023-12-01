@@ -58,6 +58,47 @@
           changed_when: false
           become: yes
 
+    - name: Setup oh-my-zsh
+      when: oh_my_zsh_install
+      block:
+        - name: Install oh-my-zsh
+          ansible.builtin.shell: "sh -c \"$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)\""
+          args:
+              creates: "{{ ansible_env.HOME }}/.oh-my-zsh"
+          environment:
+            RUNZSH: 'no'
+          changed_when: false
+        - name: Remove "You have new mail." greeting
+          ansible.builtin.lineinfile:
+            path: "{{ ansible_env.HOME }}/.zshrc"
+            regexp: '^unset MAILCHECK'
+            line: 'unset MAILCHECK'
+        - name: Set Oh My Zsh theme
+          lineinfile:
+            path: "{{ ansible_env.HOME }}/.zshrc"
+            regexp: '^ZSH_THEME='
+            line: 'ZSH_THEME="{{ oh_my_zsh_theme }}"'
+        - name: Install zsh-syntax-highlighting if in the list
+          when: '"zsh-syntax-highlighting" in oh_my_zsh_plugins'
+          ansible.builtin.git:
+            repo: https://github.com/zsh-users/zsh-syntax-highlighting.git
+            dest: "{{ ansible_env.HOME }}/.oh-my-zsh/custom/plugins/zsh-syntax-highlighting"
+        - name: Install zsh-autosuggestions if in the list
+          when: '"zsh-autosuggestions" in oh_my_zsh_plugins'
+          ansible.builtin.git:
+            repo: https://github.com/zsh-users/zsh-autosuggestions
+            dest: "{{ ansible_env.HOME }}/.oh-my-zsh/custom/plugins/zsh-autosuggestions"
+        - name: Add plugins to Oh My Zsh
+          lineinfile:
+            path: "{{ ansible_env.HOME }}/.zshrc"
+            regexp: '^plugins='
+            line: 'plugins=({{ oh_my_zsh_plugins | join(" ") }})'
+        - name: Setup auto updates for Oh My Zsh
+          lineinfile:
+            path: "{{ ansible_env.HOME }}/.zshrc"
+            regexp: '^DISABLE_AUTO_UPDATE='
+            line: 'DISABLE_AUTO_UPDATE="{{ "true" if oh_my_zsh_update_mode == "disable" else "false" }}"'
+
     - name: Enable MonitorControl in System Preferences -> Privacy & Security -> Privacy -> Accessibility
       block:
         - name: Install MonitorControl
