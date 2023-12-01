@@ -2,15 +2,6 @@ username: "k4black"
 device_name: "k4pro-i7"
 
 
-oh_my_zsh_install: true
-oh_my_zsh_theme: apple  # default=robbyrussell
-oh_my_zsh_plugins:
-  - git
-  - zsh-autosuggestions
-  - zsh-syntax-highlighting
-oh_my_zsh_update_mode: disabled  # auto, reminder, disabled
-
-
 homebrew_cask_appdir: /Applications
 homebrew_cask_apps:
   - google-drive

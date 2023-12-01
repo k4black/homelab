@@ -17,18 +17,18 @@
 #      private: yes
 
 
-  roles:
-    - role: elliotweiser.osx-command-line-tools
-    - role: geerlingguy.mac.homebrew
-      tags: ['homebrew']
-#    - role: geerlingguy.dotfiles
-#      when: configure_dotfiles
-#      tags: ['dotfiles']
-    - role: geerlingguy.mac.mas
-      when: mas_installed_apps or mas_uninstalled_apps
-      tags: ['mas']
-    - role: geerlingguy.mac.dock
-      tags: ['dock']
+#  roles:
+#    - role: elliotweiser.osx-command-line-tools
+#    - role: geerlingguy.mac.homebrew
+#      tags: ['homebrew']
+##    - role: geerlingguy.dotfiles
+##      when: configure_dotfiles
+##      tags: ['dotfiles']
+#    - role: geerlingguy.mac.mas
+#      when: mas_installed_apps or mas_uninstalled_apps
+#      tags: ['mas']
+#    - role: geerlingguy.mac.dock
+#      tags: ['dock']
 
 #  pre_tasks:
 #    - name: Create new admin user
@@ -47,137 +47,117 @@
 #      include_vars: vars/all-test.yml
 #      when: environment == 'testing'
 
-    - name: Setup Hostname
+#    - name: Setup Hostname
+#      block:
+#        - name: Rename device (network name)
+#          ansible.builtin.command: scutil --set HostName {{ device_name }}
+#          changed_when: false
+#          become: yes
+#        - name: Rename computer name
+#          ansible.builtin.command: scutil --set ComputerName {{ device_name }}
+#          changed_when: false
+#          become: yes
+
+    # ensure zsh inslalled and templates/zshrc-config (pure file) is a part of .zshrc file
+    - name: Setup zsh
       block:
-        - name: Rename device (network name)
-          ansible.builtin.command: scutil --set HostName {{ device_name }}
+        - name: Check zsh is installed
+          ansible.builtin.command: which zsh
+          register: zsh_installed
           changed_when: false
-          become: yes
-        - name: Rename computer name
-          ansible.builtin.command: scutil --set ComputerName {{ device_name }}
+        - name: Install zsh
+          ansible.builtin.command: brew install zsh
+          when: not zsh_installed
+        - name: Check zsh is installed
+          ansible.builtin.command: which zsh
+          register: zsh_installed
           changed_when: false
-          become: yes
+        - name: Paste config block
+          ansible.builtin.blockinfile:
+            path: ~/.zshrc
+            marker: "# {mark} ANSIBLE MANAGED BLOCK: style config"
+            block: "{{ lookup('file', 'templates/zshrc-config') }}"
+          when: zsh_installed
 
-    - name: Setup oh-my-zsh
-      when: oh_my_zsh_install
-      block:
-        - name: Install oh-my-zsh
-          ansible.builtin.shell: "sh -c \"$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)\""
-          args:
-              creates: "{{ ansible_env.HOME }}/.oh-my-zsh"
-          environment:
-            RUNZSH: 'no'
-          changed_when: false
-        - name: Remove "You have new mail." greeting
-          ansible.builtin.lineinfile:
-            path: "{{ ansible_env.HOME }}/.zshrc"
-            regexp: '^unset MAILCHECK'
-            line: 'unset MAILCHECK'
-        - name: Set Oh My Zsh theme
-          lineinfile:
-            path: "{{ ansible_env.HOME }}/.zshrc"
-            regexp: '^ZSH_THEME='
-            line: 'ZSH_THEME="{{ oh_my_zsh_theme }}"'
-        - name: Install zsh-syntax-highlighting if in the list
-          when: '"zsh-syntax-highlighting" in oh_my_zsh_plugins'
-          ansible.builtin.git:
-            repo: https://github.com/zsh-users/zsh-syntax-highlighting.git
-            dest: "{{ ansible_env.HOME }}/.oh-my-zsh/custom/plugins/zsh-syntax-highlighting"
-        - name: Install zsh-autosuggestions if in the list
-          when: '"zsh-autosuggestions" in oh_my_zsh_plugins'
-          ansible.builtin.git:
-            repo: https://github.com/zsh-users/zsh-autosuggestions
-            dest: "{{ ansible_env.HOME }}/.oh-my-zsh/custom/plugins/zsh-autosuggestions"
-        - name: Add plugins to Oh My Zsh
-          lineinfile:
-            path: "{{ ansible_env.HOME }}/.zshrc"
-            regexp: '^plugins='
-            line: 'plugins=({{ oh_my_zsh_plugins | join(" ") }})'
-        - name: Setup auto updates for Oh My Zsh
-          lineinfile:
-            path: "{{ ansible_env.HOME }}/.zshrc"
-            regexp: '^DISABLE_AUTO_UPDATE='
-            line: 'DISABLE_AUTO_UPDATE="{{ "true" if oh_my_zsh_update_mode == "disable" else "false" }}"'
-
-    - name: Enable MonitorControl in System Preferences -> Privacy & Security -> Privacy -> Accessibility
-      block:
-        - name: Install MonitorControl
-          community.general.homebrew:
-            name: MonitorControl
-            state: present
-          when: not 'MonitorControl' in homebrew_cask_apps
-
-#        - name: Enable MonitorControl in System Preferences -> Privacy & Security -> Privacy -> Accessibility
-
-    - name: Setup dock
-      tags: ['dock']
-      block:
-        - name: Set dock position to right
-          ansible.builtin.command: defaults write com.apple.dock orientation -string right
-          changed_when: false
-        - name: Set dock item size
-          ansible.builtin.command: defaults write com.apple.dock tilesize -int 50
-          changed_when: false
-        - name: Set dock magnification size
-          ansible.builtin.command: defaults write com.apple.dock largesize -int 70
-          changed_when: false
-        - name: Restart dock
-          ansible.builtin.command: killall Dock
-          changed_when: false
-
-
-    - name: Set Brave as default browser
-      block:
-        - name: Set Brave as default browser
-          ansible.builtin.command: open -a "Brave Browser" --args --make-default-browser
-          changed_when: false
-          become: yes
-        - name: Set Brave as default browser
-          ansible.builtin.command: open -a "Brave Browser" --args --always-authorize-plugins
-          changed_when: false
-          become: yes
-
-
-    - name: Setup VPN
-      block:
-        - name: Install Wireguard and killswitch
-          community.general.homebrew:
-            name: "{{ item }}"
-            state: present
-          with_items:
-            - wireguard-tools
-            - killswitch
-        - name: Create wireguard configs directory
-          ansible.builtin.file:
-            path: "~/.config/wireguard"
-            state: directory
-            mode: 0755
-        - name: Copy the wineguard config file
-          ansible.builtin.template:
-            src: templates/macbook-client-wg0.conf.j2
-            dest: "~/.config/wireguard/macbook_wg0.conf"
-            mode: 0600
-#      - name: Set pf.conf permissions
-#        file:
-#          path: /etc/pf.conf
-#          mode: 0666
-#      - name: Enable killswitch
-#        command: killswitch -e -local -p
-#      - name: Copy the pf.conf file
-#        template:
-#          src: templates/macbook-pf.conf.j2
-#          dest: /etc/pf.conf
-#          mode: 0666
-#      - name: Enable pf
-#        command: pfctl -e
-
-
-    # Setup Accounts
-#    - block:
-#      - name: Open Account Settings
-#        command: open /System/Library/PreferencePanes/InternetAccounts.prefPane
-#        become: no
-#      - name: Notification to manually add Accounts
-#        command: osascript -e 'display dialog "Please add your Account manually by navigating to System Preferences > Internet Accounts.
-#   \nClick Ok once done." with title "Manual Action Required" buttons {"Ok"}'
-#        become: no
+#    - name: Enable MonitorControl in System Preferences -> Privacy & Security -> Privacy -> Accessibility
+#      block:
+#        - name: Install MonitorControl
+#          community.general.homebrew:
+#            name: MonitorControl
+#            state: present
+#          when: not 'MonitorControl' in homebrew_cask_apps
+#
+##        - name: Enable MonitorControl in System Preferences -> Privacy & Security -> Privacy -> Accessibility
+#
+#    - name: Setup dock
+#      tags: ['dock']
+#      block:
+#        - name: Set dock position to right
+#          ansible.builtin.command: defaults write com.apple.dock orientation -string right
+#          changed_when: false
+#        - name: Set dock item size
+#          ansible.builtin.command: defaults write com.apple.dock tilesize -int 50
+#          changed_when: false
+#        - name: Set dock magnification size
+#          ansible.builtin.command: defaults write com.apple.dock largesize -int 70
+#          changed_when: false
+#        - name: Restart dock
+#          ansible.builtin.command: killall Dock
+#          changed_when: false
+#
+#
+#    - name: Set Brave as default browser
+#      block:
+#        - name: Set Brave as default browser
+#          ansible.builtin.command: open -a "Brave Browser" --args --make-default-browser
+#          changed_when: false
+#          become: yes
+#        - name: Set Brave as default browser
+#          ansible.builtin.command: open -a "Brave Browser" --args --always-authorize-plugins
+#          changed_when: false
+#          become: yes
+#
+#
+#    - name: Setup VPN
+#      block:
+#        - name: Install Wireguard and killswitch
+#          community.general.homebrew:
+#            name: "{{ item }}"
+#            state: present
+#          with_items:
+#            - wireguard-tools
+#            - killswitch
+#        - name: Create wireguard configs directory
+#          ansible.builtin.file:
+#            path: "~/.config/wireguard"
+#            state: directory
+#            mode: 0755
+#        - name: Copy the wineguard config file
+#          ansible.builtin.template:
+#            src: templates/macbook-client-wg0.conf.j2
+#            dest: "~/.config/wireguard/macbook_wg0.conf"
+#            mode: 0600
+##      - name: Set pf.conf permissions
+##        file:
+##          path: /etc/pf.conf
+##          mode: 0666
+##      - name: Enable killswitch
+##        command: killswitch -e -local -p
+##      - name: Copy the pf.conf file
+##        template:
+##          src: templates/macbook-pf.conf.j2
+##          dest: /etc/pf.conf
+##          mode: 0666
+##      - name: Enable pf
+##        command: pfctl -e
+#
+#
+#    # Setup Accounts
+##    - block:
+##      - name: Open Account Settings
+##        command: open /System/Library/PreferencePanes/InternetAccounts.prefPane
+##        become: no
+##      - name: Notification to manually add Accounts
+##        command: osascript -e 'display dialog "Please add your Account manually by navigating to System Preferences > Internet Accounts.
+##   \nClick Ok once done." with title "Manual Action Required" buttons {"Ok"}'
+##        become: no
