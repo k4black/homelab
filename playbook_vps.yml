@@ -6,7 +6,7 @@
   tasks:
     - name: SSH Port Juggle
       ansible.builtin.import_tasks: tasks/sshd_port_juggling.yml
-      when: environment != 'testing'
+      when: testing != 'true'
 
 
 - name: Configure VPS personal server.
@@ -90,6 +90,7 @@
             create: yes
             mode: 0600
             owner: "{{ username }}"
+          when: testing != 'true'
 
     - name: Setup git
       block:

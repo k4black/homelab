@@ -42,7 +42,7 @@
     - name: Check user password valid
       ansible.builtin.command: dscl /Local/Default -authonly {{ ansible_user_id }} {{ user_account_password }}
       changed_when: false
-      when: environment != "testing"
+      when: testing != 'true'
 
     - name: Create admin user (we have admin privileges at the moment)
       when: not admin_user_exists.stdout
@@ -153,6 +153,7 @@
             create: yes
             mode: 0600
             owner: "{{ ansible_user_id }}"
+          when: testing != 'true'
         - name: Past style config block for admin account
           ansible.builtin.blockinfile:
             path: /Users/{{ admin_username }}/.zshrc
@@ -162,6 +163,7 @@
             mode: 0600
             owner: "{{ admin_username }}"
           become: yes
+          when: testing != 'true'
 
     - name: Setup MonitorControl
       when: not 'MonitorControl' in homebrew_cask_apps
