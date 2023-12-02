@@ -88,6 +88,7 @@
             marker: "# {mark} ANSIBLE MANAGED BLOCK: style config"
             block: "{{ lookup('file', 'files/.zshrc.style-config-block.zsh') }}"
             create: yes
+            mode: 0600
             owner: "{{ username }}"
 
     - name: Setup git
