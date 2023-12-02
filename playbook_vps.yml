@@ -9,7 +9,6 @@
       when: environment != 'testing'
 
 
-
 - name: Configure VPS personal server.
   hosts: vps
 
