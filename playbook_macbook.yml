@@ -23,13 +23,6 @@
         that: '"{{ ansible_user_id }}" != "{{ admin_username }}"'
         msg: "Current user {{ ansible_user_id }} has to be different from admin user"
 
-    - name: Check admin password valid
-      ansible.builtin.command: dscl /Local/Default -authonly {{ admin_username }} {{ admin_password }}
-      changed_when: false
-    - name: Check user password valid
-      ansible.builtin.command: dscl /Local/Default -authonly {{ ansible_user_id }} {{ user_account_password }}
-      changed_when: false
-
     - name: Check current user groups
       ansible.builtin.command: id -Gn {{ ansible_user_id }}
       register: user_groups
@@ -39,6 +32,16 @@
       ansible.builtin.command: id -u {{ admin_username }}
       register: admin_user_exists
       changed_when: false
+
+    - name: Check admin password valid
+      ansible.builtin.command: dscl /Local/Default -authonly {{ admin_username }} {{ admin_password }}
+      changed_when: false
+      when: admin_user_exists.stdout
+
+    - name: Check user password valid
+      ansible.builtin.command: dscl /Local/Default -authonly {{ ansible_user_id }} {{ user_account_password }}
+      changed_when: false
+      when: '{{ environment }} != "testing"'
 
     - name: Create admin user (we have admin privileges at the moment)
       when: not admin_user_exists.stdout
@@ -147,7 +150,6 @@
             marker: "# {mark} ANSIBLE MANAGED BLOCK: style config"
             block: "{{ lookup('file', 'files/.zshrc.style-config-block.zsh') }}"
             create: yes
-            mode: 0644
             owner: "{{ ansible_user_id }}"
         - name: Past style config block for admin account
           ansible.builtin.blockinfile:
@@ -155,7 +157,6 @@
             marker: "# {mark} ANSIBLE MANAGED BLOCK: style config"
             block: "{{ lookup('file', 'files/.zshrc.style-config-block.zsh') }}"
             create: yes
-            mode: 0644
             owner: "{{ admin_username }}"
           become: yes
 
