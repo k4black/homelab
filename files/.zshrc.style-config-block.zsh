@@ -38,20 +38,29 @@ function plugin-load {
 
 # define colors
 # https://www.ditig.com/256-colors-cheat-sheet
-COLOR_DEF=$'%f'
-COLOR_MAC=$'%F{32}'
-COLOR_UNX=$'%F{208}'
 function define_os_color {
     local os=$(uname)
     if [[ "$os" == "Darwin" ]]; then
-        echo "$COLOR_MAC"
+        echo "%F{32}"
     elif [[ "$os" == "Linux" ]]; then
-        echo "$COLOR_UNX"
+        echo "%F{208}"
     else
-        echo "$COLOR_DEF"
+        echo "%f"
     fi
 }
+function define_os_color_darker {
+    local os=$(uname)
+    if [[ "$os" == "Darwin" ]]; then
+        echo "%F{25}"
+    elif [[ "$os" == "Linux" ]]; then
+        echo "%F{202}"
+    else
+        echo "%f"
+    fi
+}
+COLOR_SEP=$(define_os_color_darker)
 COLOR_USR=$(define_os_color)
+COLOR_MSN=$(define_os_color)
 COLOR_DIR=$'%F{127}'
 COLOR_GIT=$'%F{8}'
 COLOR_PMT=$'%F{254}'
@@ -65,8 +74,7 @@ function parse_git_branch() {
 setopt PROMPT_SUBST
 
 # create prompt itself
-export PROMPT='${COLOR_USR}%n@%m ${COLOR_DIR}%~${COLOR_GIT}$(parse_git_branch)${COLOR_DEF} ${COLOR_PMT}%{%(#.#.$)%} '
-
+export PROMPT='${COLOR_USR}%n@${COLOR_MSN}%m:${COLOR_DIR}%~${COLOR_GIT}$(parse_git_branch)${COLOR_DEF} ${COLOR_PMT}%{%(#.#.$)%} '
 
 ### completions: list with highlighted item, not cased and additional completions
 zstyle ':completion:*' matcher-list 'm:{a-z}={A-Za-z}'
@@ -81,7 +89,7 @@ repos=(
 
   # plugins you want loaded last
   zsh-users/zsh-syntax-highlighting
-  # zsh-users/zsh-history-substring-search
+  zsh-users/zsh-history-substring-search
   zsh-users/zsh-autosuggestions
 )
 

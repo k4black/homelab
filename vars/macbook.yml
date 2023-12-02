@@ -1,5 +1,15 @@
-username: "k4black"
+username: "kblack"
 device_name: "k4pro-i7"
+admin_username: !vault |
+          $ANSIBLE_VAULT;1.1;AES256
+          64663964666431656238323535373566393231343366366637316136373966326530383161653530
+          6432383631363631613563363630363139643761316138350a623936303165303831613739643231
+          37653566336238366638616663356635353538626339306635373639323765366338316333316163
+          3330666666356463340a343536386136326233343337396662353262343862323435303831393364
+          3938
+
+
+default_browser: "brave-browser"
 
 
 homebrew_cask_appdir: /Applications
@@ -32,6 +42,7 @@ homebrew_installed_packages:
   - sqlite
   - ssh-copy-id
   - openssl
+  - lotyp/formulae/dockutil
 homebrew_taps:
   - homebrew/core
   - homebrew/cask
@@ -64,34 +75,37 @@ dockitems_persist:
   - name: "Calendar"
     path: "/Applications/Calendar.app"
     pos: 4
-  - name: "Notion"
-    path: "/Applications/Notion.app/"
-    pos: 5
   - name: "Notes"
     path: "/Applications/Notes.app"
+    pos: 5
+  - name: "Notion"
+    path: "/Applications/Notion.app/"
     pos: 6
-  - name: "Settings"
-    path: "/System/Applications/System Preferences.app"
+  - name: "Obsidian"
+    path: "/Applications/Obsidian.app/"
     pos: 7
+  - name: "System Settings"
+    path: "/System/Applications/System Settings.app"
+    pos: 8
   - name: "Brave Browser"
     path: "/Applications/Brave Browser.app"
-    pos: 8
+    pos: 9
   - name: "Telegram"
     path: "/Applications/Telegram.app"
-    pos: 9
+    pos: 10
   - name: "Slack"
     path: "/Applications/Slack.app"
-    pos: 10
+    pos: 11
   - name: "Terminal"
     path: "/System/Applications/Utilities/Terminal.app"
-    pos: 11
+    pos: 12
   - name: "Activity Monitor"
     path: "/System/Applications/Utilities/Activity Monitor.app"
-    pos: 12
+    pos: 13
   - name: "Sublime Text"
     path: "/Applications/Sublime Text.app/"
-    pos: 13
-dockutil_install: true
+    pos: 14
+dockutil_install: false
 
 
 mas_email: !vault |

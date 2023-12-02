@@ -3,27 +3,92 @@
   hosts: localhost
   connection: local
 
+
   vars_files:
     - vars/all.yml
     - vars/macbook.yml
 
+  vars_prompt:
+    - name: "admin_password"
+      prompt: "Enter the password for the admin user"
+      private: yes
+    - name: "user_account_password"
+      prompt: "Enter the password for the user account"
+      private: yes
 
-#  vars_prompt:
-#    - name: "username"
-#      prompt: "Enter the username for the new admin user"
-#      private: no
-#    - name: "password"
-#      prompt: "Enter the password for the new admin user"
-#      private: yes
+
+  pre_tasks:
+    - name: Assert current user is not admin_username
+      ansible.builtin.assert:
+        that: '"{{ ansible_user_id }}" != "{{ admin_username }}"'
+        msg: "Current user {{ ansible_user_id }} has to be different from admin user"
+
+    - name: Check admin password valid
+      ansible.builtin.command: dscl /Local/Default -authonly {{ admin_username }} {{ admin_password }}
+      changed_when: false
+    - name: Check user password valid
+      ansible.builtin.command: dscl /Local/Default -authonly {{ ansible_user_id }} {{ user_account_password }}
+      changed_when: false
+
+    - name: Check current user groups
+      ansible.builtin.command: id -Gn {{ ansible_user_id }}
+      register: user_groups
+      changed_when: false
+
+    - name: Check admin user exists
+      ansible.builtin.command: id -u {{ admin_username }}
+      register: admin_user_exists
+      changed_when: false
+
+    - name: Create admin user (we have admin privileges at the moment)
+      when: not admin_user_exists.stdout
+      block:
+        - name: Check current user can create admin user
+          ansible.builtin.assert:
+            that: '"admin" in user_groups.stdout'
+            msg: "Current user {{ ansible_user_id }} has to be in admin group to create admin user"
+        - name: Create new admin user
+          command: "sysadminctl -addUser {{ admin_username }} -fullName {{ admin_username }} -password {{ admin_password }} -admin"
+          become: yes
+          when: not lookup('community.general.osx_user', 'name={{ admin_username }}')
+
+    - name: Set current user is admin
+      when: 'not "admin" in user_groups.stdout'
+      ansible.builtin.command: dseditgroup -o edit -a {{ ansible_user_id }} -u {{ admin_username }} -P {{ admin_password }} -t user admin
+      become: yes
+      become_method: su
+      become_user: "{{ admin_username }}"
+      vars:
+        ansible_become_password: "{{ admin_password }}"
+      changed_when: false
+
+    - name: Check current user is admin
+      ansible.builtin.command: dseditgroup -o checkmember -m {{ ansible_user_id }} admin
+      changed_when: false
+
+
+  post_tasks:
+    - name: Remove admin rights on the current account
+      block:
+        - name: Remove admin rights
+          ansible.builtin.command: dseditgroup -o edit -d {{ ansible_user_id }} -u {{ admin_username }} -P {{ admin_password }} -t user admin
+          become: yes
+          become_method: su
+          become_user: "{{ admin_username }}"
+          vars:
+            ansible_become_password: "{{ admin_password }}"
+          changed_when: false
+        - name: Check current user is not admin
+          ansible.builtin.command: dseditgroup -o checkmember -m {{ ansible_user_id }} admin
+          register: result
+          changed_when: false
+          failed_when: result.rc == 0
 
 
   roles:
     - role: elliotweiser.osx-command-line-tools
     - role: geerlingguy.mac.homebrew
       tags: ['homebrew']
-#    - role: geerlingguy.dotfiles
-#      when: configure_dotfiles
-#      tags: ['dotfiles']
     - role: geerlingguy.mac.mas
       when: mas_installed_apps or mas_uninstalled_apps
       tags: ['mas']
@@ -43,10 +108,6 @@
 
 
   tasks:
-#    - name: Override the secret vars with non-secret for testing
-#      include_vars: vars/all-test.yml
-#      when: environment == 'testing'
-
     - name: Setup Hostname
       block:
         - name: Rename device (network name)
@@ -57,9 +118,23 @@
           ansible.builtin.command: scutil --set ComputerName {{ device_name }}
           changed_when: false
           become: yes
+      vars:
+        ansible_become_password: "{{ user_account_password }}"
 
-    # ensure zsh inslalled and templates/zshrc-config (pure file) is a part of .zshrc file
-    - name: Setup zsh
+    - name: Setup MacOS system settings
+      ansible.builtin.command: sh files/macbook-setup-system.sh
+      changed_when: false
+      become: yes
+      vars:
+        ansible_become_password: "{{ user_account_password }}"
+
+    - name: Setup .gitconfig
+      ansible.builtin.template:
+        src: files/.gitconfig.j2
+        dest: ~/.gitconfig
+        mode: 0600
+
+    - name: Setup zsh (install and write .zshrc config)xcom
       block:
         - name: Check zsh is installed
           ansible.builtin.command: which zsh
@@ -68,57 +143,47 @@
         - name: Install zsh
           ansible.builtin.command: brew install zsh
           when: not zsh_installed
-        - name: Check zsh is installed
-          ansible.builtin.command: which zsh
-          register: zsh_installed
-          changed_when: false
-        - name: Paste config block
+        - name: Paste style config block
           ansible.builtin.blockinfile:
             path: ~/.zshrc
             marker: "# {mark} ANSIBLE MANAGED BLOCK: style config"
-            block: "{{ lookup('file', 'templates/zshrc-config') }}"
-          when: zsh_installed
+            block: "{{ lookup('file', 'files/.zshrc.style-config-block.zsh') }}"
+            create: yes
+            mode: 0644
+            owner: "{{ ansible_user_id }}"
+        - name: Past style config block for admin account
+          ansible.builtin.blockinfile:
+            path: /Users/{{ admin_username }}/.zshrc
+            marker: "# {mark} ANSIBLE MANAGED BLOCK: style config"
+            block: "{{ lookup('file', 'files/.zshrc.style-config-block.zsh') }}"
+            create: yes
+            mode: 0644
+            owner: "{{ admin_username }}"
+          become: yes
 
-    - name: Enable MonitorControl in System Preferences -> Privacy & Security -> Privacy -> Accessibility
+    - name: Setup MonitorControl
+      when: not 'MonitorControl' in homebrew_cask_apps
       block:
         - name: Install MonitorControl
           community.general.homebrew:
             name: MonitorControl
             state: present
-          when: not 'MonitorControl' in homebrew_cask_apps
-
 #        - name: Enable MonitorControl in System Preferences -> Privacy & Security -> Privacy -> Accessibility
+#          ansible.builtin.command: osascript -e 'tell application "System Events" to tell process "System Preferences"
+#  to tell window "Security & Privacy" to tell scroll area "Privacy" to tell table 1 to tell row 1 to tell checkbox 1 to if value is 0 then click'
+#          become: yes
 
-    - name: Setup dock
-      tags: ['dock']
-      block:
-        - name: Set dock position to right
-          ansible.builtin.command: defaults write com.apple.dock orientation -string right
-          changed_when: false
-        - name: Set dock item size
-          ansible.builtin.command: defaults write com.apple.dock tilesize -int 50
-          changed_when: false
-        - name: Set dock magnification size
-          ansible.builtin.command: defaults write com.apple.dock largesize -int 70
-          changed_when: false
-        - name: Restart dock
-          ansible.builtin.command: killall Dock
-          changed_when: false
-
-
-    - name: Set Brave as default browser
+    - name: Set Default browser
       block:
         - name: Set Brave as default browser
           ansible.builtin.command: open -a "Brave Browser" --args --make-default-browser
           changed_when: false
-          become: yes
         - name: Set Brave as default browser
           ansible.builtin.command: open -a "Brave Browser" --args --always-authorize-plugins
           changed_when: false
-          become: yes
 
-
-    - name: Setup VPN
+    - name: Setup Wireguard VPN
+      when: '"wireguard-tools" in homebrew_installed_packages or "WireGuard" in mas_installed_apps'
       block:
         - name: Install Wireguard and killswitch
           community.general.homebrew:
@@ -134,7 +199,7 @@
             mode: 0755
         - name: Copy the wineguard config file
           ansible.builtin.template:
-            src: templates/macbook-client-wg0.conf.j2
+            src: files/macbook-client-wg0.conf.j2
             dest: "~/.config/wireguard/macbook_wg0.conf"
             mode: 0600
 #      - name: Set pf.conf permissions
@@ -145,12 +210,11 @@
 #        command: killswitch -e -local -p
 #      - name: Copy the pf.conf file
 #        template:
-#          src: templates/macbook-pf.conf.j2
+#          src: files/macbook-pf.conf.j2
 #          dest: /etc/pf.conf
 #          mode: 0666
 #      - name: Enable pf
 #        command: pfctl -e
-
 
     # Setup Accounts
 #    - block:
