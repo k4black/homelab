@@ -92,6 +92,15 @@
             mode: 0644
             owner: "{{ username }}"
 
+    - name: Setup git
+      block:
+        - name: Copy .gitconfig
+          ansible.builtin.template:
+            src: files/.gitconfig.j2
+            dest: ~/.gitconfig
+            mode: 0600
+            owner: "{{ username }}"
+
     - name: Setup cron to clean docker images
       ansible.builtin.cron:
         name: "Clean docker images"
