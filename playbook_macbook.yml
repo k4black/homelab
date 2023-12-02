@@ -137,7 +137,7 @@
           register: zsh_installed
           changed_when: false
         - name: Install zsh
-          ansible.community.general.homebrew:
+          community.general.homebrew:
             name: zsh
             state: present
           when: not zsh_installed
