@@ -108,16 +108,11 @@
 
 
   tasks:
-    - name: Setup Hostname
-      block:
-        - name: Rename device (network name)
-          ansible.builtin.command: scutil --set HostName {{ device_name }}
-          changed_when: false
-          become: yes
-        - name: Rename computer name
-          ansible.builtin.command: scutil --set ComputerName {{ device_name }}
-          changed_when: false
-          become: yes
+    - name: Setup hostname
+      ansible.builtin.hostname:
+        name: "{{ device_name }}"
+        use: "macos"
+      become: true
       vars:
         ansible_become_password: "{{ user_account_password }}"
 
@@ -141,7 +136,9 @@
           register: zsh_installed
           changed_when: false
         - name: Install zsh
-          ansible.builtin.command: brew install zsh
+          ansible.community.general.homebrew:
+            name: zsh
+            state: present
           when: not zsh_installed
         - name: Paste style config block
           ansible.builtin.blockinfile:

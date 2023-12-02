@@ -9,12 +9,14 @@
       when: environment != 'testing'
 
 
+
 - name: Configure VPS personal server.
   hosts: vps
 
   vars_files:
     - vars/all.yml
     - vars/vps.yml
+
 
   roles:
     - role: hifis.unattended_upgrades
@@ -35,28 +37,60 @@
 
 
   tasks:
-#    - name: Override the secret vars with non-secret for testing
-#      include_vars: vars/all-test.yml
-#      when: environment == 'testing'
+    - name: Setup hostname
+      block:
+        - name: Update hostname
+          ansible.builtin.hostname:
+            name: "{{ device_name }}"
+            use: "debian"
+          become: true
+        - name: Update /etc/hosts (add {{ device_name }})
+          ansible.builtin.lineinfile:
+            path: /etc/hosts
+            regexp: '^(.*\b127.0.1.1\b.*?)(\s+\b{{ device_name }}\b.*|$)'
+            line: "\\1 {{ device_name }}"
+            backrefs: yes
 
-    - name: Change hostname
-      ansible.builtin.hostname:
-        name: "{{ device_name }}"
-      become: true
+    - name: Update and install new packages
+      block:
+        - name: Update apt cache
+          ansible.builtin.apt:
+            update_cache: true
+            cache_valid_time: 3600
+            upgrade: safe
+            autoremove: true
+          become: true
+        - name: Install packages
+          ansible.builtin.apt:
+            name: "{{ packages_to_install }}"
+            state: present
+          become: true
 
-    - name: Update packages
-      ansible.builtin.apt:
-        update_cache: true
-        cache_valid_time: 3600
-        upgrade: safe
-        autoremove: true
-      become: true
-
-    - name: Install packages
-      ansible.builtin.apt:
-        name: "{{ apps_to_install }}"
-        state: present
-      become: true
+    - name: Setup zsh
+      when: '"zsh" in packages_to_install'
+      block:
+        - name: Check zsh is installed
+          ansible.builtin.command: which zsh
+          register: zsh_installed
+          changed_when: false
+        - name: Install zsh
+          ansible.builtin.apt:
+            name: zsh
+            state: present
+          when: not zsh_installed
+          become: true
+        - name: Set zsh as default shell
+          ansible.builtin.command: chsh -s /bin/zsh "{{ username }}"
+          become: true
+          changed_when: false
+        - name: Paste style config block
+          ansible.builtin.blockinfile:
+            path: ~/.zshrc
+            marker: "# {mark} ANSIBLE MANAGED BLOCK: style config"
+            block: "{{ lookup('file', 'files/.zshrc.style-config-block.zsh') }}"
+            create: yes
+            mode: 0644
+            owner: "{{ username }}"
 
     - name: Setup cron to clean docker images
       ansible.builtin.cron:
@@ -82,14 +116,14 @@
 
     - name: Copy the compose file
       ansible.builtin.template:
-        src: templates/vps-docker-compose.yml.j2
+        src: files/vps-docker-compose.yml.j2
         dest: "{{ infra_dir }}/docker-compose.yml"
         mode: 0755
       register: copy_docker_compose
 
     - name: Copy the wineguard config file
       ansible.builtin.template:
-        src: templates/vps-server-wg0.conf.j2
+        src: files/vps-server-wg0.conf.j2
         dest: "{{ infra_dir }}/server_wg0.conf"
         mode: 0600
       register: copy_wineguard_config

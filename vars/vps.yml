@@ -6,12 +6,14 @@ ssh_port: 4221
 infra_dir: /opt/infra
 
 
-apps_to_install:
+packages_to_install:
+  - zsh
   - cron
   - unzip
   - wget
   - curl
   - git
+  - git-lfs
   - htop
   - curl
   - build-essential
