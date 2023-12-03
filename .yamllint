@@ -12,7 +12,6 @@ rules:
     level: warning
 
   comments-indentation: disable
-  truthy: disable
   document-start: disable
 
 

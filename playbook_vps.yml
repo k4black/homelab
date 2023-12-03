@@ -1,7 +1,7 @@
 ---
 - name: Setup ssh port
   hosts: vps
-  gather_facts: no
+  gather_facts: false
 
   tasks:
     - name: SSH Port Juggle
@@ -53,7 +53,7 @@
             path: /etc/hosts
             regexp: '^(.*\b127.0.1.1\b.*?)(\s+\b{{ device_name }}\b.*|$)'
             line: "\\1 {{ device_name }}"
-            backrefs: yes
+            backrefs: true
 
     - name: Update and install new packages
       block:
@@ -100,7 +100,7 @@
         src: "{{ infra_dir }}"
         dest: "~/infra"
         state: link
-        force: yes
+        force: true
 
     - name: Copy the compose file
       ansible.builtin.template:

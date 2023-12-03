@@ -11,10 +11,10 @@
   vars_prompt:
     - name: "admin_password"
       prompt: "Enter the password for the admin user"
-      private: yes
+      private: true
     - name: "user_account_password"
       prompt: "Enter the password for the user account"
-      private: yes
+      private: true
 
 
   pre_tasks:
@@ -54,12 +54,12 @@
         - name: Create new admin user
           ansible.builtin.command: "sysadminctl -addUser {{ admin_username }} -fullName {{ admin_username }} -password {{ admin_password }} -admin"
           changed_when: false
-          become: yes
+          become: true
 
     - name: Set current user is admin
       when: 'not "admin" in user_groups.stdout'
       ansible.builtin.command: dseditgroup -o edit -a {{ ansible_user_id }} -u {{ admin_username }} -P {{ admin_password }} -t user admin
-      become: yes
+      become: true
       become_method: ansible.builtin.su
       become_user: "{{ admin_username }}"
       vars:
@@ -76,7 +76,7 @@
       block:
         - name: Remove admin rights
           ansible.builtin.command: dseditgroup -o edit -d {{ ansible_user_id }} -u {{ admin_username }} -P {{ admin_password }} -t user admin
-          become: yes
+          become: true
           become_method: ansible.builtin.su
           become_user: "{{ admin_username }}"
           vars:
@@ -108,11 +108,11 @@
         zsh_setup_set_default_shell: true
         zsh_setup_config_src: files/.zshrc.style-config-block.zsh
         zsh_setup_user: "{{ admin_username }}"
-      become: yes
+      become: true
 
 #  pre_tasks:
 #    - name: Create new admin user
-#      become: yes
+#      become: true
 #      user:
 #        name: "{{ username }}"
 #        password: "{{ password | password_hash('sha512') }}"
@@ -134,7 +134,7 @@
     - name: Setup MacOS system settings
       ansible.builtin.command: sh files/macbook-setup-system.sh
       changed_when: false
-      become: yes
+      become: true
       vars:
         ansible_become_password: "{{ user_account_password }}"
 
@@ -155,7 +155,7 @@
 #        - name: Enable MonitorControl in System Preferences -> Privacy & Security -> Privacy -> Accessibility
 #          ansible.builtin.command: osascript -e 'tell application "System Events" to tell process "System Preferences"
 #  to tell window "Security & Privacy" to tell scroll area "Privacy" to tell table 1 to tell row 1 to tell checkbox 1 to if value is 0 then click'
-#          become: yes
+#          become: true
 
     - name: Set Default browser
       block:

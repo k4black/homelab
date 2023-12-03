@@ -10,7 +10,6 @@ warn_list:
 
 skip_list:
   - yaml[document-start]
-  - yaml[truthy]
   - yaml[indentation]
 
 offline: false
