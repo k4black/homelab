@@ -110,17 +110,6 @@
         zsh_setup_user: "{{ admin_username }}"
       become: true
 
-#  pre_tasks:
-#    - name: Create new admin user
-#      become: true
-#      user:
-#        name: "{{ username }}"
-#        password: "{{ password | password_hash('sha512') }}"
-#        group: admin
-#        shell: /bin/bash
-#        create_home: yes
-#        state: present
-
 
   tasks:
     - name: Setup hostname
