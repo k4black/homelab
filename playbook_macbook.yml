@@ -98,6 +98,17 @@
       tags: ['mas']
     - role: geerlingguy.mac.dock
       tags: ['dock']
+    - role: k4black.zsh_setup
+      vars:
+        zsh_setup_set_default_shell: true
+        zsh_config_src: files/.zshrc.style-config-block.zsh
+        zsh_setup_user: "{{ ansible_user_id }}"
+    - role: k4black.zsh_setup
+      vars:
+        zsh_setup_set_default_shell: true
+        zsh_config_src: files/.zshrc.style-config-block.zsh
+        zsh_setup_user: "{{ admin_username }}"
+      become: yes
 
 #  pre_tasks:
 #    - name: Create new admin user
@@ -133,37 +144,6 @@
         dest: ~/.gitconfig
         mode: 0600
         owner: "{{ ansible_user_id }}"
-
-    - name: Setup zsh (install and write .zshrc config)xcom
-      block:
-        - name: Check zsh is installed
-          ansible.builtin.command: which zsh
-          register: zsh_installed
-          changed_when: false
-        - name: Install zsh
-          community.general.homebrew:
-            name: zsh
-            state: present
-          when: not zsh_installed
-        - name: Paste style config block
-          ansible.builtin.blockinfile:
-            path: ~/.zshrc
-            marker: "# {mark} ANSIBLE MANAGED BLOCK: style config"
-            block: "{{ lookup('file', 'files/.zshrc.style-config-block.zsh') }}"
-            create: yes
-            mode: 0600
-            owner: "{{ ansible_user_id }}"
-          when: testing != 'true'
-        - name: Past style config block for admin account
-          ansible.builtin.blockinfile:
-            path: /Users/{{ admin_username }}/.zshrc
-            marker: "# {mark} ANSIBLE MANAGED BLOCK: style config"
-            block: "{{ lookup('file', 'files/.zshrc.style-config-block.zsh') }}"
-            create: yes
-            mode: 0600
-            owner: "{{ admin_username }}"
-          become: yes
-          when: testing != 'true'
 
     - name: Setup MonitorControl
       when: not 'MonitorControl' in homebrew_cask_apps

@@ -61,22 +61,24 @@ fi
 ###############################################################################
 
 # Trackpad: Haptic feedback (light, silent clicking)
-defaults write com.apple.AppleMultitouchTrackpad FirstClickThreshold -int 0
-defaults write com.apple.AppleMultitouchTrackpad ActuationStrength -int 0
+#defaults write com.apple.AppleMultitouchTrackpad FirstClickThreshold -int 0
+#defaults write com.apple.AppleMultitouchTrackpad ActuationStrength -int 0
 
 # Trackpad: map bottom right corner to right-click (requires restart!)
-defaults write com.apple.driver.AppleBluetoothMultitouch.trackpad TrackpadRightClick -bool true
-defaults write com.apple.AppleMultitouchTrackpad TrackpadRightClick -bool true
-defaults write com.apple.AppleMultitouchTrackpad TrackpadCornerSecondaryClick -int 2
-defaults write NSGlobalDomain ContextMenuGesture -int 1
+#defaults write com.apple.driver.AppleBluetoothMultitouch.trackpad TrackpadRightClick -bool true
+#defaults write com.apple.AppleMultitouchTrackpad TrackpadRightClick -bool true
+#defaults write com.apple.AppleMultitouchTrackpad TrackpadCornerSecondaryClick -int 2
+#defaults write NSGlobalDomain ContextMenuGesture -int 1
 
 # Disable press-and-hold for keys in favor of key repeat
 defaults write NSGlobalDomain ApplePressAndHoldEnabled -bool false
 
 # Set a blazingly fast keyboard repeat rate, and make it happen more quickly.
 # (The KeyRepeat option requires logging out and back in to take effect.)
-defaults write NSGlobalDomain InitialKeyRepeat -int 20
-defaults write NSGlobalDomain KeyRepeat -int 1
+#defaults write NSGlobalDomain InitialKeyRepeat -int 20
+#defaults write NSGlobalDomain KeyRepeat -int 1
+defaults write NSGlobalDomain InitialKeyRepeat -int 30
+defaults write NSGlobalDomain KeyRepeat -int 5
 
 ###############################################################################
 # Screen                                                                      #

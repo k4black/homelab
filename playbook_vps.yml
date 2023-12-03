@@ -33,6 +33,11 @@
       become: true
     - role: geerlingguy.docker
       become: true
+    - role: k4black.zsh_setup
+      vars:
+        zsh_setup_set_default_shell: true
+        zsh_config_src: files/.zshrc.style-config-block.zsh
+        zsh_setup_user: {{ username }}
 
 
   tasks:
@@ -64,33 +69,6 @@
             name: "{{ packages_to_install }}"
             state: present
           become: true
-
-    - name: Setup zsh
-      when: '"zsh" in packages_to_install'
-      block:
-        - name: Check zsh is installed
-          ansible.builtin.command: which zsh
-          register: zsh_installed
-          changed_when: false
-        - name: Install zsh
-          ansible.builtin.apt:
-            name: zsh
-            state: present
-          when: not zsh_installed
-          become: true
-        - name: Set zsh as default shell
-          ansible.builtin.command: chsh -s /bin/zsh "{{ username }}"
-          become: true
-          changed_when: false
-        - name: Paste style config block
-          ansible.builtin.blockinfile:
-            path: ~/.zshrc
-            marker: "# {mark} ANSIBLE MANAGED BLOCK: style config"
-            block: "{{ lookup('file', 'files/.zshrc.style-config-block.zsh') }}"
-            create: yes
-            mode: 0600
-            owner: "{{ username }}"
-          when: testing != 'true'
 
     - name: Setup git
       block:

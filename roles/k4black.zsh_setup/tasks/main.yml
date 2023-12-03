@@ -1,0 +1,44 @@
+
+- name: Copy Zsh configuration block
+  ansible.builtin.blockinfile:
+    path: ~/.zshrc
+    marker: "# {mark} ANSIBLE MANAGED BLOCK"
+    block: "{{ lookup('file', '{{ zsh_setup_config_src }}') }}"
+    create: yes
+    mode: 0644
+    owner: "{{ zsh_setup_user }}"
+    group: "{{ zsh_setup_group }}"
+
+- name: Install Zsh
+  block:
+    - name: Check if Zsh is installed
+      ansible.builtin.stat:
+        path: /bin/zsh
+      register: zsh_installed
+    - name: Install Zsh (Debian/Ubuntu)
+      ansible.builtin.apt:
+        name: zsh
+        state: present
+      when: ansible_facts['os_family'] == "Debian" and not zsh_installed.stat.exists
+    - name: Install Zsh (RedHat/CentOS)
+      ansible.builtin.yum:
+        name: zsh
+        state: present
+      when: ansible_facts['os_family'] == "RedHat" and not zsh_installed.stat.exists
+    - name: Install Zsh (macOS)
+      community.general.homebrew:
+        name: zsh
+        state: present
+      when: ansible_facts['os_family'] == "Darwin" and not zsh_installed.stat.exists
+
+- name: Setup Zsh as login shell (not on Darwin platform)
+  when: zsh_setup_set_default_shell and ansible_facts['os_family'] != "Darwin"
+  block:
+    - name: Check if Zsh is the login shell
+      command: grep "{{ zsh_setup_user }}.*zsh$" /etc/passwd
+      register: zsh_login_shell
+      ignore_errors: yes
+      changed_when: false
+    - name: Set Zsh as the login shell
+      command: chsh -s /bin/zsh "{{ zsh_setup_user }}"
+      when: zsh_installed.stat.exists and not zsh_login_shell.stdout
