@@ -33,7 +33,7 @@
       become: true
     - role: geerlingguy.docker
       become: true
-    - role: k4black.zsh_setup
+    - role: zsh_setup
       vars:
         zsh_setup_set_default_shell: true
         zsh_setup_config_src: files/.zshrc.style-config-block.zsh

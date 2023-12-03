@@ -1,7 +1,10 @@
 exclude_paths:
   - .github/
   - .cache/  # implicit unless exclude_paths is defined in config
-  - roles/
+  - roles/geerlingguy.*
+  - roles/elliotweiser.*
+  - roles/chriswayg.*
+  - roles/hifis.*
 
 warn_list:
   - skip_this_tag

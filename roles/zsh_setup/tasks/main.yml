@@ -4,10 +4,9 @@
     path: ~/.zshrc
     marker: "# {mark} ANSIBLE MANAGED BLOCK"
     block: "{{ lookup('file', '{{ zsh_setup_config_src }}') }}"
-    create: yes
+    create: true
     mode: 0644
-    owner: "{{ zsh_setup_user }}"
-    group: "{{ zsh_setup_group }}"
+#    owner: "{{ zsh_setup_user }}"
 
 - name: Install Zsh
   block:
@@ -35,10 +34,11 @@
   when: zsh_setup_set_default_shell and ansible_facts['os_family'] != "Darwin"
   block:
     - name: Check if Zsh is the login shell
-      command: grep "{{ zsh_setup_user }}.*zsh$" /etc/passwd
+      ansible.builtin.command: grep "{{ zsh_setup_user }}.*zsh$" /etc/passwd
       register: zsh_login_shell
-      ignore_errors: yes
+      ignore_errors: true
       changed_when: false
     - name: Set Zsh as the login shell
-      command: chsh -s /bin/zsh "{{ zsh_setup_user }}"
-      when: zsh_installed.stat.exists and not zsh_login_shell.stdout
+      ansible.builtin.command: chsh -s /bin/zsh "{{ zsh_setup_user }}"
+      when: not zsh_login_shell.stdout
+      changed_when: false
