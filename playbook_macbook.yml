@@ -101,12 +101,12 @@
     - role: k4black.zsh_setup
       vars:
         zsh_setup_set_default_shell: true
-        zsh_config_src: files/.zshrc.style-config-block.zsh
+        zsh_setup_config_src: files/.zshrc.style-config-block.zsh
         zsh_setup_user: "{{ ansible_user_id }}"
     - role: k4black.zsh_setup
       vars:
         zsh_setup_set_default_shell: true
-        zsh_config_src: files/.zshrc.style-config-block.zsh
+        zsh_setup_config_src: files/.zshrc.style-config-block.zsh
         zsh_setup_user: "{{ admin_username }}"
       become: yes
 
