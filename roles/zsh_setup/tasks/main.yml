@@ -2,7 +2,7 @@
 - name: Copy Zsh configuration block
   ansible.builtin.blockinfile:
     path: ~/.zshrc
-    marker: "# {mark} ANSIBLE MANAGED BLOCK"
+    marker: "# {mark} ANSIBLE MANAGED BLOCK: style config"
     block: "{{ lookup('file', '{{ zsh_setup_config_src }}') }}"
     create: true
     mode: 0644

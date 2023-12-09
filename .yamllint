@@ -18,4 +18,4 @@ rules:
 ignore: |
   .github/*
   .venv/*
-  roles/*
+  roles/*.*
