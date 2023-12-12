@@ -1,0 +1,83 @@
+#!/bin/bash
+# This script is used to initialize the InfluxDB database and retention policies
+
+
+echo "INIT: Starting Custom InfluxDB initialization..."
+# InfluxDB credentials and parameters
+# auto passed to influx CLI as environment variables
+{#INFLUX_HOST="http://localhost:8086" 9999 why#}
+INFLUX_ORG="$DOCKER_INFLUXDB_INIT_ORG"
+INFLUX_TOKEN="$DOCKER_INFLUXDB_INIT_ADMIN_TOKEN"
+export INFLUX_ORG INFLUX_TOKEN
+
+
+# Create additional buckets using influx CLI
+create_bucket() {
+    BUCKET_NAME=$1
+    RETENTION_PERIOD=$2  # Retention period in hours, 0 for infinite
+
+    echo "Creating bucket: $BUCKET_NAME with retention period: $RETENTION_PERIOD"
+    influx bucket create --name "$BUCKET_NAME" --retention "$RETENTION_PERIOD"
+}
+
+echo "INIT: Creating buckets..."
+# create_bucket "homelab_raw" 24h   # 1 days   default
+create_bucket "homelab_7d" 168h   # 7 days
+create_bucket "homelab_30d" 720h  # 30 days
+create_bucket "homelab_1y" 8760h  # 1 year
+create_bucket "homelab_inf" 0    # Infinite
+echo "INIT: Buckets created."
+
+
+# Create additional retention policies using influx CLI
+create_task() {
+    SOURCE_BUCKET=$1
+    TARGET_BUCKET=$2
+    EXPORT_EVERY=$3  # e.g., 1m, 5m, 1h, 1d
+    AGGREGATE_WINDOW=$4
+    AGGREGATION_TYPE=$5 # e.g., mean, sum, count
+
+    FLUX_SCRIPT="
+import \"types\"
+import \"date\"
+
+option task = {
+  name: \"Downsample $SOURCE_BUCKET to $TARGET_BUCKET\",
+  every: $EXPORT_EVERY,
+  offset: 0s
+}
+
+// Calculate the rounded now time
+roundedNow = date.truncate(t: now(), unit: $EXPORT_EVERY)
+roundedStart = date.sub(from: roundedNow, d: duration(v: int(v: task.every) * 2))
+
+// Get the data from the source bucket
+data = from(bucket: \"$SOURCE_BUCKET\")
+  |> range(start: roundedStart)
+
+// numerical - $AGGREGATION_TYPE
+data
+  |> filter(fn: (r) => types.isType(v: r._value, type: \"float\") or types.isType(v: r._value, type: \"int\") or types.isType(v: r._value, type: \"uint\"))
+  |> aggregateWindow(every: $AGGREGATE_WINDOW, fn: $AGGREGATION_TYPE, createEmpty: false)
+  |> to(bucket: \"$TARGET_BUCKET\", org: \"$INFLUX_ORG\", timeColumn: \"_start\")
+
+// str or bool - last
+//data
+//  |> filter(fn: (r) => types.isType(v: r._value, type: \"string\") or types.isType(v: r._value, type: \"bool\"))
+//  |> aggregateWindow(every: $AGGREGATE_WINDOW, fn: last, createEmpty: false)
+//  |> to(bucket: \"$TARGET_BUCKET\", org: \"$INFLUX_ORG\", timeColumn: \"_start\")
+"
+
+    echo "Creating task: Downsample $SOURCE_BUCKET to $TARGET_BUCKET"
+    influx task create -- "$FLUX_SCRIPT"
+}
+
+echo "INIT: Creating retention policies..."
+create_task "homelab_raw" "homelab_7d" "5m" "1m" "mean"  # 1m mean for 7d
+create_task "homelab_7d" "homelab_30d" "5m" "5m" "mean"  # 5m mean for 30d
+create_task "homelab_30d" "homelab_1y" "1h" "1h" "mean"  # 1h mean for 1y
+create_task "homelab_1y" "homelab_inf" "6h" "1d" "mean"  # 1d mean for inf
+echo "INIT: Retention policies created."
+
+
+echo "INIT: InfluxDB initialization complete."

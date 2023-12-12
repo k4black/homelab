@@ -1,0 +1,228 @@
+# {{ ansible_managed }}
+
+version: '3.8'
+
+
+networks:
+  default:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: {{ homelab_docker_network_subnet }}
+          gateway: {{ homelab_docker_network_gateway }}
+
+volumes:
+  timemachine-var-lib-samba:
+  timemachine-var-cache-samba:
+  timemachine-run-samba:
+
+services:
+  ### Utils ###
+  duckdns:
+    image: linuxserver/duckdns:latest
+    container_name: duckdns
+    environment:
+      TZ: {{ timezone }}
+      SUBDOMAINS: {{ homelab_duckdns_subdomain }}
+      TOKEN: {{ duckdns_token }}
+      LOG_FILE: true
+    restart: unless-stopped
+
+  ### Reverse Proxy ###
+  traefik:
+    image: traefik:2.10
+    container_name: traefik
+    hostname: traefik.homelab.local
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - {{ services_dir }}/traefik-config.yml:/etc/traefik/traefik.yml:ro
+      - {{ services_dir }}/traefik-acme.json:/acme.json
+      - {{ services_dir }}/traefik-certs:/certs
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.traefik.rule=Host(`traefik.homelab.local`)"
+      - "traefik.http.routers.traefik.service=api@internal"
+      - "traefik.http.routers.traefik.entrypoints=web"
+      - "traefik.http.services.traefik.loadbalancer.server.port=8080"
+{#      - "traefik.http.routers.traefik.tls.certresolver=myresolver"#}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  ### Services ###
+  whoami:
+    image: traefik/whoami
+    container_name: whoami
+    ports:
+      - "5000:80"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.whoami.rule=Host(`whoami.homelab.local`)"
+      - "traefik.http.routers.whoami.entrypoints=web"
+      - "traefik.http.services.whoami.loadbalancer.server.port=80"
+{#      - "traefik.http.routers.whoami.tls.certresolver=myresolver"#}
+    restart: unless-stopped
+
+  ## DNS Service ##
+  # TODO: thing about unbound to resolve DNS and not send it to the google etc
+  pihole:
+    image: pihole/pihole:latest
+    container_name: pihole
+    environment:
+      PUID: 1000
+      PGID: 1000
+      TZ: {{ timezone }}
+      WEBPASSWORD: password  # for http://pi.hole/admin
+      PIHOLE_DNS_: "1.1.1.1;8.8.8.8"
+      WEBTHEME: default-dark
+      FTLCONF_LOCAL_IPV4: "{{ homelab_local_ipv4 }}"
+    ports:
+      - "53:53/tcp"
+      - "53:53/udp"
+      - "8053:80/tcp"  # custom port for web interface
+    volumes:
+      - {{ services_dir }}/pihole/:/etc/pihole/:rw
+      - {{ services_dir }}/pihole-dnsmasq.d:/etc/dnsmasq.d/:rw
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.pihole.rule=Host(`pihole.homelab.local`)"
+      - "traefik.http.routers.pihole.service=api@internal"
+      - "traefik.http.routers.pihole.entrypoints=web"
+      - "traefik.http.services.pihole.loadbalancer.server.port=80"
+{#      - "traefik.http.routers.pihole.tls.certresolver=myresolver"#}
+    healthcheck:
+      test: ["CMD", "dig", "+norecurse", "+retry=0", "@127.0.0.1", "pi.hole"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  heimdall:
+    image: linuxserver/heimdall:latest
+    container_name: heimdall
+    environment:
+      PUID: 1000
+      PGID: 1000
+      TZ: {{ timezone }}
+    ports:
+      - 81:80
+    volumes:
+      - {{ services_dir }}/heimdall-config:/config
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+{#  home-assistant:#}
+{#    image: ghcr.io/home-assistant/home-assistant:stable#}
+{#    container_name: home-assistant#}
+{#    environment:#}
+{#      TZ: {{ timezone }}#}
+{#      DISABLE_JEMALLOC: 1#}
+{#        # https://www.home-assistant.io/docs/installation/docker/#use-hassio-supervisor#}
+{#    volumes:#}
+{#      # - {{ services_dir }}/home-assistant-config.yml:/config/configuration.yaml#}
+{#      - {{ services_dir }}/home-assistant-config/:/config/#}
+{#      - /etc/localtime:/etc/localtime:ro#}
+{#      - /run/dbus:/run/dbus:ro#}
+{#    privileged: true#}
+{#    network_mode: host#}
+{#    ports:#}
+{#      - 8123:8123  # host mode, do just declarative#}
+{#    healthcheck:#}
+{#      test: ["CMD", "curl", "-f", "http://localhost:8123"]#}
+{#      interval: 30s#}
+{#      timeout: 10s#}
+{#      retries: 3#}
+{#    restart: unless-stopped#}
+
+  timemachine:
+    image: mbentley/timemachine:smb
+    container_name: timemachine
+    environment:
+      TZ: {{ timezone }}
+      TM_USERNAME: timemachine
+      TM_GROUPNAME: timemachine
+      PASSWORD: timemachine
+      TM_UID: 1000
+      TM_GID: 1000
+      SET_PERMISSIONS: "false"
+      VOLUME_SIZE_LIMIT: "100 G"
+    volumes:
+        - /home/pi/test-timemachine:/opt/timemachine  # TODO: change to mnt volume
+        - timemachine-var-lib-samba:/var/lib/samba
+        - timemachine-var-cache-samba:/var/cache/samba
+        - timemachine-run-samba:/run/samba
+    network_mode: host
+    restart: unless-stopped
+
+  ### Metrics ###
+  influxdb:
+    image: influxdb:2.7.0-alpine
+    container_name: influxdb
+    environment:
+      TZ: {{ timezone }}
+      DOCKER_INFLUXDB_INIT_MODE: setup
+      DOCKER_INFLUXDB_INIT_USERNAME: admin
+      DOCKER_INFLUXDB_INIT_PASSWORD: adminpassword
+      DOCKER_INFLUXDB_INIT_ORG: homelab
+      DOCKER_INFLUXDB_INIT_BUCKET: homelab_raw
+      DOCKER_INFLUXDB_INIT_RETENTION: 1d
+      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: admintoken
+      INFLUXDB_LOG_LEVEL: debug
+    ports:
+      - "8086:8086"
+    volumes:
+      - {{ services_dir }}/influxdb-data:/var/lib/influxdb2
+      - {{ services_dir }}/influxdb-config.yml:/etc/influxdb2/config.yml
+      - {{ services_dir }}/influxdb-init-script.sh:/docker-entrypoint-initdb.d/init-script.sh:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8086/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  telegraf:
+    image: telegraf:1.28.5-alpine
+    container_name: telegraf
+    # https://github.com/influxdata/telegraf/issues/10050#issuecomment-1607706376
+    entrypoint: /bin/sh -c "chmod 666 /var/run/docker.sock && /entrypoint.sh telegraf"
+    environment:
+      TZ: {{ timezone }}
+      DOCKER_INFLUXDB_INIT_ORG: homelab
+      DOCKER_INFLUXDB_INIT_BUCKET: homelab_raw
+      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: admintoken
+    ports:
+       - 8125:8125exit
+    volumes:
+      - {{ services_dir }}/telegraf.conf:/etc/telegraf/telegraf.conf:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /sys:/host/sys:ro
+      - /proc:/host/proc:ro
+      - /:/rootfs:ro
+    depends_on:
+      - influxdb
+    links:
+      - influxdb
+      - pihole
+{#      - home-assistant#}
+    # "992" is the group id of the docker daemon, run: $(stat -c '%g' /var/run/docker.sock)
+    # see: https://www.influxdata.com/blog/docker-run-telegraf-as-non-root/
+{#    user: "root:992"#}
+{#    privileged: true#}
+    healthcheck:
+      test: ["CMD", "telegraf", "--test"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped

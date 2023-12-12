@@ -8,6 +8,8 @@ roles:
   - name: geerlingguy.docker
   - name: geerlingguy.ntp
   - name: chriswayg.msmtp-mailer
+  - name: geerlingguy.raspberry-pi
+  - name: oefenweb.ufw
 
 collections:
   - name: geerlingguy.mac

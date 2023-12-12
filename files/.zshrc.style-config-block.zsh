@@ -89,7 +89,7 @@ repos=(
 
   # plugins you want loaded last
   zsh-users/zsh-syntax-highlighting
-  zsh-users/zsh-history-substring-search
+#  zsh-users/zsh-history-substring-search  # seems some visual bug
   zsh-users/zsh-autosuggestions
 )
 

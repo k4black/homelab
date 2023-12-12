@@ -1,6 +1,10 @@
-username: "root"
-device_name: "iceland"
+username: "pi"
+device_name: "homelab"
 ssh_port: 4221
+
+
+homelab_local_ipv4: 192.168.178.100
+homelab_local_ipv6: fe80::71f9:5ee0:214a:e931
 
 
 services_dir: /opt/service-configs
@@ -20,3 +24,5 @@ packages_install_list:
   - nano
   - python3
   - python3-pip
+  - wireguard
+  - resolvconf

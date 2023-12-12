@@ -6,7 +6,7 @@
   tasks:
     - name: SSH Port Juggle
       ansible.builtin.import_tasks: tasks/sshd_port_juggling.yml
-      when: testing != 'true'
+      when: testing is undefined or testing != 'true'
 
 
 - name: Configure VPS personal server.
@@ -18,30 +18,68 @@
 
 
   roles:
-    - role: hifis.unattended_upgrades
-      unattended_automatic_reboot_time: 04:00  # noqa: var-naming[no-role-prefix]
-      # apt-daily timer
-      unattended_apt_daily_oncalendar: "*-*-* 01:00"  # noqa: var-naming[no-role-prefix]
-      unattended_apt_daily_randomizeddelaysec: "60m"  # noqa: var-naming[no-role-prefix]
-      # apt-daily-upgrade timer
-      unattended_apt_daily_upgrade_oncalendar: "*-*-* 2:00"  # noqa: var-naming[no-role-prefix]
-      unattended_apt_daily_upgrade_randomizeddelaysec: "60m"  # noqa: var-naming[no-role-prefix]
-      become: true
-    - role: geerlingguy.security
-      security_ssh_port: "{{ ssh_port }}"
-      security_ssh_permit_root_login: "yes"
-      become: true
-    - role: geerlingguy.docker
-      become: true
-    - role: zsh_setup
+#    - role: packages_install
+#      become: true
+#    - role: hifis.unattended_upgrades
+#      unattended_automatic_reboot_time: 04:00  # noqa: var-naming[no-role-prefix]
+#      # apt-daily timer
+#      unattended_apt_daily_oncalendar: "*-*-* 01:00"  # noqa: var-naming[no-role-prefix]
+#      unattended_apt_daily_randomizeddelaysec: "60m"  # noqa: var-naming[no-role-prefix]
+#      # apt-daily-upgrade timer
+#      unattended_apt_daily_upgrade_oncalendar: "*-*-* 2:00"  # noqa: var-naming[no-role-prefix]
+#      unattended_apt_daily_upgrade_randomizeddelaysec: "60m"  # noqa: var-naming[no-role-prefix]
+#      become: true
+#    - role: geerlingguy.security
+#      security_ssh_port: "{{ ssh_port }}"
+#      security_ssh_permit_root_login: "yes"
+#      become: true
+#    - role: geerlingguy.docker
+#      become: true
+#    - role: zsh_setup
+#      vars:
+#        zsh_setup_set_default_shell: true
+#        zsh_setup_config_src: files/.zshrc.style-config-block.zsh
+#        zsh_setup_user: "{{ username }}"
+#      become: true
+    - role: oefenweb.ufw
       vars:
-        zsh_setup_set_default_shell: true
-        zsh_setup_config_src: files/.zshrc.style-config-block.zsh
-        zsh_setup_user: "{{ username }}"
-      become: true
+        ufw_default_incoming_policy: "deny"
+        ufw_default_outgoing_policy: "allow"
+        ufw_logging: "medium"
+        ufw_rules:
+          - {rule: "allow", to_port: "22", protocol: "tcp", comment: "default ssh"}
+          - {rule: "allow", to_port: "{{ ssh_port }}", protocol: "tcp", comment: "custom ssh"}
+          - {rule: "allow", to_port: 51820, protocol: "udp", comment: "wireguard"}
+          - {rule: "allow", to_port: 80, protocol: "tcp", comment: "http"}
+          - {rule: "allow", to_port: 443, protocol: "tcp", comment: "https"}
+          - {rule: "allow", to_port: 5000, protocol: "tcp", comment: "test whoami"}
 
 
   tasks:
+    # https://github.com/chaifeng/ufw-docker
+    - name: Setup docker to work with ufw, add
+      ansible.builtin.blockinfile:
+        path: /etc/ufw/after.rules
+        marker: "# {mark} ANSIBLE MANAGED BLOCK: docker ufw setup"
+        block: "{{ lookup('file', 'files/ufw-docker-after.rules') }}"
+        create: true
+        mode: 0640
+        owner: root
+        group: root
+      become: true
+    - name: Allow 80/443 for docker  # TODO: check can do with built-in ufw module
+      ansible.builtin.shell: |
+        ufw route allow proto tcp from any to any port 80
+        ufw route allow proto tcp from any to any port 443
+        ufw route allow proto tcp from any to any port 5000
+      become: true
+      changed_when: false
+    - name: Restart ufw
+      ansible.builtin.service:
+        name: ufw
+        state: restarted
+      become: true
+
     - name: Setup hostname
       block:
         - name: Update hostname
@@ -55,21 +93,16 @@
             regexp: '^(.*\b127.0.1.1\b.*?)(\s+\b{{ device_name }}\b.*|$)'
             line: "\\1 {{ device_name }}"
             backrefs: true
+          become: true
 
-    - name: Update and install new packages
-      block:
-        - name: Update apt cache
-          ansible.builtin.apt:
-            update_cache: true
-            cache_valid_time: 3600
-            upgrade: safe
-            autoremove: true
-          become: true
-        - name: Install packages
-          ansible.builtin.apt:
-            name: "{{ packages_to_install }}"
-            state: present
-          become: true
+    - name: Enable ip forwarding
+      ansible.posix.sysctl:
+        name: net.ipv4.ip_forward
+        value: 1
+        state: present
+        reload: true
+      become: true
+      changed_when: false
 
     - name: Setup git
       block:
@@ -77,9 +110,9 @@
           ansible.builtin.template:
             src: files/.gitconfig.j2
             dest: ~/.gitconfig
-            mode: 0600
+            mode: 0644
             owner: "{{ username }}"
-          when: testing != 'true'
+          when: testing is undefined or testing != 'true'
 
     - name: Setup cron to clean docker images
       ansible.builtin.cron:
@@ -93,48 +126,52 @@
 
     - name: Create base directory
       ansible.builtin.file:
-        path: "{{ infra_dir }}"
+        path: "{{ services_dir }}"
         state: directory
         mode: 0755
+      become: true
     - name: Make soft link to home
       ansible.builtin.file:
-        src: "{{ infra_dir }}"
-        dest: "~/infra"
+        src: "{{ services_dir }}"
+        dest: "~/service-configs"
         state: link
         force: true
 
-    - name: Copy the compose file
-      ansible.builtin.template:
-        src: files/vps-docker-compose.yml.j2
-        dest: "{{ infra_dir }}/docker-compose.yml"
-        mode: 0755
-      register: copy_docker_compose
-
     - name: Copy the wineguard config file
       ansible.builtin.template:
-        src: files/vps-server-wg0.conf.j2
-        dest: "{{ infra_dir }}/server_wg0.conf"
-        mode: 0600
-      register: copy_wineguard_config
+        src: files/vps/server-wg0.conf.j2
+        dest: "{{ services_dir }}/server-wg0.conf"
+        mode: 0644
+      notify: Restart all containers
+      become: true
 
+    - name: Copy the compose file
+      ansible.builtin.template:
+        src: files/vps/docker-compose.yml.j2
+        dest: "{{ services_dir }}/docker-compose.yml"
+        mode: 0755
+      register: copy_docker_compose
+      become: true
     - name: Validate docker compose file
       ansible.builtin.command:
         cmd: docker compose config
-        chdir: "{{ infra_dir }}"
+        chdir: "{{ services_dir }}"
       changed_when: false
-
-    - name: Start containers
+      become: true
+    - name: Start compose containers  # noqa: no-handler
       ansible.builtin.command:
-        cmd: docker compose up -d --pull always --build
-        chdir: "{{ infra_dir }}"
-      changed_when: false
+        cmd: docker compose up -d --remove-orphans --build --pull="always"
+        chdir: "{{ services_dir }}"
+      when: copy_docker_compose is changed
       tags: run_docker
+      retries: 2
+      become: true
 
   handlers:
-    - name: Restart wineguard container
+    # TODO: restart separate containers
+    - name: Restart all containers
       ansible.builtin.command:
         cmd: docker compose restart
-        chdir: "{{ infra_dir }}"
-      listen: copy_wineguard_config
-      changed_when: false
+        chdir: "{{ services_dir }}"
       tags: run_docker
+      become: true

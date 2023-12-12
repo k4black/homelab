@@ -1,0 +1,30 @@
+# {{ ansible_managed }}
+
+[Interface]
+# The IP address range for the VPN network
+# TODO: server ip or subnet?
+Address = {{ vps_vpn_network_server_ip }}/24
+# The port number on which the server will listen for connections
+ListenPort = 51820
+# The server's private key
+PrivateKey = {{ wg0_server_private_key }}
+# Optionally, you can configure PostUp and PostDown rules, e.g., for iptables
+#PostUp   = iptables -A FORWARD -i %i -j ACCEPT; iptables -A FORWARD -o %i -j ACCEPT; iptables -t nat -A POSTROUTING -o enp9s0 -j MASQUERADE
+#PostDown = iptables -D FORWARD -i %i -j ACCEPT; iptables -D FORWARD -o %i -j ACCEPT; iptables -t nat -D POSTROUTING -o enp9s0 -j MASQUERADE
+# PostUp = iptables -A FORWARD -i %i -j ACCEPT; iptables -A FORWARD -o %i -j ACCEPT; iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
+# PostDown = iptables -D FORWARD -i %i -j ACCEPT; iptables -D FORWARD -o %i -j ACCEPT; iptables -t nat -D POSTROUTING -o eth0 -j MASQUERADE
+PostUp = iptables -A FORWARD -i %i -j ACCEPT; iptables -A FORWARD -o %i -j ACCEPT; iptables -t nat -A POSTROUTING -s {{ vps_vpn_network_subnet }} -o eth0 -j MASQUERADE
+PostDown = iptables -D FORWARD -i %i -j ACCEPT; iptables -D FORWARD -o %i -j ACCEPT; iptables -t nat -D POSTROUTING -s {{ vps_vpn_network_subnet }} -o eth0 -j MASQUERADE
+
+# SaveConfig = true
+{#DNS = {{ vps_docker_network_prefix }}.3,1.1.1.1,8.8.8.8#}
+
+# Peer 1 - Macbook
+[Peer]
+PublicKey = {{ wg0_macbook_client_public_key }}
+AllowedIPs = {{ vps_vpn_network_macbook_client_ip }}/32
+
+# Peer 2 - Homelab
+[Peer]
+PublicKey = {{ wg0_homelab_client_public_key }}
+AllowedIPs = {{ vps_vpn_network_homelab_client_ip }}/32

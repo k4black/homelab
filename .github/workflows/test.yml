@@ -41,7 +41,6 @@ jobs:
 
   test-macbook-playbook:
     runs-on: macos-13
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -84,7 +83,6 @@ jobs:
 
   test-vps-playbook:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -110,6 +108,37 @@ jobs:
         run: |
           idempotence=$(mktemp)
           ansible-playbook playbook_vps.yml -i inventory-test.ini -e "testing=true" --skip-tags "run_docker" | tee -a ${idempotence}
+          tail ${idempotence} | grep -q 'changed=0.*failed=0' && (echo 'Idempotence test: pass' && exit 0) || (echo 'Idempotence test: fail' && exit 1)
+        env:
+          ANSIBLE_FORCE_COLOR: '1'
+
+  test-homelab-playbook:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install python and ansible requirements
+        run: |
+          python -m pip install -r requirements.txt
+          ansible-galaxy install -r requirements.yml
+
+      - name: Create .vault_pass.txt
+        run: |
+          echo "${{ secrets.VAULT_PASS }}" > .vault_pass.txt
+
+      - name: Test the playbook's syntax
+        run: ansible-playbook playbook_homelab.yml -i inventory-test.ini --syntax-check
+
+      - name: Test the playbook
+        run: ansible-playbook playbook_homelab.yml -i inventory-test.ini -e "testing=true" --skip-tags "run_docker"
+        env:
+          ANSIBLE_FORCE_COLOR: '1'
+
+      - name: Idempotence check
+        run: |
+          idempotence=$(mktemp)
+          ansible-playbook playbook_homelab.yml -i inventory-test.ini -e "testing=true" --skip-tags "run_docker" | tee -a ${idempotence}
           tail ${idempotence} | grep -q 'changed=0.*failed=0' && (echo 'Idempotence test: pass' && exit 0) || (echo 'Idempotence test: fail' && exit 1)
         env:
           ANSIBLE_FORCE_COLOR: '1'

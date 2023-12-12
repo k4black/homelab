@@ -1,4 +1,3 @@
-
 zsh_setup_set_default_shell: true
 zsh_setup_user: "{{ ansible_user_id }}"
 zsh_setup_config_src: ./templates/zshrc.block.zsh

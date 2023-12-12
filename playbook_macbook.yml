@@ -42,7 +42,7 @@
     - name: Check user password valid
       ansible.builtin.command: dscl /Local/Default -authonly {{ ansible_user_id }} {{ user_account_password }}
       changed_when: false
-      when: testing != 'true'
+      when: testing is undefined or testing != 'true'
 
     - name: Create admin user (we have admin privileges at the moment)
       when: not admin_user_exists.stdout
@@ -103,12 +103,6 @@
         zsh_setup_set_default_shell: true
         zsh_setup_config_src: files/.zshrc.style-config-block.zsh
         zsh_setup_user: "{{ ansible_user_id }}"
-    - role: zsh_setup
-      vars:
-        zsh_setup_set_default_shell: true
-        zsh_setup_config_src: files/.zshrc.style-config-block.zsh
-        zsh_setup_user: "{{ admin_username }}"
-      become: true
 
 
   tasks:
@@ -121,7 +115,7 @@
         ansible_become_password: "{{ user_account_password }}"
 
     - name: Setup MacOS system settings
-      ansible.builtin.command: sh files/macbook-setup-system.sh
+      ansible.builtin.command: sh files/macbook/setup-system.sh
       changed_when: false
       become: true
       vars:
@@ -172,7 +166,7 @@
             mode: 0755
         - name: Copy the wineguard config file
           ansible.builtin.template:
-            src: files/macbook-client-wg0.conf.j2
+            src: files/macbook/client-wg0.conf.j2
             dest: "~/.config/wireguard/macbook_wg0.conf"
             mode: 0600
 #      - name: Set pf.conf permissions
@@ -183,7 +177,7 @@
 #        command: killswitch -e -local -p
 #      - name: Copy the pf.conf file
 #        template:
-#          src: files/macbook-pf.conf.j2
+#          src: files/macbook/pf.conf.j2
 #          dest: /etc/pf.conf
 #          mode: 0666
 #      - name: Enable pf
