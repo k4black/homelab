@@ -31,7 +31,7 @@
         ufw_default_outgoing_policy: "allow"
         ufw_logging: "medium"
         ufw_rules: "{{ ufw_rules_converted }}"
-      become: true
+      when: testing is undefined or testing != 'true'
 
     # https://github.com/chaifeng/ufw-docker
     - name: Setup docker to work with ufw, add
