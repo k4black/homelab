@@ -9,6 +9,7 @@
     mode: 0644
     owner: "{{ zsh_setup_user }}"
     group: "{{ zsh_setup_user }}"
+  failed_when: ansible_facts['os_family'] != "Darwin"
   become: true
 
 - name: Install Zsh

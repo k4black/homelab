@@ -54,6 +54,11 @@
 #            sudo apt autoremove -y --purge
 #            sudo apt clean
 #          become: true
+    - name: List all ports used
+      ansible.builtin.command: netstat -tulpn
+      become: true
+      changed_when: false
+      when: testing is defined and testing == 'true'
 
   roles:
     - role: geerlingguy.raspberry-pi  # disable hdmi, set gpu_mem to 16 and 1200ma for usb

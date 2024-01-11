@@ -29,3 +29,4 @@ packages_install_list:
   - htop
   - nano
   - resolvconf
+  - net-tools
