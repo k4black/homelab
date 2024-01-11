@@ -53,6 +53,7 @@
       ansible.builtin.service:
         name: ufw
         state: restarted
+      changed_when: false
       become: true
 
 

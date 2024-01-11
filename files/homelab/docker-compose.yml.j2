@@ -203,7 +203,7 @@ services:
       DOCKER_INFLUXDB_INIT_BUCKET: homelab_raw
       DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: admintoken
     ports:
-       - 8125:8125exit
+       - 8125:8125
     volumes:
       - {{ containers_setup_configs_dir }}/telegraf.conf:/etc/telegraf/telegraf.conf:ro
       - /var/run/docker.sock:/var/run/docker.sock
