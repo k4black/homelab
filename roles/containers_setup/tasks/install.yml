@@ -26,12 +26,14 @@
       loop:
         - "{{ containers_setup_configs_dir }}"
         - "{{ containers_setup_data_dir }}"
+      become: true
     - name: Make soft link to home
       ansible.builtin.file:
         src: "{{ item }}"
         dest: "/home/{{ containers_setup_user }}/{{ item | basename }}"
         state: link
         force: true
+      become: true
       loop:
         - "{{ containers_setup_configs_dir }}"
         - "{{ containers_setup_data_dir }}"
