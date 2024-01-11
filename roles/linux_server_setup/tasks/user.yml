@@ -6,6 +6,7 @@
       ansible.builtin.group:
         name: "{{ item }}"
         state: present
+      become: true
       loop:
         - docker
 
@@ -43,6 +44,7 @@
     name: "{{ linux_server_setup_login_user }}"
     gid: "{{ linux_server_setup_login_user_gid }}"
     state: present
+  become: true
   when: testing is undefined or testing != 'true'
 
 - name: Create a login user
@@ -56,6 +58,7 @@
       - users
     state: present
     append: true
+  become: true
   when: testing is undefined or testing != 'true'
 
 - name: Chmod the user home directory
@@ -66,6 +69,7 @@
     owner: "{{ linux_server_setup_login_user }}"
     group: "{{ linux_server_setup_login_user }}"
     recurse: true
+  become: true
   when: testing is undefined or testing != 'true'
 
 - name: Copy the public SSH key
@@ -73,6 +77,7 @@
     user: "{{ linux_server_setup_login_user }}"
     state: present
     key: "{{ linux_server_setup_login_ssh_public_key }}"
+  become: true
   when: testing is undefined or testing != 'true'
 
 - name: Allow sudo group to have passwordless sudo
@@ -82,6 +87,7 @@
     regexp: '^%sudo'
     line: '%sudo ALL=(ALL) NOPASSWD: ALL'
     validate: '/usr/sbin/visudo -cf %s'
+  become: true
   when: testing is undefined or testing != 'true'
 
 - name: Disable cron e-mail notifications
@@ -90,3 +96,5 @@
     user: "{{ linux_server_setup_login_user }}"
     env: true
     job: ""
+  become: true
+  when: testing is undefined or testing != 'true'
