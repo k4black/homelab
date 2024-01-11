@@ -79,10 +79,10 @@
         containers_setup_configs_dir: "{{ services_configs_dir }}"
         containers_setup_data_dir: "{{ services_data_dir }}"
         containers_setup_docker_compose_template: "files/vps/docker-compose.yml.j2"
-#        containers_setup_make_dirs:
+        containers_setup_make_dirs: []
 #          - "{{ services_data_dir }}/influxdb-data"
 #          - "{{ services_configs_dir }}/influxdb-config"
         containers_setup_touch_files: []
         containers_setup_config_templates:
-          files/vps/server-wg0.conf.j2: "{{ services_configs_dir }}/server-wg0.conf"
+          files/vps/server-wg0.conf.j2: "server-wg0.conf"
 #          files/vps/telegraf.conf: "{{ services_configs_dir }}/telegraf.conf"

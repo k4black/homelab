@@ -142,14 +142,14 @@
         containers_setup_touch_files:
           - "{{ services_configs_dir }}/traefik-acme.json"
         containers_setup_config_templates:
-          files/homelab/home-assistant-config.yml.j2: "{{ services_configs_dir }}/home-assistant-config/configuration.yaml"
-          files/homelab/influxdb-config.toml.j2: "{{ services_configs_dir }}/influxdb-config/influxdb-config.toml"
-          files/homelab/influxdb-init-script.sh.j2: "{{ services_configs_dir }}/influxdb-init-script.sh"
-          files/homelab/pihole-02-custom-dns.conf.j2: "{{ services_configs_dir }}/pihole-dnsmasq.d/02-custom-dns.conf"
-          files/homelab/pihole-adlists.list: "{{ services_configs_dir }}/pihole/adlists.list"
-          files/homelab/pihole-custom.list.j2: "{{ services_configs_dir }}/pihole/custom.list"
-          files/homelab/telegraf.conf: "{{ services_configs_dir }}/telegraf.conf"
-          files/homelab/traefik-config.yml.j2: "{{ services_configs_dir }}/traefik-config.yml"
+          files/homelab/home-assistant-config.yml.j2: "home-assistant-config/configuration.yaml"
+          files/homelab/influxdb-config.toml.j2: "influxdb-config/influxdb-config.toml"
+          files/homelab/influxdb-init-script.sh.j2: "influxdb-init-script.sh"
+          files/homelab/pihole-02-custom-dns.conf.j2: "pihole-dnsmasq.d/02-custom-dns.conf"
+          files/homelab/pihole-adlists.list: "pihole/adlists.list"
+          files/homelab/pihole-custom.list.j2: "pihole/custom.list"
+          files/homelab/telegraf.conf: "telegraf.conf"
+          files/homelab/traefik-config.yml.j2: "traefik-config.yml"
 
     - name: Copy wireguard config
       ansible.builtin.template:
