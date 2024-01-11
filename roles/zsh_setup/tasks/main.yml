@@ -7,6 +7,9 @@
     block: "{{ lookup('file', '{{ zsh_setup_config_src }}') }}"
     create: true
     mode: 0644
+    owner: "{{ zsh_setup_user }}"
+    group: "{{ zsh_setup_user }}"
+  become: true
 
 - name: Install Zsh
   block:
