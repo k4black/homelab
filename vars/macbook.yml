@@ -52,9 +52,8 @@ homebrew_installed_packages:
   # ssh
   - ssh-copy-id
   - openssl
-homebrew_taps:
-  - homebrew/core
-  - homebrew/cask
+# "failed to tap: homebrew/core due to [31mError:[0m Tapping homebrew/core is no longer typically necessary."
+homebrew_taps: []
 
 # error when installed this way, include in homebrew_installed_packages
 dockutil_install: false
