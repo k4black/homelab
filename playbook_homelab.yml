@@ -7,6 +7,9 @@
     - name: SSH Port Juggle
       ansible.builtin.import_tasks: tasks/sshd_port_juggling.yml
       when: testing is undefined or testing != 'true'
+    - name: SSH User Juggle
+      ansible.builtin.import_tasks: tasks/sshd_login_user_juggling.yml
+      when: testing is undefined or testing != 'true'
 
 
 - name: Configure HomeLab personal server.
@@ -48,255 +51,101 @@
 #            sudo apt clean
 #          become: true
 
-#  roles:
-#    - role: packages_install
-#      become: true
-#    - role: hifis.unattended_upgrades
-#      unattended_automatic_reboot_time: 04:00  # noqa: var-naming[no-role-prefix]
-#      # apt-daily timer
-#      unattended_apt_daily_oncalendar: "*-*-* 01:00"  # noqa: var-naming[no-role-prefix]
-#      unattended_apt_daily_randomizeddelaysec: "60m"  # noqa: var-naming[no-role-prefix]
-#      # apt-daily-upgrade timer
-#      unattended_apt_daily_upgrade_oncalendar: "*-*-* 2:00"  # noqa: var-naming[no-role-prefix]
-#      unattended_apt_daily_upgrade_randomizeddelaysec: "60m"  # noqa: var-naming[no-role-prefix]
-#      become: true
-#    - role: geerlingguy.security
-#      security_ssh_port: "{{ ssh_port }}"
-#      security_ssh_permit_root_login: "yes"
-#      become: true
-#    - role: geerlingguy.docker
-#      become: true
-#    - role: geerlingguy.raspberry-pi  # disable hdmi, set gpu_mem to 16 and 1200ma for usb
-#      become: true
-#    - role: zsh_setup
-#      vars:
-#        zsh_setup_set_default_shell: true
-#        zsh_setup_config_src: files/.zshrc.style-config-block.zsh
-#        zsh_setup_user: "{{ username }}"
-#      become: true
+  roles:
+    - role: geerlingguy.raspberry-pi  # disable hdmi, set gpu_mem to 16 and 1200ma for usb
+      become: true
+
+    - role: packages_install
+      vars:
+        packages_install_list: "{{ packages_install_list }}"
+      become: true
+
+    - role: linux_server_setup
+      vars:
+        linux_server_setup_hostname: "{{ device_name }}"
+        linux_server_setup_login_user: "{{ username }}"
+        linux_server_setup_login_password: "{{ password }}"
+        linux_server_setup_login_user_uid: 1000
+        linux_server_setup_login_user_gid: 1000
+        linux_server_setup_login_ssh_public_key: "{{ ssh_public_key }}"
+        linux_server_setup_open_ports:
+          - {port: 22, protocol: "tcp", comment: "default ssh"}
+          - {port: "{{ ssh_port }}", protocol: "tcp", comment: "custom ssh"}
+          - {port: 51820, protocol: "udp", comment: "wireguard"}
+          - {port: 80, protocol: "tcp", comment: "http"}
+          - {port: 443, protocol: "tcp", comment: "https"}
+
+    - role: hifis.unattended_upgrades
+      vars:
+        unattended_automatic_reboot_time: 04:00  # noqa: var-naming[no-role-prefix]
+        # apt-daily timer
+        unattended_apt_daily_oncalendar: "*-*-* 01:00"  # noqa: var-naming[no-role-prefix]
+        unattended_apt_daily_randomizeddelaysec: "60m"  # noqa: var-naming[no-role-prefix]
+        # apt-daily-upgrade timer
+        unattended_apt_daily_upgrade_oncalendar: "*-*-* 2:00"  # noqa: var-naming[no-role-prefix]
+        unattended_apt_daily_upgrade_randomizeddelaysec: "60m"  # noqa: var-naming[no-role-prefix]
+      become: true
+
+    - role: geerlingguy.security
+      security_ssh_port: "{{ ssh_port }}"
+      security_ssh_permit_root_login: "no"
+      become: true
+
+    - role: geerlingguy.docker
+      become: true
+
+    - role: zsh_setup
+      vars:
+        zsh_setup_set_default_shell: true
+        zsh_setup_config_src: files/.zshrc.style-config-block.zsh
+        zsh_setup_user: "{{ username }}"
+      become: true
 
 
   tasks:
-    - name: Setup hostname
+    # https://www.jeffgeerling.com/blog/2023/reducing-raspberry-pi-5s-power-consumption-140x
+    - name: Lower power consumptions for pi5
       block:
-        - name: Update hostname
-          ansible.builtin.hostname:
-            name: "{{ device_name }}"
-            use: "debian"
-          become: true
-        - name: Update /etc/hosts (add {{ device_name }})
-          ansible.builtin.lineinfile:
-            path: /etc/hosts
-            regexp: '^(.*\b127.0.1.1\b.*?)(\s+\b{{ device_name }}\b.*|$)'
-            line: "\\1 {{ device_name }}"
-            backrefs: true
-          become: true
-
-    - name: Enable ip forwarding
-      ansible.posix.sysctl:
-        name: net.ipv4.ip_forward
-        value: 1
-        state: present
-        reload: true
-      become: true
-      changed_when: false
-
-    - name: Setup git
-      block:
-        - name: Copy .gitconfig
+        - name: Create temp boot.conf file
           ansible.builtin.template:
-            src: files/.gitconfig.j2
-            dest: ~/.gitconfig
-            mode: 0600
-            owner: "{{ username }}"
-          when: testing is undefined or testing != 'true'
+            src: files/homelab/boot.conf.j2
+            dest: /tmp/boot.conf
+            mode: 0755
+            owner: root
+            group: root
+          become: true
+        - name: Apply with rpi-eeprom-config
+          ansible.builtin.command: rpi-eeprom-config --apply /tmp/boot.conf
+          changed_when: false
+          become: true
 
-    - name: Setup cron to clean docker images
-      ansible.builtin.cron:
-        name: "Clean docker images"
-        minute: "0"
-        hour: "0"
-        job: "docker system prune -a -f"
-        cron_file: "clean_docker_images"
-        user: "{{ username }}"
-      become: true
-
-    - name: Create base directory
-      ansible.builtin.file:
-        path: "{{ services_dir }}"
-        state: directory
-        mode: 0755
-      become: true
-    - name: Make soft link to home
-      ansible.builtin.file:
-        src: "{{ services_dir }}"
-        dest: "~/service-configs"
-        state: link
-        force: true
-
-    - name: Setup telegraf config
-      ansible.builtin.copy:
-        src: files/homelab/telegraf.conf
-        dest: "{{ services_dir }}/telegraf.conf"
-        mode: 0644
-        owner: root
-        group: root
-      notify: Restart all containers
-      become: true
-
-    - name: Setup influxdb data folder
-      ansible.builtin.file:
-        path: "{{ services_dir }}/influxdb-data"
-        state: directory
-        mode: 0755
-        owner: root
-        group: root
-      become: true
-    - name: Setup influxdb config folder
-      ansible.builtin.file:
-        path: "{{ services_dir }}/influxdb-config"
-        state: directory
-        mode: 0755
-        owner: root
-        group: root
-      become: true
-    - name: Copy the influxdb config file
-      ansible.builtin.template:
-        src: files/homelab/influxdb-config.toml.j2
-        dest: "{{ services_dir }}/influxdb-config/influxdb-config.toml"
-        mode: 0644
-        owner: root
-        group: root
-      notify: Restart all containers
-      become: true
-    - name: Create influxdb-init-script.sh
-      ansible.builtin.template:
-        src: files/homelab/influxdb-init-script.sh.j2
-        dest: "{{ services_dir }}/influxdb-init-script.sh"
-        mode: 0755
-        owner: root
-        group: root
-      notify: Restart all containers
-      become: true
-
-    - name: Create home-assistant-config dir
-      ansible.builtin.file:
-        path: "{{ services_dir }}/home-assistant-config"
-        state: directory
-        mode: 0755
-        owner: root
-        group: root
-      become: true
-#    - name: Copy the home-assistant config file
-#      ansible.builtin.template:
-#        src: files/homelab/home-assistant-config.yml.j2
-#        dest: "{{ services_dir }}/home-assistant-config.yml"
-#        mode: 0644
-#        owner: root
-#        group: root
-#      register: copy_home_assistant_config
-#      notify: Restart all containers
-#      become: true
-
-    - name: Create heimdall-config dir
-      ansible.builtin.file:
-        path: "{{ services_dir }}/heimdall-config"
-        state: directory
-        mode: 0755
-        owner: root
-        group: root
-      become: true
-#    - name: Copy heimdall config file
-#      ansible.builtin.template:
-#        src: files/homelab/heimdall-config.yml.j2
-#        dest: "{{ services_dir }}/heimdall-config/config.yml"
-#        mode: 0644
-#        owner: root
-#        group: root
-#      notify: Restart all containers
-#      become: true
-
-    - name: Create pihole dir
-      ansible.builtin.file:
-        path: "{{ services_dir }}/pihole"
-        state: directory
-        mode: 0755
-        owner: root
-        group: root
-      become: true
-    - name: Copy custom.list file
-      ansible.builtin.template:
-        src: files/homelab/pihole-custom.list.j2
-        dest: "{{ services_dir }}/pihole/custom.list"
-        mode: 0644
-        owner: root
-        group: root
-      notify: Restart all containers
-      become: true
-    - name: Copy adlists.list file
-      ansible.builtin.copy:
-        src: files/homelab/pihole-adlists.list
-        dest: "{{ services_dir }}/pihole/adlists.list"
-        mode: 0644
-        owner: root
-        group: root
-      become: true
-    - name: Create pihole-dnsmasq.d
-      ansible.builtin.file:
-        path: "{{ services_dir }}/pihole-dnsmasq.d"
-        state: directory
-        mode: 0755
-        owner: root
-        group: root
-      become: true
-    - name: Copy the pihole config file
-      ansible.builtin.template:
-        src: files/homelab/pihole-02-custom-dns.conf.j2
-        dest: "{{ services_dir }}/pihole-dnsmasq.d/02-custom-dns.conf"
-        mode: 0644
-        owner: root
-        group: root
-      notify: Restart all containers
-      become: true
-
-    - name: Copy the traefik config file
-      ansible.builtin.template:
-        src: files/homelab/traefik-config.yml.j2
-        dest: "{{ services_dir }}/traefik-config.yml"
-        mode: 0600
-        owner: root
-        group: root
-      notify: Restart all containers
-      become: true
-    - name: Create acme.json and traefik_certs directory
-      ansible.builtin.shell: |
-        touch "{{ services_dir }}/traefik-acme.json"
-        chmod 0644 "{{ services_dir }}/traefik-acme.json"
-        mkdir -p "{{ services_dir }}/traefik-certs"
-      become: true
-      changed_when: false
-
-    - name: Copy the compose file
-      ansible.builtin.template:
-        src: files/homelab/docker-compose.yml.j2
-        dest: "{{ services_dir }}/docker-compose.yml"
-        mode: 0755
-      register: copy_docker_compose
-      become: true
-    - name: Validate docker compose file
-      ansible.builtin.command:
-        cmd: docker compose config
-        chdir: "{{ services_dir }}"
-      changed_when: false
-      become: true
-    - name: Start compose containers  # noqa: no-handler
-      ansible.builtin.command:
-        cmd: docker compose up -d --remove-orphans --build --pull="always"
-        chdir: "{{ services_dir }}"
-      when: copy_docker_compose is changed
-      tags: run_docker
-      retries: 2
-      become: true
+    - name: Copy docker configs and run containers
+      ansible.builtin.include_role:
+        name: containers_setup
+      vars:
+        containers_setup_user: "{{ username }}"
+        containers_setup_configs_dir: "{{ services_configs_dir }}"
+        containers_setup_data_dir: "{{ services_data_dir }}"
+        containers_setup_docker_compose_template: "files/homelab/docker-compose.yml.j2"
+        containers_setup_make_dirs:
+          - "{{ services_configs_dir }}/traefik-certs"
+          - "{{ services_data_dir }}/influxdb-data"
+          - "{{ services_configs_dir }}/influxdb-config"
+          - "{{ services_configs_dir }}/home-assistant-config"
+          - "{{ services_configs_dir }}/heimdall-config"
+          - "{{ services_configs_dir }}/pihole"
+          - "{{ services_configs_dir }}/pihole-dnsmasq.d"
+        containers_setup_touch_files:
+          - "{{ services_configs_dir }}/traefik-acme.json"
+        containers_setup_config_templates:
+          files/homelab/home-assistant-config.yml.j2: "{{ services_configs_dir }}/home-assistant-config/configuration.yaml"
+          files/homelab/influxdb-config.toml.j2: "{{ services_configs_dir }}/influxdb-config/influxdb-config.toml"
+          files/homelab/influxdb-init-script.sh.j2: "{{ services_configs_dir }}/influxdb-init-script.sh"
+          files/homelab/pihole-02-custom-dns.conf.j2: "{{ services_configs_dir }}/pihole-dnsmasq.d/02-custom-dns.conf"
+          files/homelab/pihole-adlists.list: "{{ services_configs_dir }}/pihole/adlists.list"
+          files/homelab/pihole-custom.list.j2: "{{ services_configs_dir }}/pihole/custom.list"
+          files/homelab/telegraf.conf: "{{ services_configs_dir }}/telegraf.conf"
+          files/homelab/traefik-config.yml.j2: "{{ services_configs_dir }}/traefik-config.yml"
 
     - name: Copy wireguard config
       ansible.builtin.template:
@@ -308,7 +157,7 @@
     - name: Make simlink to this file
       ansible.builtin.file:
         src: "/etc/wireguard/wg0.conf"
-        dest: "{{ services_dir }}/client-wg0.conf"
+        dest: "{{ services_configs_dir }}/client-wg0.conf"
         state: link
         force: true
       become: true
@@ -321,7 +170,7 @@
         echo "123"
         sudo systemctl enable wg-quick@wg0
         sudo systemctl start wg-quick@wg0
-#        sudo systemctl stop wg-quick@wg0  # TODO: remove this line when wireguard config will be ready
+        sudo systemctl stop wg-quick@wg0  # TODO: remove this line when wireguard config will be ready
       become: true
       changed_when: false
 
@@ -333,14 +182,6 @@
         state: restarted
       become: true
       changed_when: false
-
-    # TODO: restart separate containers
-    - name: Restart all containers
-      ansible.builtin.command:
-        cmd: docker compose restart
-        chdir: "{{ services_dir }}"
-      tags: run_docker
-      become: true
 
     - name: Restart avahi service
       ansible.builtin.service:

@@ -1,6 +1,7 @@
 ---
 
 - name: Update package cache
+  when: packages_install_update_cache
   block:
     - name: Update apt cache (Ubuntu/Debian)
       ansible.builtin.apt:
@@ -36,6 +37,6 @@
 
     - name: Install packages (macOS)
       community.general.homebrew:
-          name: "{{ packages_install_list }}"
-          state: present
+        name: "{{ packages_install_list }}"
+        state: present
       when: ansible_os_family == 'Darwin'

@@ -1,0 +1,44 @@
+---
+
+- name: Install python docker modules for remote docker management
+  block:
+    - name: Install Python and python3-pip
+      ansible.builtin.package:
+        name:
+          - python3
+          - python3-pip
+        state: present
+    - name: Install docker module for Python
+      ansible.builtin.pip:
+        name:
+          - docker
+          - docker-compose
+
+- name: Ensure config and data folders exists
+  loop:
+    - "{{ containers_setup_configs_dir }}"
+    - "{{ containers_setup_data_dir }}"
+  block:
+    - name: Create directory
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        mode: 0755
+        owner: "{{ containers_setup_user }}"
+        group: "{{ containers_setup_user }}"
+    - name: Make soft link to home
+      ansible.builtin.file:
+        src: "{{ item }}"
+        dest: "/home/{{ containers_setup_user }}/{{ item | basename }}"
+        state: link
+        force: true
+
+- name: Setup cron to clean docker images
+  ansible.builtin.cron:
+    name: "Clean docker images"
+    minute: "0"
+    hour: "2"
+    job: "sudo docker system prune -a -f --filter \"until=24h\""
+    cron_file: "clean_docker_images"
+    user: "root"
+  become: true

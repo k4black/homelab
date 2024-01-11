@@ -1,0 +1,65 @@
+---
+
+- name: Setup hostname
+  block:
+    - name: Update hostname
+      ansible.builtin.hostname:
+        name: "{{ linux_server_setup_hostname }}"
+        use: "debian"
+      become: true
+    - name: Update /etc/hosts with {{ linux_server_setup_hostname }}
+      ansible.builtin.lineinfile:
+        path: /etc/hosts
+        regexp: '^(.*\b127.0.1.1\b.*?)(\s+\b{{ linux_server_setup_hostname }}\b.*|$)'
+        line: "\\1 {{ linux_server_setup_hostname }}"
+        backrefs: true
+      become: true
+
+
+- name: Setup ufw
+  when: linux_server_setup_open_ports
+  block:
+    - name: Convert linux_server_setup_open_ports to ufw_rules format
+      ansible.builtin.set_fact:
+        ufw_rules_converted: "{{ ufw_rules_converted | default([]) + [{'rule': 'allow', 'to_port': item.port, 'protocol': item.protocol, 'comment': item.comment}] }}"
+      loop: "{{ linux_server_setup_open_ports }}"
+    - name: Enable ufw with oeufenweb.ufw role
+      ansible.builtin.include_role:
+        name: oefenweb.ufw
+      vars:
+        ufw_default_incoming_policy: "deny"
+        ufw_default_outgoing_policy: "allow"
+        ufw_logging: "medium"
+        ufw_rules: "{{ ufw_rules_converted }}"
+
+    # https://github.com/chaifeng/ufw-docker
+    - name: Setup docker to work with ufw, add
+      ansible.builtin.blockinfile:
+        path: /etc/ufw/after.rules
+        marker: "# {mark} ANSIBLE MANAGED BLOCK: docker ufw setup"
+        block: "{{ lookup('file', 'templates/ufw-docker-after.rules') }}"
+        create: true
+        mode: 0640
+        owner: root
+        group: root
+      become: true
+    - name: Allow some ports to reach docker  # TODO: check can do with built-in ufw module
+      ansible.builtin.command: ufw route allow proto {{ item.protocol }} from any to any port {{ item.port }}
+      become: true
+      changed_when: false
+      loop: "{{ linux_server_setup_open_ports }}"
+    - name: Restart ufw
+      ansible.builtin.service:
+        name: ufw
+        state: restarted
+      become: true
+
+
+- name: Enable ip forwarding
+  ansible.posix.sysctl:
+    name: net.ipv4.ip_forward
+    value: 1
+    state: present
+    reload: true
+  become: true
+  changed_when: false

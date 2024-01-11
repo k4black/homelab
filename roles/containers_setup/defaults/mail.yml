@@ -1,0 +1,12 @@
+---
+
+containers_setup_user: "root"
+
+containers_setup_configs_dir: /srv/configs
+containers_setup_data_dir: /srv/data
+
+containers_setup_docker_compose_template: ""
+
+containers_setup_make_dirs: []  # list of strings directory names
+containers_setup_touch_files: []  # list of strings file names
+containers_setup_config_templates: {}  # dict of src: dest

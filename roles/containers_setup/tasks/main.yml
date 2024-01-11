@@ -1,0 +1,23 @@
+---
+
+- name: Install remote management libs and make docker folders
+  ansible.builtin.include_tasks: install.yml
+
+- name: Copy templates
+  ansible.builtin.include_tasks: templates.yml
+
+- name: Run docker compose
+  ansible.builtin.command:
+    cmd: docker compose up -d --remove-orphans --build --pull="always"
+    chdir: "{{ containers_setup_configs_dir }}"
+  become: true
+  changed_when: false
+  retries: 2
+
+# TODO: restart separate containers if changes detected
+- name: Restart all containers
+  ansible.builtin.command:
+    cmd: docker compose restart
+    chdir: "{{ containers_setup_configs_dir }}"
+  become: true
+  changed_when: false

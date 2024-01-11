@@ -7,6 +7,9 @@
     - name: SSH Port Juggle
       ansible.builtin.import_tasks: tasks/sshd_port_juggling.yml
       when: testing is undefined or testing != 'true'
+    - name: SSH User Juggle
+      ansible.builtin.import_tasks: tasks/sshd_login_user_juggling.yml
+      when: testing is undefined or testing != 'true'
 
 
 - name: Configure VPS personal server.
@@ -18,160 +21,66 @@
 
 
   roles:
-#    - role: packages_install
-#      become: true
-#    - role: hifis.unattended_upgrades
-#      unattended_automatic_reboot_time: 04:00  # noqa: var-naming[no-role-prefix]
-#      # apt-daily timer
-#      unattended_apt_daily_oncalendar: "*-*-* 01:00"  # noqa: var-naming[no-role-prefix]
-#      unattended_apt_daily_randomizeddelaysec: "60m"  # noqa: var-naming[no-role-prefix]
-#      # apt-daily-upgrade timer
-#      unattended_apt_daily_upgrade_oncalendar: "*-*-* 2:00"  # noqa: var-naming[no-role-prefix]
-#      unattended_apt_daily_upgrade_randomizeddelaysec: "60m"  # noqa: var-naming[no-role-prefix]
-#      become: true
-#    - role: geerlingguy.security
-#      security_ssh_port: "{{ ssh_port }}"
-#      security_ssh_permit_root_login: "yes"
-#      become: true
-#    - role: geerlingguy.docker
-#      become: true
-#    - role: zsh_setup
-#      vars:
-#        zsh_setup_set_default_shell: true
-#        zsh_setup_config_src: files/.zshrc.style-config-block.zsh
-#        zsh_setup_user: "{{ username }}"
-#      become: true
-    - role: oefenweb.ufw
+    - role: packages_install
       vars:
-        ufw_default_incoming_policy: "deny"
-        ufw_default_outgoing_policy: "allow"
-        ufw_logging: "medium"
-        ufw_rules:
-          - {rule: "allow", to_port: "22", protocol: "tcp", comment: "default ssh"}
-          - {rule: "allow", to_port: "{{ ssh_port }}", protocol: "tcp", comment: "custom ssh"}
-          - {rule: "allow", to_port: 51820, protocol: "udp", comment: "wireguard"}
-          - {rule: "allow", to_port: 80, protocol: "tcp", comment: "http"}
-          - {rule: "allow", to_port: 443, protocol: "tcp", comment: "https"}
-          - {rule: "allow", to_port: 5000, protocol: "tcp", comment: "test whoami"}
+        packages_install_list: "{{ packages_install_list }}"
+      become: true
+
+    - role: linux_server_setup
+      vars:
+        linux_server_setup_hostname: "{{ device_name }}"
+        linux_server_setup_login_user: "{{ username }}"
+        linux_server_setup_login_password: "{{ password }}"
+        linux_server_setup_login_user_uid: 1000
+        linux_server_setup_login_user_gid: 1000
+        linux_server_setup_login_ssh_public_key: "{{ lookup('file', '{{ ssh_public_key_path }}') }}"
+        linux_server_setup_open_ports:
+          - {port: 22, protocol: "tcp", comment: "default ssh"}
+          - {port: "{{ ssh_port }}", protocol: "tcp", comment: "custom ssh"}
+          - {port: 51820, protocol: "udp", comment: "wireguard"}
+          - {port: 80, protocol: "tcp", comment: "http"}
+          - {port: 443, protocol: "tcp", comment: "https"}
+
+    - role: hifis.unattended_upgrades
+      vars:
+        unattended_automatic_reboot_time: 04:00  # noqa: var-naming[no-role-prefix]
+        # apt-daily timer
+        unattended_apt_daily_oncalendar: "*-*-* 01:00"  # noqa: var-naming[no-role-prefix]
+        unattended_apt_daily_randomizeddelaysec: "60m"  # noqa: var-naming[no-role-prefix]
+        # apt-daily-upgrade timer
+        unattended_apt_daily_upgrade_oncalendar: "*-*-* 2:00"  # noqa: var-naming[no-role-prefix]
+        unattended_apt_daily_upgrade_randomizeddelaysec: "60m"  # noqa: var-naming[no-role-prefix]
+      become: true
+
+    - role: geerlingguy.security
+      security_ssh_port: "{{ ssh_port }}"
+      security_ssh_permit_root_login: "no"
+      become: true
+
+    - role: geerlingguy.docker
+      become: true
+
+    - role: zsh_setup
+      vars:
+        zsh_setup_set_default_shell: true
+        zsh_setup_config_src: files/.zshrc.style-config-block.zsh
+        zsh_setup_user: "{{ username }}"
+      become: true
 
 
   tasks:
-    # https://github.com/chaifeng/ufw-docker
-    - name: Setup docker to work with ufw, add
-      ansible.builtin.blockinfile:
-        path: /etc/ufw/after.rules
-        marker: "# {mark} ANSIBLE MANAGED BLOCK: docker ufw setup"
-        block: "{{ lookup('file', 'files/ufw-docker-after.rules') }}"
-        create: true
-        mode: 0640
-        owner: root
-        group: root
-      become: true
-    - name: Allow 80/443 for docker  # TODO: check can do with built-in ufw module
-      ansible.builtin.shell: |
-        ufw route allow proto tcp from any to any port 80
-        ufw route allow proto tcp from any to any port 443
-        ufw route allow proto tcp from any to any port 5000
-      become: true
-      changed_when: false
-    - name: Restart ufw
-      ansible.builtin.service:
-        name: ufw
-        state: restarted
-      become: true
-
-    - name: Setup hostname
-      block:
-        - name: Update hostname
-          ansible.builtin.hostname:
-            name: "{{ device_name }}"
-            use: "debian"
-          become: true
-        - name: Update /etc/hosts (add {{ device_name }})
-          ansible.builtin.lineinfile:
-            path: /etc/hosts
-            regexp: '^(.*\b127.0.1.1\b.*?)(\s+\b{{ device_name }}\b.*|$)'
-            line: "\\1 {{ device_name }}"
-            backrefs: true
-          become: true
-
-    - name: Enable ip forwarding
-      ansible.posix.sysctl:
-        name: net.ipv4.ip_forward
-        value: 1
-        state: present
-        reload: true
-      become: true
-      changed_when: false
-
-    - name: Setup git
-      block:
-        - name: Copy .gitconfig
-          ansible.builtin.template:
-            src: files/.gitconfig.j2
-            dest: ~/.gitconfig
-            mode: 0644
-            owner: "{{ username }}"
-          when: testing is undefined or testing != 'true'
-
-    - name: Setup cron to clean docker images
-      ansible.builtin.cron:
-        name: "Clean docker images"
-        minute: "0"
-        hour: "0"
-        job: "docker system prune -a -f"
-        cron_file: "clean_docker_images"
-        user: "{{ username }}"
-      become: true
-
-    - name: Create base directory
-      ansible.builtin.file:
-        path: "{{ services_dir }}"
-        state: directory
-        mode: 0755
-      become: true
-    - name: Make soft link to home
-      ansible.builtin.file:
-        src: "{{ services_dir }}"
-        dest: "~/service-configs"
-        state: link
-        force: true
-
-    - name: Copy the wineguard config file
-      ansible.builtin.template:
-        src: files/vps/server-wg0.conf.j2
-        dest: "{{ services_dir }}/server-wg0.conf"
-        mode: 0644
-      notify: Restart all containers
-      become: true
-
-    - name: Copy the compose file
-      ansible.builtin.template:
-        src: files/vps/docker-compose.yml.j2
-        dest: "{{ services_dir }}/docker-compose.yml"
-        mode: 0755
-      register: copy_docker_compose
-      become: true
-    - name: Validate docker compose file
-      ansible.builtin.command:
-        cmd: docker compose config
-        chdir: "{{ services_dir }}"
-      changed_when: false
-      become: true
-    - name: Start compose containers  # noqa: no-handler
-      ansible.builtin.command:
-        cmd: docker compose up -d --remove-orphans --build --pull="always"
-        chdir: "{{ services_dir }}"
-      when: copy_docker_compose is changed
-      tags: run_docker
-      retries: 2
-      become: true
-
-  handlers:
-    # TODO: restart separate containers
-    - name: Restart all containers
-      ansible.builtin.command:
-        cmd: docker compose restart
-        chdir: "{{ services_dir }}"
-      tags: run_docker
-      become: true
+    - name: Copy docker configs and run containers
+      ansible.builtin.include_role:
+        name: containers_setup
+      vars:
+        containers_setup_user: "{{ username }}"
+        containers_setup_configs_dir: "{{ services_configs_dir }}"
+        containers_setup_data_dir: "{{ services_data_dir }}"
+        containers_setup_docker_compose_template: "files/vps/docker-compose.yml.j2"
+#        containers_setup_make_dirs:
+#          - "{{ services_data_dir }}/influxdb-data"
+#          - "{{ services_configs_dir }}/influxdb-config"
+        containers_setup_touch_files: []
+        containers_setup_config_templates:
+          files/vps/server-wg0.conf.j2: "{{ services_configs_dir }}/server-wg0.conf"
+#          files/vps/telegraf.conf: "{{ services_configs_dir }}/telegraf.conf"

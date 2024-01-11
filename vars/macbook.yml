@@ -1,4 +1,4 @@
-username: "kblack"
+username: "kblack"  # TODO: change to k4black
 device_name: "k4pro-i7"
 admin_username: !vault |
           $ANSIBLE_VAULT;1.1;AES256

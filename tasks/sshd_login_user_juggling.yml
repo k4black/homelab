@@ -1,0 +1,33 @@
+---
+
+- name: SSH User Juggle | define the fallback default SSH user
+  ansible.builtin.set_fact:
+    _default_ssh_user: "root"
+
+- name: SSH User Juggle | Try configured ansible_user {{ ansible_user }}
+  ansible.builtin.wait_for_connection:
+    timeout: 10
+  ignore_errors: true
+  register: _ssh_user_result
+
+- name: SSH User Juggle | Set the ansible_user to the fallback default user {{ _default_ssh_user }}
+  ansible.builtin.set_fact:
+    ansible_user: "{{ _default_ssh_user }}"
+  when:
+    - _ssh_user_result is failed
+
+- name: SSH User Juggle | Check fallback default user {{ ansible_user }}
+  ansible.builtin.wait_for_connection:
+    timeout: 10
+  ignore_errors: true
+  register: _ssh_user_default_result
+  when:
+    - _ssh_user_result is failed
+
+- name: SSH User Juggle | Fail
+  ansible.builtin.fail:
+    msg: "Neither the configured ansible_user {{ ansible_user }} nor the fallback user {{ _default_ssh_user }} were reachable"
+  when:
+    - _ssh_user_result is failed
+    - _ssh_user_default_result is defined
+    - _ssh_user_default_result is failed

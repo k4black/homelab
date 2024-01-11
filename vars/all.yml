@@ -7,6 +7,9 @@ default_username: "k4black"
 git_email: "k4black@ya.ru"
 
 
+ssh_public_key_path: "~/.ssh/id_ed25519.pub"
+
+
 timezone: Europe/Berlin
 
 

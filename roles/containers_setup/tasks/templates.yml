@@ -1,0 +1,43 @@
+---
+
+- name: Copy docker-compose file using {{ containers_setup_docker_compose_template }}
+  ansible.builtin.template:
+    src: "{{ containers_setup_docker_compose_template }}"
+    dest: "{{ containers_setup_configs_dir }}/docker-compose.yml"
+    mode: 0644
+    owner: "{{ containers_setup_user }}"
+    group: "{{ containers_setup_user }}"
+
+- name: Make directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: 0755
+    owner: "{{ containers_setup_user }}"
+    group: "{{ containers_setup_user }}"
+  loop: "{{ containers_setup_make_dirs }}"
+
+- name: Touch files
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: touch
+    mode: 0644
+    owner: "{{ containers_setup_user }}"
+    group: "{{ containers_setup_user }}"
+  loop: "{{ containers_setup_touch_files }}"
+
+- name: Copy and apply templates to configs directory
+  ansible.builtin.template:
+    src: "{{ item.key }}"
+    dest: "{{ containers_setup_configs_dir }}/{{ item.value }}"
+    mode: 0644
+    owner: "{{ containers_setup_user }}"
+    group: "{{ containers_setup_user }}"
+  loop: "{{ containers_setup_config_templates | dict2items }}"
+
+- name: Validate docker compose file
+  ansible.builtin.command:
+    cmd: docker compose config
+    chdir: "{{ containers_setup_configs_dir }}"
+  changed_when: false
+  become: true

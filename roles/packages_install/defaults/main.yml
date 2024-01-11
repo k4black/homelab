@@ -1,3 +1,7 @@
+---
+
+packages_install_update_cache: true
+
 packages_install_list:
   - git
   - nano
