@@ -59,6 +59,11 @@
       become: true
       changed_when: false
       when: testing is defined and testing == 'true'
+      register: netstat_output
+    - name: Debug output ports
+      debug:
+        var: netstat_output.stdout_lines
+      when: testing is defined and testing == 'true'
 
   roles:
     - role: geerlingguy.raspberry-pi  # disable hdmi, set gpu_mem to 16 and 1200ma for usb
