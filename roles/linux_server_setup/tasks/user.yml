@@ -9,12 +9,6 @@
       loop:
         - docker
 
-- name: Debug all users and groups
-  ansible.builtin.debug:
-    msg: "{{ lookup('pipe', 'cat /etc/passwd') }}"
-  changed_when: false
-  failed_when: false
-
 - name: Check gid already occupied, save name - {{ linux_server_setup_login_user_gid }}
   ansible.builtin.command: getent group {{ linux_server_setup_login_user_gid }}
   register: group_with_id_exists
@@ -26,29 +20,36 @@
   changed_when: false
   failed_when: false
 
-- name: If other user with other name and same id exists, delete it
-  ansible.builtin.user:
-    name: "{{ user_with_id_exists.stdout.split(':')[0] }}"
-    state: absent
-  when: user_with_id_exists.stdout != "" and user_with_id_exists.stdout.split(':')[0] != linux_server_setup_login_user
-- name: If other group with other name and same id exists, delete it
-  ansible.builtin.group:
-    name: "{{ group_with_id_exists.stdout.split(':')[0] }}"
-    state: absent
-  when: group_with_id_exists.stdout != "" and group_with_id_exists.stdout.split(':')[0] != linux_server_setup_login_user
+- name: Debug group_with_id_exists
+  ansible.builtin.debug:
+    msg: "{{ group_with_id_exists }}"
+- name: Debug user_with_id_exists
+  ansible.builtin.debug:
+    msg: "{{ user_with_id_exists }}"
+
+#- name: If other user with other name and same id exists, delete it
+#  ansible.builtin.user:
+#    name: "{{ user_with_id_exists.stdout.split(':')[0] }}"
+#    state: absent
+#  when: user_with_id_exists.stdout != "" and user_with_id_exists.stdout.split(':')[0] != linux_server_setup_login_user
+#- name: If other group with other name and same id exists, delete it
+#  ansible.builtin.group:
+#    name: "{{ group_with_id_exists.stdout.split(':')[0] }}"
+#    state: absent
+#  when: group_with_id_exists.stdout != "" and group_with_id_exists.stdout.split(':')[0] != linux_server_setup_login_user
 
 - name: Create a login user group
   when: group_with_id_exists
   ansible.builtin.group:
     name: "{{ linux_server_setup_login_user }}"
-    gid: "{{ linux_server_setup_login_user_gid }}"
+#    gid: "{{ linux_server_setup_login_user_gid }}"
     state: present
 
 - name: Create a login user
   ansible.builtin.user:
     name: "{{ linux_server_setup_login_user }}"
     password: "{{ linux_server_setup_login_password | password_hash('sha512') }}"
-    uid: "{{ linux_server_setup_login_user_uid }}"
+#    uid: "{{ linux_server_setup_login_user_uid }}"
     groups:
       - sudo
       - docker

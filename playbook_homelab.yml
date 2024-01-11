@@ -64,8 +64,8 @@
         linux_server_setup_hostname: "{{ device_name }}"
         linux_server_setup_login_user: "{{ username }}"
         linux_server_setup_login_password: "{{ password }}"
-        linux_server_setup_login_user_uid: 1000
-        linux_server_setup_login_user_gid: 1000
+#        linux_server_setup_login_user_uid: 1042
+#        linux_server_setup_login_user_gid: 1042
         linux_server_setup_login_ssh_public_key: "{{ ssh_public_key }}"
         linux_server_setup_open_ports:
           - {port: 22, protocol: "tcp", comment: "default ssh"}
