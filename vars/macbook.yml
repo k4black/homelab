@@ -14,40 +14,50 @@ default_browser: "brave-browser"
 
 homebrew_cask_appdir: /Applications
 homebrew_cask_apps:
-  - google-drive
+  # web and social
   - brave-browser
-  - notion
-  - obsidian
   - slack
-  - zoom
   - telegram
+  - zoom
   - beeper
+  # dev
+  - chromedriver
+  - docker
   - sublime-text
   - jetbrains-toolbox
-  - docker
-  - chromedriver
+  # fun
+  - autodesk-fusion360
+  - steam
+  # utils
+  - google-drive
   - transmit
   - tunnelblick
   - the-unarchiver
   - lulu
-  - autodesk-fusion360
   - MonitorControl  # TODO: add permissions to Accessibility and login item
+  # mix
+  - notion
+  - obsidian
   - zotero
-  - steam
 homebrew_installed_packages:
+  # dev
   - git
   - git-lfs
+  - sqlite
+  - lotyp/formulae/dockutil
+  # languages
   - pyenv
   - go
-  - sqlite
+  - rustup
+  # ssh
   - ssh-copy-id
   - openssl
-  - lotyp/formulae/dockutil
 homebrew_taps:
   - homebrew/core
   - homebrew/cask
 
-
+# error when installed this way, include in homebrew_installed_packages
+dockutil_install: false
 dockitems_remove:
   - TV
   - Podcasts
@@ -78,34 +88,30 @@ dockitems_persist:
   - name: "Notes"
     path: "/Applications/Notes.app"
     pos: 5
-  - name: "Notion"
-    path: "/Applications/Notion.app/"
-    pos: 6
   - name: "Obsidian"
     path: "/Applications/Obsidian.app/"
-    pos: 7
+    pos: 6
   - name: "System Settings"
     path: "/System/Applications/System Settings.app"
-    pos: 8
+    pos: 7
   - name: "Brave Browser"
     path: "/Applications/Brave Browser.app"
-    pos: 9
+    pos: 8
   - name: "Telegram"
     path: "/Applications/Telegram.app"
-    pos: 10
+    pos: 9
   - name: "Slack"
     path: "/Applications/Slack.app"
-    pos: 11
+    pos: 10
   - name: "Terminal"
     path: "/System/Applications/Utilities/Terminal.app"
-    pos: 12
+    pos: 11
   - name: "Activity Monitor"
     path: "/System/Applications/Utilities/Activity Monitor.app"
-    pos: 13
-  - name: "Sublime Text"
-    path: "/Applications/Sublime Text.app/"
-    pos: 14
-dockutil_install: false
+    pos: 12
+#  - name: "Sublime Text"
+#    path: "/Applications/Sublime Text.app/"
+#    pos: 13
 
 
 mas_email: !vault |
