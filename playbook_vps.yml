@@ -14,6 +14,11 @@
       ansible.builtin.set_fact:
         username: "runneradmin"
       when: testing is defined and testing == 'true'
+    - name: Stop pre-built DNS server
+      ansible.builtin.command: systemctl stop systemd-resolved
+      become: true
+      changed_when: false
+      when: testing is defined and testing == 'true'
 
 
 - name: Configure VPS personal server.
