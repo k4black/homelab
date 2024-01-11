@@ -53,6 +53,7 @@
 
   roles:
     - role: geerlingguy.raspberry-pi  # disable hdmi, set gpu_mem to 16 and 1200ma for usb
+      when: testing is undefined or testing != 'true'
       become: true
 
     - role: packages_install
