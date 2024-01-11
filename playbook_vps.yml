@@ -22,8 +22,6 @@
 
   roles:
     - role: packages_install
-      vars:
-        packages_install_list: "{{ packages_install_list }}"
       become: true
 
     - role: linux_server_setup

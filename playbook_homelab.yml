@@ -56,8 +56,6 @@
       become: true
 
     - role: packages_install
-      vars:
-        packages_install_list: "{{ packages_install_list }}"
       become: true
 
     - role: linux_server_setup
@@ -105,6 +103,7 @@
   tasks:
     # https://www.jeffgeerling.com/blog/2023/reducing-raspberry-pi-5s-power-consumption-140x
     - name: Lower power consumptions for pi5
+      when: testing is undefined or testing != 'true'
       block:
         - name: Create temp boot.conf file
           ansible.builtin.template:
@@ -128,7 +127,7 @@
         containers_setup_data_dir: "{{ services_data_dir }}"
         containers_setup_docker_compose_template: "files/homelab/docker-compose.yml.j2"
         containers_setup_make_dirs:
-          - "{{ services_configs_dir }}/traefik-certs"
+          - "{{ services_data_dir }}/traefik-certs"
           - "{{ services_data_dir }}/influxdb-data"
           - "{{ services_configs_dir }}/influxdb-config"
           - "{{ services_configs_dir }}/home-assistant-config"

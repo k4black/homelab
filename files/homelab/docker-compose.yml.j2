@@ -39,9 +39,9 @@ services:
       - "8080:8080"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - {{ services_dir }}/traefik-config.yml:/etc/traefik/traefik.yml:ro
-      - {{ services_dir }}/traefik-acme.json:/acme.json
-      - {{ services_dir }}/traefik-certs:/certs
+      - {{ containers_setup_configs_dir }}/traefik-config.yml:/etc/traefik/traefik.yml:ro
+      - {{ containers_setup_configs_dir }}/traefik-acme.json:/acme.json
+      - {{ containers_setup_data_dir }}/traefik-certs:/certs
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.traefik.rule=Host(`traefik.homelab.local`)"
@@ -88,8 +88,8 @@ services:
       - "53:53/udp"
       - "8053:80/tcp"  # custom port for web interface
     volumes:
-      - {{ services_dir }}/pihole/:/etc/pihole/:rw
-      - {{ services_dir }}/pihole-dnsmasq.d:/etc/dnsmasq.d/:rw
+      - {{ containers_setup_configs_dir }}/pihole/:/etc/pihole/:rw
+      - {{ containers_setup_configs_dir }}/pihole-dnsmasq.d:/etc/dnsmasq.d/:rw
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.pihole.rule=Host(`pihole.homelab.local`)"
@@ -114,7 +114,7 @@ services:
     ports:
       - 81:80
     volumes:
-      - {{ services_dir }}/heimdall-config:/config
+      - {{ containers_setup_configs_dir }}/heimdall-config:/config
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:80"]
       interval: 30s
@@ -130,8 +130,8 @@ services:
 {#      DISABLE_JEMALLOC: 1#}
 {#        # https://www.home-assistant.io/docs/installation/docker/#use-hassio-supervisor#}
 {#    volumes:#}
-{#      # - {{ services_dir }}/home-assistant-config.yml:/config/configuration.yaml#}
-{#      - {{ services_dir }}/home-assistant-config/:/config/#}
+{#      # - {{ containers_setup_configs_dir }}/home-assistant-config.yml:/config/configuration.yaml#}
+{#      - {{ containers_setup_configs_dir }}/home-assistant-config/:/config/#}
 {#      - /etc/localtime:/etc/localtime:ro#}
 {#      - /run/dbus:/run/dbus:ro#}
 {#    privileged: true#}
@@ -158,7 +158,7 @@ services:
       SET_PERMISSIONS: "false"
       VOLUME_SIZE_LIMIT: "100 G"
     volumes:
-        - /home/pi/test-timemachine:/opt/timemachine  # TODO: change to mnt volume
+        - {{ containers_setup_data_dir }}test-timemachine:/opt/timemachine  # TODO: change to mnt volume
         - timemachine-var-lib-samba:/var/lib/samba
         - timemachine-var-cache-samba:/var/cache/samba
         - timemachine-run-samba:/run/samba
@@ -182,9 +182,9 @@ services:
     ports:
       - "8086:8086"
     volumes:
-      - {{ services_dir }}/influxdb-data:/var/lib/influxdb2
-      - {{ services_dir }}/influxdb-config.yml:/etc/influxdb2/config.yml
-      - {{ services_dir }}/influxdb-init-script.sh:/docker-entrypoint-initdb.d/init-script.sh:ro
+      - {{ containers_setup_data_dir }}/influxdb-data:/var/lib/influxdb2
+      - {{ containers_setup_configs_dir }}/influxdb-config.yml:/etc/influxdb2/config.yml
+      - {{ containers_setup_configs_dir }}/influxdb-init-script.sh:/docker-entrypoint-initdb.d/init-script.sh:ro
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8086/health"]
       interval: 30s
@@ -205,7 +205,7 @@ services:
     ports:
        - 8125:8125exit
     volumes:
-      - {{ services_dir }}/telegraf.conf:/etc/telegraf/telegraf.conf:ro
+      - {{ containers_setup_configs_dir }}/telegraf.conf:/etc/telegraf/telegraf.conf:ro
       - /var/run/docker.sock:/var/run/docker.sock
       - /sys:/host/sys:ro
       - /proc:/host/proc:ro

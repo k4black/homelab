@@ -40,7 +40,7 @@ jobs:
           ansible-lint
 
   test-macbook-playbook:
-    runs-on: macos-13
+    runs-on: macos-13  # TODO: set macos-latest when it's will be v13
     steps:
       - name: Checkout code
         uses: actions/checkout@v4

@@ -37,8 +37,8 @@ services:
 {#      PIHOLE_DNS_: 1.1.1.1;8.8.8.8#}
 {#      WEBTHEME: default-dark#}
 {#    volumes:#}
-{#      - {{ services_dir }}/pihole-pihole:/etc/pihole/#}
-{#      - {{ services_dir }}/pihole-dnsmasq.d:/etc/dnsmasq.d/#}
+{#      - {{ containers_setup_configs_dir }}/pihole-pihole:/etc/pihole/#}
+{#      - {{ containers_setup_configs_dir }}/pihole-dnsmasq.d:/etc/dnsmasq.d/#}
 {#    labels:#}
 {#      - "traefik.enable=true"#}
 {#      - "traefik.http.routers.traefik.rule=Host(`pi-hole.homelab.local`)"#}
@@ -69,7 +69,7 @@ services:
       SERVERPORT: 51820
       INTERNAL_SUBNET: {{ vps_vpn_network_subnet }}
     volumes:
-      - {{ services_dir }}/server-wg0.conf:/config/wg_confs/server_wg0.conf:ro
+      - {{ containers_setup_configs_dir }}/server-wg0.conf:/config/wg_confs/server_wg0.conf:ro
       - /lib/modules:/lib/modules
     ports:
       - "51820:51820/udp"
@@ -103,8 +103,8 @@ services:
 {#      options:#}
 {#        max-size: 50m#}
 {#    volumes:#}
-{#      - {{ services_dir }}/wireguard-ui-db:/app/db#}
-{#      - {{ services_dir }}/server-wg0.conf:/config/wireguard/server_wg0.conf:ro#}
+{#      - {{ containers_setup_configs_dir }}/wireguard-ui-db:/app/db#}
+{#      - {{ containers_setup_configs_dir }}/server-wg0.conf:/config/wireguard/server_wg0.conf:ro#}
 {#    network_mode: service:wireguard#}
 {#    restart: unless-stopped#}
 
