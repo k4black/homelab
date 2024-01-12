@@ -10,6 +10,12 @@
     - name: SSH User Juggle
       ansible.builtin.import_tasks: tasks/sshd_login_user_juggling.yml
       when: testing is undefined or testing != 'true'
+
+- name: Setup local_ipv4
+  hosts: homelab
+  gather_facts: true
+
+  tasks:
     # https://medium.com/opsops/ansible-default-ipv4-is-not-what-you-think-edb8ab154b10
     - name: Geather local_ipv4
       ansible.builtin.set_fact:
