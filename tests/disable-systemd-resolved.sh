@@ -33,9 +33,11 @@ EOF
 if systemctl is-active --quiet NetworkManager; then
     echo "Restarting NetworkManager..."
     systemctl restart NetworkManager
-else
+elif systemctl --all --type service | grep -q 'networking.service'; then
     echo "Restarting networking service..."
     systemctl restart networking
+else
+    echo "Networking service not found. NetworkManager is not active."
 fi
 
 echo "DNS configuration completed."
