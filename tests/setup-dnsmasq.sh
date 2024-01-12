@@ -15,7 +15,8 @@ fi
 
 # Add custom DNS settings
 echo "Setting up dnsmasq..."
-#apt-get install dnsmasq -y
+mkdir -p /etc/dnsmasq.d
+touch /etc/dnsmasq.d/custom.conf
 cat > /etc/dnsmasq.d/custom.conf <<EOF
 port=5353
 server=8.8.8.8
@@ -26,6 +27,10 @@ EOF
 echo "Restarting dnsmasq service..."
 systemctl restart dnsmasq
 
+
+# Stop systemd-resolved
+echo "Stopping systemd-resolved..."
+systemctl stop systemd-resolved
 
 # Disable systemd-resolved
 echo "Disabling systemd-resolved..."
@@ -41,6 +46,7 @@ rm -f /etc/resolv.conf
 
 # Set up edit resolv.conf
 echo "Setting up /etc/resolv.conf..."
+touch /etc/resolv.conf
 cat > /etc/resolv.conf <<EOF
 nameserver 127.0.0.1#5353
 EOF
