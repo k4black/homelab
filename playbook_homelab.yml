@@ -22,39 +22,6 @@
         username: "runneradmin"
       when: testing is defined and testing == 'true'
 
-    - name: Disable github actions DNS server
-      when: testing is defined and testing == 'true'
-      block:
-        - name: Stop systemd-resolved
-          ansible.builtin.systemd:
-            name: systemd-resolved
-            state: stopped
-        - name: Disable systemd-resolved
-          ansible.builtin.systemd:
-            name: systemd-resolved
-            enabled: false
-        - name: Remove symlink for /etc/resolv.conf
-          ansible.builtin.file:
-            path: /etc/resolv.conf
-            state: absent
-        - name: Add custom DNS settings
-          ansible.builtin.copy:
-            dest: /etc/resolv.conf
-            content: |
-              nameserver 1.1.1.1
-              nameserver 8.8.8.8
-            mode: 0644
-        - name: Restart NetworkManager service
-          ansible.builtin.systemd:
-            name: NetworkManager
-            state: restarted
-          when: ansible_service_mgr == 'NetworkManager'
-        - name: Restart networking service
-          ansible.builtin.systemd:
-            name: networking
-            state: restarted
-          when: ansible_service_mgr != 'NetworkManager'
-
     - name: List all ports used
       block:
         - name: List all ports used
