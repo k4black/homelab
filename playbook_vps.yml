@@ -121,4 +121,7 @@
         containers_setup_touch_files: []
         containers_setup_config_templates:
           files/vps/server-wg0.conf.j2: "server-wg0.conf"
+          files/vps/pihole-02-custom-dns.conf.j2: "pihole-dnsmasq.d/02-custom-dns.conf"
+          files/vps/pihole-adlists.list: "pihole/adlists.list"
+          files/vps/pihole-custom.list.j2: "pihole/custom.list"
 #          files/vps/telegraf.conf: "{{ services_configs_dir }}/telegraf.conf"
