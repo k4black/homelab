@@ -23,8 +23,9 @@ server=8.8.8.8
 server=1.1.1.1
 EOF
 
-# Restart dnsmasq to apply new configuration
-echo "Restarting dnsmasq service..."
+# Starting/Restart dnsmasq to apply new configuration
+echo "Starting/Restarting dnsmasq service..."
+systemctl start dnsmasq
 systemctl restart dnsmasq
 
 
