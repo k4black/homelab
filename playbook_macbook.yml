@@ -124,6 +124,38 @@
       vars:
         ansible_become_password: "{{ user_account_password }}"
 
+    - name: Add ssh-agent to zshrc
+      ansible.builtin.lineinfile:
+        path: ~/.zshrc
+        line: "eval \"$(ssh-agent -s)\""
+        state: present
+        create: yes
+        insertafter: EOF
+      become: true
+      vars:
+        ansible_become_password: "{{ user_account_password }}"
+    - name: Ensure Host * line in ssh config
+      ansible.builtin.lineinfile:
+        path: ~/.ssh/config
+        line: "Host *\n"
+        state: present
+        create: yes
+        insertbefore: BOF
+      become: true
+      vars:
+        ansible_become_password: "{{ user_account_password }}"
+    - name: Add AddKeysToAgent yes to ssh config Host *
+      ansible.builtin.lineinfile:
+        path: ~/.ssh/config
+        line: "    AddKeysToAgent yes"
+        state: present
+        create: yes
+        insertafter: "Host *\n"
+      become: true
+      vars:
+        ansible_become_password: "{{ user_account_password }}"
+
+
     - name: Setup .gitconfig
       ansible.builtin.template:
         src: files/.gitconfig.j2

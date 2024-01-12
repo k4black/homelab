@@ -8,11 +8,13 @@
           - python3
           - python3-pip
         state: present
+      become: true
     - name: Install docker module for Python
       ansible.builtin.pip:
         name:
           - docker
-          - docker-compose
+          # - docker-compose  # TODO: remove when docker-compose will be used
+        extra_args: --break-system-packages
 
 - name: Ensure config and data folders exists
   block:

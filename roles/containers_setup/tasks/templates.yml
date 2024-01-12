@@ -9,9 +9,11 @@
     group: "{{ containers_setup_user }}"
   become: true
 
-- name: Debug docker-compose file
-  ansible.builtin.debug:
-    msg: "{{ lookup('file', containers_setup_configs_dir + '/docker-compose.yml') }}"
+- name: Debug docker-compose file on the server
+  ansible.builtin.command:
+    cmd: cat docker-compose.yml
+    chdir: "{{ containers_setup_configs_dir }}"
+  changed_when: false
   become: true
 
 - name: Make directories

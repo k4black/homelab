@@ -6,7 +6,7 @@
 
 - name: SSH User Juggle | Try configured ansible_user {{ ansible_user }}
   ansible.builtin.wait_for_connection:
-    timeout: 10
+    timeout: 5
   ignore_errors: true
   register: _ssh_user_result
 
@@ -18,7 +18,7 @@
 
 - name: SSH User Juggle | Check fallback default user {{ ansible_user }}
   ansible.builtin.wait_for_connection:
-    timeout: 10
+    timeout: 5
   ignore_errors: true
   register: _ssh_user_default_result
   when:

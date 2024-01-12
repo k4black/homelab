@@ -17,8 +17,26 @@
 
 
 # https://web.archive.org/web/20220612212822/https://www.bklynit.net/ubuntu-20-04-lts-docker-pihole/
-- name: Disable systemd-resolved DNS stub listener
+- name: Setup systemd-resolved DNS
   block:
+    - name: Install systemd-resolved
+      ansible.builtin.package:
+        name: systemd-resolved
+        state: present
+      register: apt_output
+      changed_when: false
+      become: true
+    - name: Enable and start systemd-resolved
+      ansible.builtin.service:
+        name: systemd-resolved
+        state: started
+        enabled: true
+      become: true
+#    - name: Restart system if systemd-resolved was installed
+#      ansible.builtin.reboot:
+#        msg: Rebooting due to systemd-resolved installation
+#      when: apt_output.changed and (testing is undefined or testing != 'true')
+#      become: true
     - name: Disable DNSStubListener in /etc/systemd/resolved.conf
       ansible.builtin.lineinfile:
         path: /etc/systemd/resolved.conf
@@ -38,12 +56,6 @@
         regexp: "#?FallbackDNS=.*"
         line: "FallbackDNS=1.1.1.1 8.8.8.8"
       become: true
-    - name: Restart systemd-resolved
-      ansible.builtin.service:
-        name: systemd-resolved
-        state: restarted
-      changed_when: false
-      become: true
     - name: Remove symlink /etc/resolv.conf
       ansible.builtin.file:
         path: /etc/resolv.conf
@@ -55,6 +67,26 @@
         src: /run/systemd/resolve/resolv.conf
         dest: /etc/resolv.conf
         state: link
+      changed_when: false
+      become: true
+    - name: Update /etc/nsswitch.conf
+      ansible.builtin.lineinfile:
+        path: /etc/nsswitch.conf
+        regexp: "^hosts:.*"
+        line: "hosts: files resolve [!UNAVAIL=return] dns myhostname"
+        backrefs: true
+      become: true
+    - name: Restart NetworkManager
+      ansible.builtin.service:
+        name: NetworkManager
+        state: restarted
+      changed_when: false
+      failed_when: false
+      become: true
+    - name: Restart systemd-resolved
+      ansible.builtin.service:
+        name: systemd-resolved
+        state: restarted
       changed_when: false
       become: true
     - name: Wait for a few seconds after restart
@@ -83,6 +115,8 @@
     - name: Enable ufw with oeufenweb.ufw role
       ansible.builtin.include_role:
         name: oefenweb.ufw
+        apply:
+          become: true
       vars:
         ufw_default_incoming_policy: "deny"
         ufw_default_outgoing_policy: "allow"

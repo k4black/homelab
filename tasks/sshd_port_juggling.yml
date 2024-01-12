@@ -26,7 +26,7 @@
 
 - name: SSH Port Juggle | Try configured ansible_port {{ ansible_port }}
   ansible.builtin.wait_for_connection:
-    timeout: 10
+    timeout: 5
   ignore_errors: true
   register: _ssh_port_result
 
@@ -38,7 +38,7 @@
 
 - name: SSH Port Juggle | Check fallback default port {{ ansible_port }}
   ansible.builtin.wait_for_connection:
-    timeout: 10
+    timeout: 5
   ignore_errors: true
   register: _ssh_port_default_result
   when:

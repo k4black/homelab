@@ -4,12 +4,20 @@
   hosts: homelab
   gather_facts: false
 
+  vars_files:
+    - vars/all.yml
+    - vars/homelab.yml
+
   tasks:
     - name: SSH Port Juggle
       ansible.builtin.import_tasks: tasks/sshd_port_juggling.yml
       when: testing is undefined or testing != 'true'
     - name: SSH User Juggle
       ansible.builtin.import_tasks: tasks/sshd_login_user_juggling.yml
+      when: testing is undefined or testing != 'true'
+    - name: Read ssh_public_key from {{ ssh_public_key_file }}
+      ansible.builtin.set_fact:
+        ssh_public_key: "{{ lookup('file', ssh_public_key_file) }}"
       when: testing is undefined or testing != 'true'
 
 
@@ -66,8 +74,24 @@
         sudo systemctl stop wg-quick@wg0
       become: true
       changed_when: false
+      failed_when: false
       when: testing is undefined or testing != 'true'
-
+    - name: Check if pi user exists
+      command: id -u pi
+      register: pi_user_check
+      ignore_errors: yes
+    - name: Rename pi user and group if exists
+      block:
+        - name: Rename pi user
+          user:
+            name: pi
+            newname: "{{ username }}"
+            move_home: yes
+        - name: Rename pi group
+          group:
+            name: pi
+            newname: "{{ username }}"
+      when: pi_user_check.rc == 0
 
   roles:
     - role: geerlingguy.raspberry-pi  # disable hdmi, set gpu_mem to 16 and 1200ma for usb

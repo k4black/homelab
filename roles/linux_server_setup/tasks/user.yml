@@ -47,7 +47,7 @@
   become: true
   when: testing is undefined or testing != 'true'
 
-- name: Create a login user
+- name: Create a login user (Linux only)
   ansible.builtin.user:
     name: "{{ linux_server_setup_login_user }}"
     password: "{{ linux_server_setup_login_password | password_hash('sha512') }}"

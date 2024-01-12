@@ -2,3 +2,4 @@ yamllint
 ansible
 ansible-lint
 docker
+passlib
