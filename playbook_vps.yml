@@ -1,4 +1,5 @@
 ---
+
 - name: Setup ssh port
   hosts: vps
   gather_facts: false
@@ -11,6 +12,7 @@
       ansible.builtin.import_tasks: tasks/sshd_login_user_juggling.yml
       when: testing is undefined or testing != 'true'
 
+
 - name: Setup local_ipv4
   hosts: vps
   gather_facts: true
@@ -20,6 +22,10 @@
     - name: Geather local_ipv4
       ansible.builtin.set_fact:
         local_ipv4: "{{ ansible_default_ipv4.address | default(ansible_all_ipv4_addresses[0]) }}"
+    - name: Debug local_ipv4
+      ansible.builtin.debug:
+        var: local_ipv4
+
 
 - name: Setup for testing
   hosts: vps

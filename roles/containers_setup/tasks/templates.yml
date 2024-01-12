@@ -9,6 +9,11 @@
     group: "{{ containers_setup_user }}"
   become: true
 
+- name: Debug docker-compose file
+  ansible.builtin.debug:
+    msg: "{{ lookup('file', containers_setup_configs_dir + '/docker-compose.yml') }}"
+  become: true
+
 - name: Make directories
   ansible.builtin.file:
     path: "{{ item }}"

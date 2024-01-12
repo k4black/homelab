@@ -1,4 +1,5 @@
 ---
+
 - name: Configure MacOS device.
   hosts: localhost
   connection: local
