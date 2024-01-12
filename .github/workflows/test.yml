@@ -93,6 +93,9 @@ jobs:
       - name: Disable github actions systemd-resolved
         run: sudo /bin/bash tests/disable-systemd-resolved.sh
 
+      - name: Debug ping google.com  # TODO: remove this debug print
+        run: ping -c 3 google.com
+
       - name: Install python and ansible requirements
         run: |
           python -m pip install -r requirements.txt
@@ -132,6 +135,9 @@ jobs:
 
       - name: Disable github actions systemd-resolved
         run: sudo /bin/bash tests/disable-systemd-resolved.sh
+
+      - name: Debug ping google.com  # TODO: remove this debug print
+        run: ping -c 3 google.com
 
       - name: Install python and ansible requirements
         run: |

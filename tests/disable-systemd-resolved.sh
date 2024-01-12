@@ -14,6 +14,10 @@ systemctl stop systemd-resolved
 echo "Disabling systemd-resolved..."
 systemctl disable systemd-resolved
 
+# Backup /etc/resolv.conf
+echo "Backing up /etc/resolv.conf..."
+cp /etc/resolv.conf /etc/resolv.conf.backup
+
 # Remove symlink /etc/resolv.conf
 echo "Removing symlink for /etc/resolv.conf..."
 rm -f /etc/resolv.conf

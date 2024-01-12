@@ -6,6 +6,10 @@ if [ "$(id -u)" -ne 0 ]; then
     exit 1
 fi
 
+# Restore /etc/resolv.conf from backup
+echo "Restoring /etc/resolv.conf from backup..."
+mv /etc/resolv.conf.backup /etc/resolv.conf
+
 # Enable systemd-resolved
 echo "Enabling systemd-resolved..."
 systemctl enable systemd-resolved
