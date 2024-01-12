@@ -115,6 +115,9 @@ jobs:
         env:
           ANSIBLE_FORCE_COLOR: '1'
 
+      - name: Enable github actions systemd-resolved
+        run: sudo /bin/bash tests/enable-systemd-resolved.sh
+
   test-homelab-playbook:
     runs-on: ubuntu-latest
     steps:
@@ -148,3 +151,6 @@ jobs:
           tail ${idempotence} | grep -q 'changed=0.*failed=0' && (echo 'Idempotence test: pass' && exit 0) || (echo 'Idempotence test: fail' && exit 1)
         env:
           ANSIBLE_FORCE_COLOR: '1'
+
+      - name: Enable github actions systemd-resolved
+        run: sudo /bin/bash tests/enable-systemd-resolved.sh
