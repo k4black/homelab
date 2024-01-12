@@ -191,6 +191,7 @@
         timeout: 5
       become: true
     - name: Setup auto start wireguard when VPN available
+      when: testing is undefined or testing != 'true'
       ansible.builtin.shell: |
         sudo systemctl enable wg-quick@wg0
         sudo systemctl start wg-quick@wg0
