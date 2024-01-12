@@ -67,29 +67,6 @@
       become: true
       changed_when: false
       when: testing is undefined or testing != 'true'
-    - name: Assert address of the homelab.local is {{ homelab_local_ipv4 }}
-      when: testing is undefined or testing != 'true'
-      block:
-        - name: Get local ipv4 address  # noqa: risky-shell-pipe
-          ansible.builtin.shell: |
-            ping -c 1 homelab.local | head -n 1 | cut -d "(" -f 2 | cut -d ")" -f 1
-          register: local_ipv4
-          changed_when: false
-        # TODO:  'The conditional check ''"192.168.178.100" == "192.168.178.100"'' failed. The error was: Conditional is marked as unsafe, and cannot be evaluated.'
-#        - name: Assert local ipv4 address is {{ homelab_local_ipv4 }}
-#          ansible.builtin.assert:
-#            that: '"{{ homelab_local_ipv4 }}" == "{{ local_ipv4.stdout }}"'
-#            msg: "local_ipv4 address {{ local_ipv4.stdout }} is not equal to {{ homelab_local_ipv4 }}"
-#    - name: Downgrade device to run headless
-#      when: testing is undefined or testing != 'true'
-#      block:
-#        - name: Remove desktop packages
-#          ansible.builtin.shell: |
-#            sudo apt purge -y lxappearance lxde lxde-common lxde-icon-theme lxinput lxpanel lxpolkit lxrandr lxsession lxsession-edit lxshortcut lxtask lxterminal
-#            sudo apt purge -y xserver* x11-common x11-utils x11-xkb-utils x11-xserver-utils
-#            sudo apt autoremove -y --purge
-#            sudo apt clean
-#          become: true
 
 
   roles:
