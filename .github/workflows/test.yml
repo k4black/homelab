@@ -87,6 +87,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Debug print /etc/resolv.conf  # TODO: remove this debug print
+        run: cat /etc/resolv.conf
+
       - name: Disable github actions systemd-resolved
         run: sudo /bin/bash tests/disable-systemd-resolved.sh
 
@@ -123,6 +126,9 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Debug print /etc/resolv.conf  # TODO: remove this debug print
+        run: cat /etc/resolv.conf
 
       - name: Disable github actions systemd-resolved
         run: sudo /bin/bash tests/disable-systemd-resolved.sh
