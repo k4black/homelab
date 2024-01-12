@@ -90,8 +90,11 @@ jobs:
       - name: Debug print /etc/resolv.conf  # TODO: remove this debug print
         run: cat /etc/resolv.conf
 
-      - name: Disable github actions systemd-resolved
-        run: sudo /bin/bash tests/disable-systemd-resolved.sh
+#      - name: Disable github actions systemd-resolved
+#        run: sudo /bin/bash tests/disable-systemd-resolved.sh
+
+      - name: Setup dnsmasq to use alternative DNS port
+        run: sudo /bin/bash tests/setup-dnsmasq.sh
 
       - name: Debug ping google.com  # TODO: remove this debug print
         run: ping -c 3 google.com
@@ -121,8 +124,8 @@ jobs:
         env:
           ANSIBLE_FORCE_COLOR: '1'
 
-      - name: Enable github actions systemd-resolved
-        run: sudo /bin/bash tests/enable-systemd-resolved.sh
+#      - name: Enable github actions systemd-resolved
+#        run: sudo /bin/bash tests/enable-systemd-resolved.sh
 
   test-homelab-playbook:
     runs-on: ubuntu-latest
@@ -133,8 +136,11 @@ jobs:
       - name: Debug print /etc/resolv.conf  # TODO: remove this debug print
         run: cat /etc/resolv.conf
 
-      - name: Disable github actions systemd-resolved
-        run: sudo /bin/bash tests/disable-systemd-resolved.sh
+#      - name: Disable github actions systemd-resolved
+#        run: sudo /bin/bash tests/disable-systemd-resolved.sh
+
+      - name: Setup dnsmasq to use alternative DNS port
+        run: sudo /bin/bash tests/setup-dnsmasq.sh
 
       - name: Debug ping google.com  # TODO: remove this debug print
         run: ping -c 3 google.com
@@ -164,5 +170,5 @@ jobs:
         env:
           ANSIBLE_FORCE_COLOR: '1'
 
-      - name: Enable github actions systemd-resolved
-        run: sudo /bin/bash tests/enable-systemd-resolved.sh
+#      - name: Enable github actions systemd-resolved
+#        run: sudo /bin/bash tests/enable-systemd-resolved.sh
