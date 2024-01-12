@@ -192,7 +192,6 @@
       become: true
     - name: Setup auto start wireguard when VPN available
       ansible.builtin.shell: |
-        echo "123"
         sudo systemctl enable wg-quick@wg0
         sudo systemctl start wg-quick@wg0
         sudo systemctl stop wg-quick@wg0  # TODO: remove this line when wireguard config will be ready
