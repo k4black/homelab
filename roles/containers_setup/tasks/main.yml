@@ -21,3 +21,11 @@
     chdir: "{{ containers_setup_configs_dir }}"
   become: true
   changed_when: false
+
+- name: If testing down containers
+  ansible.builtin.command:
+    cmd: docker compose down
+    chdir: "{{ containers_setup_configs_dir }}"
+  become: true
+  changed_when: false
+  when: testing is defined and testing == 'true'
