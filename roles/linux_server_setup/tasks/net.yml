@@ -16,6 +16,36 @@
       become: true
 
 
+# https://web.archive.org/web/20220612212822/https://www.bklynit.net/ubuntu-20-04-lts-docker-pihole/
+- name: Disable systemd-resolved DNS stub listener
+  block:
+    - name: Disable DNSStubListener in /etc/systemd/resolved.conf
+      ansible.builtin.lineinfile:
+        path: /etc/systemd/resolved.conf
+        regexp: '^(#DNSStubListener=yes|DNSStubListener=yes|#DNSStubListener=no)'
+        line: "DNSStubListener=no"
+        backrefs: true
+      become: true
+    - name: Restart systemd-resolved
+      ansible.builtin.service:
+        name: systemd-resolved
+        state: restarted
+      become: true
+    - name: Remove symlink /etc/resolv.conf
+      ansible.builtin.file:
+        path: /etc/resolv.conf
+        state: absent
+      changed_when: false
+      become: true
+    - name: Create symlink /etc/resolv.conf
+      ansible.builtin.file:
+        src: /run/systemd/resolve/resolv.conf
+        dest: /etc/resolv.conf
+        state: link
+      changed_when: false
+      become: true
+
+
 - name: Setup ufw
   when: linux_server_setup_open_ports
   block:

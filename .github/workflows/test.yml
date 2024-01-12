@@ -88,16 +88,22 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Debug print /etc/resolv.conf  # TODO: remove this debug print
-        run: cat /etc/resolv.conf
+        run: | 
+          echo "/etc/resolv.conf"
+          cat /etc/resolv.conf
+          echo "/etc/systemd/resolved.conf"
+          cat /etc/systemd/resolved.conf
+          echo "/run/systemd/resolve/resolv.conf"
+          cat /run/systemd/resolve/resolv.conf
 
 #      - name: Disable github actions systemd-resolved
 #        run: sudo /bin/bash tests/disable-systemd-resolved.sh
 
-      - name: Setup to free up port 53
-        run: sudo /bin/bash tests/edit-systemd-resolved.sh
-
-      - name: Debug ping google.com  # TODO: remove this debug print
-        run: ping -c 3 google.com
+#      - name: Setup to free up port 53
+#        run: sudo /bin/bash tests/edit-systemd-resolved.sh
+#
+#      - name: Debug ping google.com  # TODO: remove this debug print
+#        run: ping -c 3 google.com
 
       - name: Install python and ansible requirements
         run: |
@@ -134,16 +140,22 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Debug print /etc/resolv.conf  # TODO: remove this debug print
-        run: cat /etc/resolv.conf
+        run: | 
+          echo "/etc/resolv.conf"
+          cat /etc/resolv.conf
+          echo "/etc/systemd/resolved.conf"
+          cat /etc/systemd/resolved.conf
+          echo "/run/systemd/resolve/resolv.conf"
+          cat /run/systemd/resolve/resolv.conf
 
 #      - name: Disable github actions systemd-resolved
 #        run: sudo /bin/bash tests/disable-systemd-resolved.sh
 
-      - name: Setup to free up port 53
-        run: sudo /bin/bash tests/edit-systemd-resolved.sh
-
-      - name: Debug ping google.com  # TODO: remove this debug print
-        run: ping -c 3 google.com
+#      - name: Setup to free up port 53
+#        run: sudo /bin/bash tests/edit-systemd-resolved.sh
+#
+#      - name: Debug ping google.com  # TODO: remove this debug print
+#        run: ping -c 3 google.com
 
       - name: Install python and ansible requirements
         run: |

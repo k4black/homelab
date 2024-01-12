@@ -27,6 +27,7 @@ cp /etc/resolv.conf /etc/resolv.conf.backup
 # Set Google DNS for example, you can choose another provider
 echo "nameserver 8.8.8.8" > /etc/resolv.conf
 echo "nameserver 8.8.4.4" >> /etc/resolv.conf
+echo "nameserver 1.1.1.1" >> /etc/resolv.conf
 
 # Verify the configuration
 echo "DNS configuration updated. /etc/resolv.conf now contains:"
