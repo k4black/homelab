@@ -22,7 +22,7 @@
     - name: Disable DNSStubListener in /etc/systemd/resolved.conf
       ansible.builtin.lineinfile:
         path: /etc/systemd/resolved.conf
-        regexp: '^(#DNSStubListener=yes|DNSStubListener=yes|#DNSStubListener=no)'
+        regexp: 'DNSStubListener='
         line: "DNSStubListener=no"
         backrefs: true
       become: true
