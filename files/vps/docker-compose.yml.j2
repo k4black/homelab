@@ -116,6 +116,33 @@ services:
       - "5000:80"
     restart: unless-stopped
 
+  ## DNS Service ##
+  # TODO: thing about unbound to resolve DNS and not send it to the google etc
+  pihole:
+    image: pihole/pihole:latest
+    container_name: pihole
+    environment:
+      PUID: 1000
+      PGID: 1000
+      TZ: {{ timezone }}
+      WEBPASSWORD: password  # for http://pi.hole/admin
+      PIHOLE_DNS_: "1.1.1.1;8.8.8.8"
+      WEBTHEME: default-dark
+      FTLCONF_LOCAL_IPV4: "{{ local_ipv4 }}"
+    ports:
+      - "53:53/tcp"
+      - "53:53/udp"
+      - "8053:80/tcp"  # custom port for web interface
+    volumes:
+      - {{ containers_setup_configs_dir }}/pihole/:/etc/pihole/:rw
+      - {{ containers_setup_configs_dir }}/pihole-dnsmasq.d:/etc/dnsmasq.d/:rw
+    healthcheck:
+      test: ["CMD", "dig", "+norecurse", "+retry=0", "@127.0.0.1", "pi.hole"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
   ### Metrics ###
   node-exporter:
     image: prom/node-exporter:latest

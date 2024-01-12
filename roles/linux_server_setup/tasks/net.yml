@@ -22,9 +22,21 @@
     - name: Disable DNSStubListener in /etc/systemd/resolved.conf
       ansible.builtin.lineinfile:
         path: /etc/systemd/resolved.conf
-        regexp: 'DNSStubListener='
+        regexp: "#?DNSStubListener=.*"
         line: "DNSStubListener=no"
         backrefs: true
+      become: true
+    - name: Set DNS listen to localhost:53 (pihole will be there)
+      ansible.builtin.lineinfile:
+        path: /etc/systemd/resolved.conf
+        regexp: "#?DNS=.*"
+        line: "DNS=127.0.0.1#53"
+      become: true
+    - name: Set fallback DNS
+      ansible.builtin.lineinfile:
+        path: /etc/systemd/resolved.conf
+        regexp: "#?FallbackDNS=.*"
+        line: "FallbackDNS=1.1.1.1 8.8.8.8"
       become: true
     - name: Restart systemd-resolved
       ansible.builtin.service:
@@ -45,6 +57,19 @@
         state: link
       changed_when: false
       become: true
+    - name: Wait for a few seconds after restart
+      ansible.builtin.pause:
+        seconds: 5
+    - name: Test DNS resolution
+      command: nslookup google.com
+      register: nslookup_output
+    - name: Show nslookup results
+      ansible.builtin.debug:
+        msg: "{{ nslookup_output.stdout_lines }}"
+    - name: Fail if DNS resolution is not working
+      ansible.builtin.fail:
+        msg: "DNS resolution test failed"
+      when: nslookup_output.rc != 0
 
 
 - name: Setup ufw
