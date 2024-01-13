@@ -19,12 +19,42 @@
 # https://web.archive.org/web/20220612212822/https://www.bklynit.net/ubuntu-20-04-lts-docker-pihole/
 - name: Setup systemd-resolved DNS
   block:
-    - name: Install systemd-resolved
-      ansible.builtin.package:
-        name: systemd-resolved
-        state: present
-      register: apt_output
+    - name: Check if systemd-resolved is installed
+      ansible.builtin.stat:
+        path: /usr/bin/systemd-resolved
+      register: systemd_resolved_exists
       changed_when: false
+      failed_when: false
+      become: true
+    - name: Check if resolvectl is installed
+      ansible.builtin.stat:
+        path: /usr/bin/resolvectl
+      register: resolvectl_exists
+      changed_when: false
+      failed_when: false
+      become: true
+    - name: Install systemd-resolved
+      when: systemd_resolved_exists.stat.exists == false and resolvectl_exists.stat.exists == false
+      block:
+        - name: Install on Ubuntu
+          ansible.builtin.package:
+            name: systemd-resolved
+            state: present
+            update_cache: yes
+          when: ansible_distribution == 'Ubuntu'
+          become: true
+        - name: Install on Debian
+          ansible.builtin.package:
+            name: systemd-resolved
+            state: present
+            update_cache: yes
+          when: ansible_distribution == 'Debian'
+          become: true
+      become: true
+    - name: If debian dpkg-reconfigure
+      ansible.builtin.command: dpkg-reconfigure systemd
+      changed_when: false
+      when: ansible_distribution == 'Debian'
       become: true
     - name: Enable and start systemd-resolved
       ansible.builtin.service:
@@ -32,11 +62,13 @@
         state: started
         enabled: true
       become: true
-#    - name: Restart system if systemd-resolved was installed
-#      ansible.builtin.reboot:
-#        msg: Rebooting due to systemd-resolved installation
-#      when: apt_output.changed and (testing is undefined or testing != 'true')
-#      become: true
+    - name: Disable conflicting dnsmasq (if any)
+      ansible.builtin.service:
+        name: dnsmasq
+        state: stopped
+        enabled: false
+      become: true
+      failed_when: false
     - name: Disable DNSStubListener in /etc/systemd/resolved.conf
       ansible.builtin.lineinfile:
         path: /etc/systemd/resolved.conf
@@ -44,17 +76,17 @@
         line: "DNSStubListener=no"
         backrefs: true
       become: true
-    - name: Set DNS listen to localhost:53 (pihole will be there)
+    - name: Set external DNS servers in /etc/systemd/resolved.conf (Bypassing Pi-hole)
       ansible.builtin.lineinfile:
         path: /etc/systemd/resolved.conf
-        regexp: "#?DNS=.*"
-        line: "DNS=127.0.0.1#53"
+        regexp: "^#?DNS=.*"
+        line: "DNS=1.1.1.1 8.8.8.8"
       become: true
-    - name: Set fallback DNS
+    - name: Set fallback DNS in /etc/systemd/resolved.conf
       ansible.builtin.lineinfile:
         path: /etc/systemd/resolved.conf
-        regexp: "#?FallbackDNS=.*"
-        line: "FallbackDNS=1.1.1.1 8.8.8.8"
+        regexp: "^#?FallbackDNS=.*"
+        line: "FallbackDNS=1.0.0.1 8.8.4.4"
       become: true
     - name: Remove symlink /etc/resolv.conf
       ansible.builtin.file:
@@ -68,13 +100,6 @@
         dest: /etc/resolv.conf
         state: link
       changed_when: false
-      become: true
-    - name: Update /etc/nsswitch.conf
-      ansible.builtin.lineinfile:
-        path: /etc/nsswitch.conf
-        regexp: "^hosts:.*"
-        line: "hosts: files resolve [!UNAVAIL=return] dns myhostname"
-        backrefs: true
       become: true
     - name: Restart NetworkManager
       ansible.builtin.service:

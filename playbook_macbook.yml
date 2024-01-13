@@ -201,8 +201,18 @@
             mode: 0755
         - name: Copy the wineguard config file
           ansible.builtin.template:
-            src: files/macbook/client-wg0.conf.j2
-            dest: "~/.config/wireguard/macbook_wg0.conf"
+            src: files/macbook/vps-client-wg0.conf.j2
+            dest: "~/.config/wireguard/vps_wg0.conf"
+            mode: 0600
+        - name: Copy the wineguard config file
+          ansible.builtin.template:
+            src: files/macbook/homelab-client-wg0.conf.j2
+            dest: "~/.config/wireguard/homelab_wg0.conf"
+            mode: 0600
+        - name: Copy the wineguard config file
+          ansible.builtin.template:
+            src: files/macbook/router-client-wg0.conf.j2
+            dest: "~/.config/wireguard/router_wg0.conf"
             mode: 0600
 #      - name: Set pf.conf permissions
 #        file:

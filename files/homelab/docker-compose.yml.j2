@@ -70,7 +70,36 @@ services:
 {#      - "traefik.http.routers.whoami.tls.certresolver=myresolver"#}
     restart: unless-stopped
 
-  ## DNS Service ##
+  ## Networking ##
+  wireguard:
+    image: linuxserver/wireguard:latest
+    container_name: wireguard
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    environment:
+      PUID: 1000
+      PGID: 1000
+      TZ: {{ timezone }}
+      SERVERURL: {{ homelab_duckdns_subdomain }}.duckdns.org
+      SERVERPORT: 51820
+      INTERNAL_SUBNET: {{ vpn_network_subnet }}
+    volumes:
+      - {{ containers_setup_configs_dir }}/server-wg0.conf:/config/wg_confs/server_wg0.conf:ro
+      - /lib/modules:/lib/modules
+    ports:
+      - "51820:51820/udp"
+      # - "5000:5000"  # for wireguard-ui, set here as network_mode: service:wireguard
+    sysctls:
+      - net.ipv4.conf.all.src_valid_mark=1
+      - net.ipv4.ip_forward=1
+    healthcheck:
+      test: ["CMD", "wg", "show", "server_wg0"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
   # TODO: thing about unbound to resolve DNS and not send it to the google etc
   pihole:
     image: pihole/pihole:latest
@@ -81,6 +110,7 @@ services:
       TZ: {{ timezone }}
       WEBPASSWORD: password  # for http://pi.hole/admin
       PIHOLE_DNS_: "1.1.1.1;8.8.8.8"
+      DNSMASQ_LISTENING: "local"
       WEBTHEME: default-dark
       FTLCONF_LOCAL_IPV4: "{{ local_ipv4 }}"
     ports:
@@ -97,6 +127,9 @@ services:
       - "traefik.http.routers.pihole.entrypoints=web"
       - "traefik.http.services.pihole.loadbalancer.server.port=80"
 {#      - "traefik.http.routers.pihole.tls.certresolver=myresolver"#}
+    networks:
+      default:
+        ipv4_address: {{ homelab_docker_network_pihole_ip }}
     healthcheck:
       test: ["CMD", "dig", "+norecurse", "+retry=0", "@127.0.0.1", "pi.hole"]
       interval: 30s

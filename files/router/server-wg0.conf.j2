@@ -1,18 +1,18 @@
 # {{ ansible_managed }}
 
-# vps
+# router
 [Interface]
 # The IP address range for the VPN network
-Address = {{ vpn_network_vps_ip }}/24
+Address = {{ vpn_network_router_ip }}/24
 # The port number on which the server will listen for connections
-ListenPort = 51820
+ListenPort = 52682
 # The server's private key
-PrivateKey = {{ wg0_vps_private_key }}
+PrivateKey = {{ wg0_router_private_key }}
 # Auto update on config change
-SaveConfig = true
+# SaveConfig = true
 # Optionally, you can configure PostUp and PostDown rules, e.g., for iptables
-PostUp = iptables -A FORWARD -i %i -j ACCEPT; iptables -A FORWARD -o %i -j ACCEPT; iptables -t nat -A POSTROUTING -s {{ vpn_network_subnet }} -o eth0 -j MASQUERADE
-PostDown = iptables -D FORWARD -i %i -j ACCEPT; iptables -D FORWARD -o %i -j ACCEPT; iptables -t nat -D POSTROUTING -s {{ vpn_network_subnet }} -o eth0 -j MASQUERADE
+# PostUp = iptables -A FORWARD -i %i -j ACCEPT; iptables -A FORWARD -o %i -j ACCEPT; iptables -t nat -A POSTROUTING -s {{ vpn_network_subnet }} -o eth0 -j MASQUERADE
+# PostDown = iptables -D FORWARD -i %i -j ACCEPT; iptables -D FORWARD -o %i -j ACCEPT; iptables -t nat -D POSTROUTING -s {{ vpn_network_subnet }} -o eth0 -j MASQUERADE
 
 
 # homelab
@@ -20,6 +20,13 @@ PostDown = iptables -D FORWARD -i %i -j ACCEPT; iptables -D FORWARD -o %i -j ACC
 PublicKey = {{ wg0_homelab_public_key }}
 Endpoint = {{ homelab_duckdns_subdomain }}.duckdns.org:51820
 AllowedIPs = {{ vpn_network_homelab_ip }}/32
+PersistentKeepalive = 25
+
+# vps
+[Peer]
+PublicKey = {{ wg0_vps_public_key }}
+Endpoint = {{ vps_duckdns_subdomain }}.duckdns.org:51820
+AllowedIPs = {{ vpn_network_vps_ip }}/32
 PersistentKeepalive = 25
 
 # Macbook

@@ -1,22 +1,29 @@
 # {{ ansible_managed }}
 
+# macbook
 [Interface]
 # The address your computer will use on the VPN
-Address = {{ vps_vpn_network_macbook_client_ip }}/32
-# private client key
+Address = {{ vpn_network_macbook_client_ip }}/24
+# The clients's private key
 PrivateKey = {{ wg0_macbook_client_private_key }}
 # The DNS server you'll use while connected to the VPN
-DNS = 127.0.0.1
-DNS = 1.1.1.1
+# local pihole DNS server first, then other DNS servers
+DNS = {{ vps_docker_network_pihole_ip }},1.1.1.1,8.8.8.8
 
+# vps
 [Peer]
 # VPN server's wireguard public key
-PublicKey = {{ wg0_server_public_key }}
+PublicKey = {{ wg0_vps_public_key }}
 # Use the floating IP address if you created one for your VPN server
 Endpoint = {{ vps_duckdns_subdomain }}.duckdns.org:51820
-# Route all traffic through VPN (all Ipv4 IPs except those in the local subnet + all IPv6 IPs)
-# 0.0.0.0/1 and 128.0.0.0/1 cover all IPv4 addresses except for the 192.168.1.0/24 range.
-{#AllowedIPs = 0.0.0.0/1, 128.0.0.0/1, ::/0#}
+# Route all traffic through VPN
 AllowedIPs = 0.0.0.0/0, ::/0
 # Persistent keepalive interval (usually necessary if you're behind a NAT)
+PersistentKeepalive = 25
+
+# homelab
+[Peer]
+PublicKey = {{ wg0_homelab_public_key }}
+Endpoint = {{ homelab_duckdns_subdomain }}.duckdns.org:51820
+AllowedIPs = {{ vpn_network_homelab_ip }}/32
 PersistentKeepalive = 25

@@ -6,6 +6,7 @@
       ansible.builtin.group:
         name: "{{ item }}"
         state: present
+        system: true
       become: true
       loop:
         - docker

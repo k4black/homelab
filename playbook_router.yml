@@ -1,0 +1,23 @@
+---
+
+- name: Configure MacOS device.
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+
+  vars_files:
+    - vars/all.yml
+    - vars/router.yml
+
+
+  tasks:
+    - name: Create .tmp folder
+      ansible.builtin.file:
+        path: ./.tmp
+        state: directory
+        mode: '0755'
+    - name: Create Wireguard config to local tmp folder
+      ansible.builtin.template:
+        src: files/router/server-wg0.conf.j2
+        dest: ./.tmp/router-wg0.conf

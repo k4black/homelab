@@ -180,6 +180,7 @@
         containers_setup_touch_files:
           - "{{ services_configs_dir }}/traefik-acme.json"
         containers_setup_config_templates:
+          files/homelab/server-wg0.conf.j2: "server-wg0.conf"  # TODO: fix permissions
           files/homelab/home-assistant-config.yml.j2: "home-assistant-config/configuration.yaml"
           files/homelab/influxdb-config.toml.j2: "influxdb-config/influxdb-config.toml"
           files/homelab/influxdb-init-script.sh.j2: "influxdb-init-script.sh"
@@ -189,44 +190,10 @@
           files/homelab/telegraf.conf: "telegraf.conf"
           files/homelab/traefik-config.yml.j2: "traefik-config.yml"
 
-    - name: Copy wireguard config
-      ansible.builtin.template:
-        src: files/homelab/client-wg0.conf.j2
-        dest: "/etc/wireguard/wg0.conf"
-        mode: 0600
-      become: true
-      notify: Restart wireguard service
-    - name: Make simlink to this file
-      ansible.builtin.file:
-        src: "/etc/wireguard/wg0.conf"
-        dest: "{{ services_configs_dir }}/client-wg0.conf"
-        state: link
-        force: true
-      become: true
-    - name: Sleep for 5
-      ansible.builtin.wait_for:
-        timeout: 5
-      become: true
-    - name: Setup auto start wireguard when VPN available
-      ansible.builtin.shell: |
-        sudo systemctl enable wg-quick@wg0
-        sudo systemctl start wg-quick@wg0
-        sudo systemctl stop wg-quick@wg0  # TODO: remove this line when wireguard config will be ready
-      become: true
-      changed_when: false
-
-
   handlers:
-    - name: Restart wireguard service
-      ansible.builtin.service:
-        name: wg-quick@wg0
-        state: restarted
-      become: true
-      changed_when: false
-
-    - name: Restart avahi service
-      ansible.builtin.service:
-        name: avahi-daemon
-        state: restarted
-      become: true
-      changed_when: false
+#    - name: Restart avahi service
+#      ansible.builtin.service:
+#        name: avahi-daemon
+#        state: restarted
+#      become: true
+#      changed_when: false
