@@ -16,6 +16,10 @@ homelab_local_ipv4: 192.168.178.100
 homelab_local_ipv6: fe80::71f9:5ee0:214a:e931
 
 
+backup_general_uuid: "5670da9f-23f5-4711-80a6-e3b7d1745b6a"
+backup_timemachine_uuid: "cbb7da7f-4b37-4dc8-8cf5-381a0d9b7d10"
+
+
 services_configs_dir: /srv/configs
 services_data_dir: /srv/data
 
@@ -33,6 +37,7 @@ packages_install_list:
   - wireguard
   - dnsutils
   # utils
+  - exfat-fuse
   - zsh
   - cron
   - unzip

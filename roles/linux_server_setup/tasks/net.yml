@@ -19,6 +19,12 @@
 # https://web.archive.org/web/20220612212822/https://www.bklynit.net/ubuntu-20-04-lts-docker-pihole/
 - name: Setup systemd-resolved DNS
   block:
+    - name: Force add 1.1.1.1 to /etc/resolv.conf in case
+      ansible.builtin.lineinfile:
+        path: /etc/resolv.conf
+        regexp: "^nameserver.*"
+        line: "nameserver 1.1.1.1"
+      become: true
     - name: Check if systemd-resolved is installed
       ansible.builtin.stat:
         path: /usr/bin/systemd-resolved
@@ -131,7 +137,7 @@
 
 
 - name: Setup ufw
-  when: linux_server_setup_open_ports
+  when: linux_server_setup_block_ports and linux_server_setup_open_ports
   block:
     - name: Convert linux_server_setup_open_ports to ufw_rules format
       ansible.builtin.set_fact:

@@ -14,15 +14,6 @@ networks:
 
 services:
   ### Utils ###
-  duckdns:
-    image: linuxserver/duckdns:latest
-    container_name: duckdns
-    environment:
-      TZ: {{ timezone }}
-      SUBDOMAINS: {{ vps_duckdns_subdomain }}
-      TOKEN: {{ duckdns_token }}
-      LOG_FILE: true
-    restart: unless-stopped
 
   whoami:
     image: traefik/whoami
@@ -33,6 +24,16 @@ services:
     restart: unless-stopped
 
   ## Networking ##
+  duckdns:
+    image: linuxserver/duckdns:latest
+    container_name: duckdns
+    environment:
+      TZ: {{ timezone }}
+      SUBDOMAINS: {{ vps_duckdns_subdomain }}
+      TOKEN: {{ duckdns_token }}
+      LOG_FILE: true
+    restart: unless-stopped
+
   wireguard:
     image: linuxserver/wireguard:latest
     container_name: wireguard

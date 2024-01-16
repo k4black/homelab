@@ -46,6 +46,14 @@ To lint run `yamllint .` and `ansible-lint`
 
 Create duckdns [DOMAIN] and [TOKEN]
 
+### Backups 
+
+Connect disk to the raspberry pi and get uuid (PARTUUID)
+```bash
+sudo blkid
+```
+update vars/homelab.yml
+
 ### Pi initial setup:
 
 1. Install raspbian lite on raspberry pi  
@@ -53,6 +61,7 @@ Create duckdns [DOMAIN] and [TOKEN]
     Fill wi-fi credentials and enable ssh with your ssh key
 2. Create ssh config for the homelab with key and `homelab` announced name
 3. Run `ansible-playbook -i inventory.ini playbook_homelab.yml` to setup homelab
+
 
 ### Router setup:
 

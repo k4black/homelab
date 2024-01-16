@@ -109,10 +109,13 @@
         linux_server_setup_login_user_uid: 1000
         linux_server_setup_login_user_gid: 1000
         linux_server_setup_login_ssh_public_key: "{{ ssh_public_key }}"
+        linux_server_setup_block_ports: true
         linux_server_setup_open_ports:
           - {port: 22, protocol: "tcp", comment: "default ssh"}
           - {port: "{{ ssh_port }}", protocol: "tcp", comment: "custom ssh"}
           - {port: 51820, protocol: "udp", comment: "wireguard"}
+          - {port: 53, protocol: "udp", comment: "pihole dns"}
+          - {port: 53, protocol: "tcp", comment: "pihole dns"}
           - {port: 80, protocol: "tcp", comment: "http"}
           - {port: 443, protocol: "tcp", comment: "https"}
 
@@ -160,6 +163,45 @@
           ansible.builtin.command: rpi-eeprom-config --apply /tmp/boot.conf
           changed_when: false
           become: true
+
+    - name: Setup disk auto-mount
+      block:
+        - name: Create mount point directories
+          file:
+            path: "{{ item }}"
+            state: directory
+            owner: root
+            group: root
+            mode: '0755'
+          loop:
+            - /mnt/backups
+            - /mnt/timemachine
+          become: true
+        - name: Add mount points to fstab
+          ansible.builtin.mount:
+            path: "{{ item.path }}"
+            src: "UUID={{ item.uuid }}"
+            fstype: "{{ item.fstype }}"
+            opts: "{{ item.opts }}"
+            state: present
+            dump: 0
+            passno: 2
+          loop:
+            - { path: /mnt/backups, uuid: "{{ backup_general_uuid }}", fstype: ext4, opts: "defaults" }
+            - { path: /mnt/timemachine, uuid: "{{ backup_timemachine_uuid }}", fstype: ext4, opts: "defaults" }
+          become: true
+        - name: Try to mount all
+          ansible.builtin.command: mount -a
+          changed_when: false
+          become: true
+        - name: List mounted devices
+          ansible.builtin.command: df -h
+          register: df_output
+          changed_when: false
+        - name: Debug output all mounted devices
+          ansible.builtin.debug:
+            var: df_output.stdout_lines
+          when: testing is undefined or testing != 'true'
 
     - name: Copy docker configs and run containers
       ansible.builtin.include_role:

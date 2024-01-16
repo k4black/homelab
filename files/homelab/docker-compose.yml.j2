@@ -18,14 +18,17 @@ volumes:
 
 services:
   ### Utils ###
-  duckdns:
-    image: linuxserver/duckdns:latest
-    container_name: duckdns
-    environment:
-      TZ: {{ timezone }}
-      SUBDOMAINS: {{ homelab_duckdns_subdomain }}
-      TOKEN: {{ duckdns_token }}
-      LOG_FILE: true
+  whoami:
+    image: traefik/whoami
+    container_name: whoami
+    ports:
+      - "5000:80"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.whoami.rule=Host(`whoami.homelab.local`)"
+      - "traefik.http.routers.whoami.entrypoints=web"
+      - "traefik.http.services.whoami.loadbalancer.server.port=80"
+{#      - "traefik.http.routers.whoami.tls.certresolver=myresolver"#}
     restart: unless-stopped
 
   ### Reverse Proxy ###
@@ -56,21 +59,17 @@ services:
       retries: 3
     restart: unless-stopped
 
-  ### Services ###
-  whoami:
-    image: traefik/whoami
-    container_name: whoami
-    ports:
-      - "5000:80"
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.whoami.rule=Host(`whoami.homelab.local`)"
-      - "traefik.http.routers.whoami.entrypoints=web"
-      - "traefik.http.services.whoami.loadbalancer.server.port=80"
-{#      - "traefik.http.routers.whoami.tls.certresolver=myresolver"#}
+  ## Networking ##
+  duckdns:
+    image: linuxserver/duckdns:latest
+    container_name: duckdns
+    environment:
+      TZ: {{ timezone }}
+      SUBDOMAINS: {{ homelab_duckdns_subdomain }}
+      TOKEN: {{ duckdns_token }}
+      LOG_FILE: true
     restart: unless-stopped
 
-  ## Networking ##
   wireguard:
     image: linuxserver/wireguard:latest
     container_name: wireguard
@@ -110,7 +109,7 @@ services:
       TZ: {{ timezone }}
       WEBPASSWORD: password  # for http://pi.hole/admin
       PIHOLE_DNS_: "1.1.1.1;8.8.8.8"
-      DNSMASQ_LISTENING: "local"
+      DNSMASQ_LISTENING: "all"  # TODO: make local, but re-route from reserved-proxy
       WEBTHEME: default-dark
       FTLCONF_LOCAL_IPV4: "{{ local_ipv4 }}"
     ports:
@@ -188,10 +187,10 @@ services:
       PASSWORD: timemachine
       TM_UID: 1000
       TM_GID: 1000
-      SET_PERMISSIONS: "false"
-      VOLUME_SIZE_LIMIT: "100 G"
+      SET_PERMISSIONS: "true"
+      VOLUME_SIZE_LIMIT: "0"  # unlimited
     volumes:
-        - {{ containers_setup_data_dir }}test-timemachine:/opt/timemachine  # TODO: change to mnt volume
+        - /mnt/timemachine:/opt/timemachine
         - timemachine-var-lib-samba:/var/lib/samba
         - timemachine-var-cache-samba:/var/cache/samba
         - timemachine-run-samba:/run/samba
