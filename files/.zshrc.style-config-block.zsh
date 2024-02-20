@@ -19,7 +19,7 @@ function plugin-load {
       echo "Cloning $repo..."
       git clone -q --depth 1 --recursive --shallow-submodules \
         https://github.com/$repo $plugdir
-      echo "Compilling plugin $repo..."
+      echo "Compiling plugin $repo..."
       plugin-compile $plugdir
     fi
     # seach init files
@@ -74,7 +74,8 @@ function parse_git_branch() {
 setopt PROMPT_SUBST
 
 # create prompt itself
-export PROMPT='${COLOR_USR}%n@${COLOR_MSN}%m:${COLOR_DIR}%~${COLOR_GIT}$(parse_git_branch)${COLOR_DEF} ${COLOR_PMT}%{%(#.#.$)%} '
+#export PROMPT='${COLOR_USR}%n@${COLOR_MSN}%m:${COLOR_DIR}%~${COLOR_GIT}$(parse_git_branch)${COLOR_DEF} ${COLOR_PMT}%{%(#.#.$)%} '
+export PROMPT='%{${COLOR_USR}%}%n@%{${COLOR_MSN}%}%m:%{${COLOR_DIR}%}%~%{${COLOR_GIT}%}$(parse_git_branch)%{${COLOR_DEF}%} %{${COLOR_PMT}%}%{%(#.#.$)%} '
 
 ### completions: list with highlighted item, not cased and additional completions
 zstyle ':completion:*' matcher-list 'm:{a-z}={A-Za-z}'

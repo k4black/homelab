@@ -34,8 +34,10 @@ homebrew_cask_apps:
   - tunnelblick
   - the-unarchiver
   - lulu
+  - alt-tab
   - MonitorControl  # TODO: add permissions to Accessibility and login item
   # mix
+  - todoist
   - notion
   - obsidian
   - zotero
