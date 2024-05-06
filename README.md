@@ -24,8 +24,9 @@ Also be sure to set up `inventory.ini` with the correct IP addresses of your hos
 
 To run the playbooks, execute the following command:
 ```bash
-ansible-playbook macbook_playbook.yml
-ansible-playbook homeserver_playbook.yml
+ansible-playbook playbook_macbook.yml
+ansible-playbook playbook_homelab.yml
+ansible-playbook playbook_vps.yml
 ```
 
 
