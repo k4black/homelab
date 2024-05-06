@@ -33,7 +33,7 @@ services:
 
   ### Reverse Proxy ###
   traefik:
-    image: traefik:2.10
+    image: traefik:3.0
     container_name: traefik
     hostname: traefik.homelab.local
     ports:
@@ -199,7 +199,7 @@ services:
 
   ### Metrics ###
   influxdb:
-    image: influxdb:2.7.0-alpine
+    image: influxdb:2.7.6-alpine
     container_name: influxdb
     environment:
       TZ: {{ timezone }}
