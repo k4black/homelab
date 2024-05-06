@@ -47,6 +47,7 @@ homebrew_installed_packages:
   - git-lfs
   - sqlite
   - lotyp/formulae/dockutil
+  - gh
   # languages
   - pyenv
   - go
@@ -89,27 +90,30 @@ dockitems_persist:
   - name: "Notes"
     path: "/Applications/Notes.app"
     pos: 5
+  - name: "Todoist"
+    path: "/Applications/Todoist.app/"
+    pos: 6
   - name: "Obsidian"
     path: "/Applications/Obsidian.app/"
-    pos: 6
+    pos: 7
   - name: "System Settings"
     path: "/System/Applications/System Settings.app"
-    pos: 7
+    pos: 8
   - name: "Brave Browser"
     path: "/Applications/Brave Browser.app"
-    pos: 8
+    pos: 9
   - name: "Telegram"
     path: "/Applications/Telegram.app"
-    pos: 9
+    pos: 10
   - name: "Slack"
     path: "/Applications/Slack.app"
-    pos: 10
+    pos: 11
   - name: "Terminal"
     path: "/System/Applications/Utilities/Terminal.app"
-    pos: 11
+    pos: 12
   - name: "Activity Monitor"
     path: "/System/Applications/Utilities/Activity Monitor.app"
-    pos: 12
+    pos: 13
 #  - name: "Sublime Text"
 #    path: "/Applications/Sublime Text.app/"
 #    pos: 13
@@ -132,7 +136,8 @@ mas_password: !vault |
 mas_installed_apps:
   - {id: 1444383602, name: "Goodnotes 6"}
   - {id: 1423210932, name: "Flow"}
-  - {id: 1451685025, name: "WireGuard"}
+  - {id: 1441195209, name: "WireGuard"}
+  - {id: 572688855, name: "Todoist"}
 mas_uninstalled_apps:
   - {id: 408981434, name: "iMovie"}
   - {id: 682658836, name: "GarageBand"}
