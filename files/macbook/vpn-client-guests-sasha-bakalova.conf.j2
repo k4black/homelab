@@ -1,0 +1,22 @@
+# {{ ansible_managed }}
+
+# guest device
+[Interface]
+# The address your computer will use on the VPN
+Address = {{ vpn_network_guests_sasha_bakalova_client_ip }}/24
+# The clients's private key
+PrivateKey = TODO CHANGE ME
+# The DNS server you'll use while connected to the VPN
+# local pihole DNS server first, then other DNS servers
+DNS = {{ vps_docker_network_pihole_ip }},1.1.1.1,8.8.8.8
+
+# vps
+[Peer]
+# VPN server's wireguard public key
+PublicKey = {{ wg0_vps_public_key }}
+# Use the floating IP address if you created one for your VPN server
+Endpoint = {{ vps_duckdns_subdomain }}.duckdns.org:51820
+# Route all traffic through VPN
+AllowedIPs = 0.0.0.0/0, ::/0
+# Persistent keepalive interval (usually necessary if you're behind a NAT)
+PersistentKeepalive = 25

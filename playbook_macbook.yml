@@ -31,11 +31,6 @@
           register: user_groups
           changed_when: false
 
-        - name: Check admin user exists
-          ansible.builtin.command: id -u {{ admin_username }}
-          register: admin_user_exists
-          changed_when: false
-          failed_when: false
 
         - name: Check admin password valid
           ansible.builtin.command: dscl /Local/Default -authonly {{ admin_username }} {{ admin_password }}
@@ -214,19 +209,12 @@
             src: files/macbook/router-client-wg0.conf.j2
             dest: "~/.config/wireguard/router_wg0.conf"
             mode: 0600
-#      - name: Set pf.conf permissions
-#        file:
-#          path: /etc/pf.conf
-#          mode: 0666
-#      - name: Enable killswitch
-#        command: killswitch -e -local -p
-#      - name: Copy the pf.conf file
-#        template:
-#          src: files/macbook/pf.conf.j2
-#          dest: /etc/pf.conf
-#          mode: 0666
-#      - name: Enable pf
-#        command: pfctl -e
+        - name: Copy the wineguard config file (guests)
+          ansible.builtin.template:
+            src: files/macbook/vpn-client-guests-sasha-bakalova.conf.j2
+            dest: "~/.config/wireguard/vpn_guests_sasha_bakalova.conf"
+            mode: 0600
+        
 
     # Setup Accounts
 #    - block:

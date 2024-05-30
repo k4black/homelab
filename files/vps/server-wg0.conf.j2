@@ -33,3 +33,9 @@ PersistentKeepalive = 25
 PublicKey = {{ wg0_iphone_client_public_key }}
 AllowedIPs = {{ vpn_network_iphone_client_ip }}/32
 PersistentKeepalive = 25
+
+# Guests
+[Peer]
+PublicKey = {{ wg0_guests_sasha_bakalova_client_public_key }}
+AllowedIPs = {{ vpn_network_guests_sasha_bakalova_client_ip }}/32
+PersistentKeepalive = 25
