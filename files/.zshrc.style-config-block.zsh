@@ -34,6 +34,34 @@ function plugin-load {
 }
 
 
+### functions and shortcuts
+# extract compressed files
+function extract {
+  echo Extracting $1 ...
+  if [ -f $1 ] ; then
+      case $1 in
+          *.tar.bz2)   tar xjf $1  ;;
+          *.tar.gz)    tar xzf $1  ;;
+          *.bz2)       bunzip2 $1  ;;
+          *.rar)       unrar x $1    ;;
+          *.gz)        gunzip $1   ;;
+          *.tar)       tar xf $1   ;;
+          *.tbz2)      tar xjf $1  ;;
+          *.tgz)       tar xzf $1  ;;
+          *.zip)       unzip $1   ;;
+          *.Z)         uncompress $1  ;;
+          *.7z)        7z x $1  ;;
+          *)        echo "'$1' cannot be extracted via extract()" ;;
+      esac
+  else
+      echo "'$1' is not a valid file"
+  fi
+}
+
+# update ls command to color, show all, and human readable
+alias ll='ls -lahFG'
+
+
 ### prompt style
 
 # define colors
@@ -58,12 +86,6 @@ function define_os_color_darker {
         echo "%f"
     fi
 }
-COLOR_SEP=$(define_os_color_darker)
-COLOR_USR=$(define_os_color)
-COLOR_MSN=$(define_os_color)
-COLOR_DIR=$'%F{127}'
-COLOR_GIT=$'%F{8}'
-COLOR_PMT=$'%F{254}'
 
 # setup git status badge
 function parse_git_branch() {
@@ -72,15 +94,50 @@ function parse_git_branch() {
 
 # enable env vars in prompt
 setopt PROMPT_SUBST
+# Allow multiple terminal sessions to all append to one zsh command history
+setopt APPEND_HISTORY
+# Add commands as they are typed, don't wait until shell exit
+setopt INC_APPEND_HISTORY
+# Do not write events to history that are duplicates of previous events
+setopt HIST_IGNORE_DUPS
+# Ignore history duplicates when search
+setopt HIST_FIND_NO_DUPS
+# Shrink whitespace in prompt
+setopt HIST_REDUCE_BLANKS
+# Include more information about when the command was executed, etc
+setopt EXTENDED_HISTORY
 
 # create prompt itself
-#export PROMPT='${COLOR_USR}%n@${COLOR_MSN}%m:${COLOR_DIR}%~${COLOR_GIT}$(parse_git_branch)${COLOR_DEF} ${COLOR_PMT}%{%(#.#.$)%} '
-export PROMPT='%{${COLOR_USR}%}%n@%{${COLOR_MSN}%}%m:%{${COLOR_DIR}%}%~%{${COLOR_GIT}%}$(parse_git_branch)%{${COLOR_DEF}%} %{${COLOR_PMT}%}%{%(#.#.$)%} '
+export PROMPT='%{$(define_os_color)%}%n@%{$(define_os_color)%}%m:%F{127}%~%F{8}$(parse_git_branch) %F{254}%(!.#.$) '
 
 ### completions: list with highlighted item, not cased and additional completions
-zstyle ':completion:*' matcher-list 'm:{a-z}={A-Za-z}'
-zstyle ':completion:*' menu select
+# loads the zsh/complist module, which provides advanced completion listing features.
 zmodload -i zsh/complist
+# match uppercase from lowercase
+zstyle ':completion:*' matcher-list 'm:{a-z}={A-Za-z}'
+# setup completion to aliases, standard compl, ignore is not a match, and approximate
+zstyle ':completion:*::::' completer _expand _complete _ignored _approximate
+zstyle ':completion:*' menu select=1 _complete _ignored _approximate
+# Enable completion caching, use rehash to clear
+zstyle ':completion::complete:*' use-cache on
+zstyle ':completion::complete:*' cache-path ~/.zsh/cache/$HOST
+# Fallback to built in ls colors
+# explanation https://gist.github.com/thomd/7667642
+export LSCOLORS="Gxfxcxdxbxegedabagacad"
+export LS_COLORS="di=1;36:ln=35:so=32:pi=33:ex=31:bd=34;46:cd=34;43:su=30;41:sg=30;46:tw=30;42:ow=30;43"
+zstyle ':completion:*' list-colors "${(s.:.)LS_COLORS}"
+# Add simple colors to kill
+zstyle ':completion:*:*:kill:*:processes' list-colors '=(#b) #([0-9]#) ([0-9a-z-]#)*=01;34=0=01'
+# ignore completion functions (until the _ignored completer)
+zstyle ':completion:*:functions' ignored-patterns '_*'
+# This shows single ignored matches.
+zstyle '*' single-ignored show
+# setup ssh completions
+# ignore host file https://unix.stackexchange.com/questions/14155/ignore-hosts-file-in-zsh-ssh-scp-tab-complete
+zstyle -e ':completion:*' hosts 'reply=()'
+# Ignore completion ssh (until the _ignored completer)
+zstyle ':completion:*:(ssh|scp|rsync):*' ignored-patterns '_*'
+
 
 
 ### setup plugins
@@ -90,7 +147,7 @@ repos=(
 
   # plugins you want loaded last
   zsh-users/zsh-syntax-highlighting
-#  zsh-users/zsh-history-substring-search  # seems some visual bug
+  zsh-users/zsh-history-substring-search
   zsh-users/zsh-autosuggestions
 )
 
