@@ -27,12 +27,12 @@
       tags: ["dotfiles"]
       vars:
         dotfiles_repo_url: "https://github.com/k4black/dotfiles.git"
-        dotfiles_dest: "~/.dotfiles"
+        dotfiles_dest: "/Users/{{ ansible_user_id }}/.dotfiles"
         dotfiles_symlinks:
-          .zshrc: "~/.zshrc"
-          .gitconfig: "~/.gitconfig"
+          .zshrc: "/Users/{{ ansible_user_id }}/.zshrc"
+          .gitconfig: "/Users/{{ ansible_user_id }}/.gitconfig"
         dotfiles_run_scripts:
-          - "~/.dotfiles/.macos.sh"
+          - "/Users/{{ ansible_user_id }}/.dotfiles/.macos.sh"
     - role: zsh_setup
       vars:
         zsh_setup_set_default_shell: true

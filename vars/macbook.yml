@@ -76,43 +76,43 @@ dockitems_remove:
 dockitems_persist:
   - name: "Finder"
     path: "/System/Library/CoreServices/Finder.app"
-    pos: 1
+    pos: 0
   - name: "Launchpad"
     path: "/System/Applications/Launchpad.app"
-    pos: 2
+    pos: 1
   - name: "Mail"
     path: "/Applications/Mail.app"
-    pos: 3
+    pos: 2
   - name: "Calendar"
     path: "/Applications/Calendar.app"
-    pos: 4
+    pos: 3
   - name: "Notes"
     path: "/Applications/Notes.app"
-    pos: 5
+    pos: 4
   - name: "Todoist"
     path: "/Applications/Todoist.app/"
-    pos: 6
+    pos: 5
   - name: "Obsidian"
     path: "/Applications/Obsidian.app/"
-    pos: 7
+    pos: 6
   - name: "System Settings"
     path: "/System/Applications/System Settings.app"
-    pos: 8
+    pos: 7
   - name: "Orion"
     path: "/Applications/Orion.app"
-    pos: 9
+    pos: 8
   - name: "Telegram Desktop"
     path: "/Applications/Telegram Desktop.app"
-    pos: 10
+    pos: 9
   - name: "Terminal"
     path: "/System/Applications/Utilities/Terminal.app"
-    pos: 11
+    pos: 10
   - name: "Activity Monitor"
     path: "/System/Applications/Utilities/Activity Monitor.app"
-    pos: 12
+    pos: 11
 #  - name: "Sublime Text"
 #    path: "/Applications/Sublime Text.app/"
-#    pos: 13
+#    pos: 12
 
 
 mas_email: !vault |
