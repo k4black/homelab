@@ -1,5 +1,4 @@
 ---
-
 - name: Setup ssh port
   hosts: homelab
   gather_facts: false
@@ -20,7 +19,6 @@
         ssh_public_key: "{{ lookup('file', ssh_public_key_file) }}"
       when: testing is undefined or testing != 'true'
 
-
 - name: Setup local_ipv4
   hosts: homelab
   gather_facts: true
@@ -33,7 +31,6 @@
     - name: Debug local_ipv4
       ansible.builtin.debug:
         var: local_ipv4
-
 
 - name: Setup for testing
   hosts: homelab
@@ -59,14 +56,12 @@
             var: netstat_output.stdout_lines
           when: testing is defined and testing == 'true'
 
-
 - name: Configure HomeLab personal server.
   hosts: homelab
 
   vars_files:
     - vars/all.yml
     - vars/homelab.yml
-
 
   pre_tasks:
     - name: Disable VPN if it is enabled
@@ -79,14 +74,14 @@
     - name: Check if pi user exists
       command: id -u pi
       register: pi_user_check
-      ignore_errors: yes
+      ignore_errors: true
     - name: Rename pi user and group if exists
       block:
         - name: Rename pi user
           user:
             name: pi
             newname: "{{ username }}"
-            move_home: yes
+            move_home: true
         - name: Rename pi group
           group:
             name: pi
@@ -137,7 +132,7 @@
 
     - role: geerlingguy.docker
       become: true
-      
+
     - role: dotfiles
       tags: ["dotfiles"]
       vars:
@@ -152,7 +147,6 @@
         zsh_setup_set_default_shell: true
         zsh_setup_user: "{{ username }}"
       become: true
-
 
   tasks:
     # https://www.jeffgeerling.com/blog/2023/reducing-raspberry-pi-5s-power-consumption-140x
@@ -171,23 +165,24 @@
           ansible.builtin.command: rpi-eeprom-config --apply /tmp/boot.conf
           changed_when: false
           become: true
-          
+
     - name: Setup .gitconfig.local
       ansible.builtin.template:
         src: files/.gitconfig.local.j2
         dest: ~/.gitconfig.local
         mode: 0600
         owner: "{{ ansible_user_id }}"
-              
+
     - name: Setup disk auto-mount
+      when: testing is undefined or testing != 'true'
       block:
         - name: Create mount point directories
-          file:
+          ansible.builtin.file:
             path: "{{ item }}"
             state: directory
             owner: root
             group: root
-            mode: '0755'
+            mode: "0755"
           loop:
             - /mnt/backups
             - /mnt/timemachine
@@ -202,8 +197,8 @@
             dump: 0
             passno: 2
           loop:
-            - { path: /mnt/backups, uuid: "{{ backup_general_uuid }}", fstype: ext4, opts: "defaults" }
-            - { path: /mnt/timemachine, uuid: "{{ backup_timemachine_uuid }}", fstype: ext4, opts: "defaults" }
+            - {path: /mnt/backups, uuid: "{{ backup_general_uuid }}", fstype: ext4, opts: "defaults"}
+            - {path: /mnt/timemachine, uuid: "{{ backup_timemachine_uuid }}", fstype: ext4, opts: "defaults"}
           become: true
         - name: Try to mount all
           ansible.builtin.command: mount -a
@@ -247,7 +242,7 @@
           files/homelab/telegraf.conf: "telegraf.conf"
           files/homelab/traefik-config.yml.j2: "traefik-config.yml"
 
-  handlers:
+  # handlers:
 #    - name: Restart avahi service
 #      ansible.builtin.service:
 #        name: avahi-daemon

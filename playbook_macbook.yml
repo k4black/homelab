@@ -95,7 +95,7 @@
           ansible.builtin.stat:
             path: /Applications/Orion.app
           register: orion_app
-          
+
         - name: Install defaultbrowser
           community.general.homebrew:
             name: defaultbrowser

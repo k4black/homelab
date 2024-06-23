@@ -6,7 +6,7 @@
 - name: Setup hostname, network rules and firewall
   ansible.builtin.include_tasks: net.yml
 
-#- name: Reboot if required
+# - name: Reboot if required
 #  when: testing is undefined or testing != 'true'
 #  block:
 #    - name: Check if reboot required

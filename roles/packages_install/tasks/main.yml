@@ -12,7 +12,7 @@
       become: true
       when: ansible_os_family == 'Debian'
     - name: Update yum cache (CentOS/RHEL)  # noqa: package-latest
-      ansible.builtin.yum:
+      ansible.builtin.dnf:
         name: '*'
         state: latest
         update_cache: true

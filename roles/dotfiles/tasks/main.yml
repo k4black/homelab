@@ -1,5 +1,4 @@
 ---
-
 # - name: Ensure dotfiles directory exists
 #   ansible.builtin.file:
 #     path: "{{ dotfiles_dest }}"
@@ -11,10 +10,10 @@
     repo: "{{ dotfiles_repo_url }}"
     dest: "{{ dotfiles_dest }}"
     version: main
-    force: yes
-    update: yes
+    force: true
+    update: true
     depth: 1
-    
+
 - name: Symlink dotfiles
   ansible.builtin.file:
     src: "{{ dotfiles_dest }}/{{ item.key }}"
@@ -23,7 +22,7 @@
     force: "{{ dotfiles_overwrite_if_exists }}"
   with_dict: "{{ dotfiles_symlinks }}"
   register: symlink_result
-  
+
 - name: Make .localrc empty file
   ansible.builtin.file:
     path: "~/.localrc"
@@ -44,15 +43,15 @@
       ansible.builtin.find:
         paths: "{{ dotfiles_dest }}"
         patterns: "*.sh,*.zsh,*.bash"
-        recurse: yes
-        hidden: yes
+        recurse: true
+        hidden: true
       register: find_result
     - name: Make files executable
       ansible.builtin.file:
         path: "{{ item.path }}"
         mode: 0755
       with_items: "{{ find_result.files }}"
-    
+
 - name: Run dotfiles setup scripts
   when: dotfiles_run_scripts is defined
   ansible.builtin.command: "{{ item }}"

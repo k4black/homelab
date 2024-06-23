@@ -1,5 +1,4 @@
 ---
-
 - name: Setup ssh port
   hosts: vps
   gather_facts: false
@@ -20,7 +19,6 @@
         ssh_public_key: "{{ lookup('file', ssh_public_key_file) }}"
       when: testing is undefined or testing != 'true'
 
-
 - name: Setup local_ipv4
   hosts: vps
   gather_facts: true
@@ -33,7 +31,6 @@
     - name: Debug local_ipv4
       ansible.builtin.debug:
         var: local_ipv4
-
 
 - name: Setup for testing
   hosts: vps
@@ -59,14 +56,12 @@
             var: netstat_output.stdout_lines
           when: testing is defined and testing == 'true'
 
-
 - name: Configure VPS personal server.
   hosts: vps
 
   vars_files:
     - vars/all.yml
     - vars/vps.yml
-
 
   roles:
     - role: packages_install
@@ -105,7 +100,7 @@
 
     - role: geerlingguy.docker
       become: true
-      
+
     - role: dotfiles
       tags: ["dotfiles"]
       vars:
@@ -120,7 +115,6 @@
         zsh_setup_set_default_shell: true
         zsh_setup_user: "{{ username }}"
       become: true
-
 
   tasks:
     - name: Setup .gitconfig.local
@@ -139,8 +133,8 @@
         containers_setup_data_dir: "{{ services_data_dir }}"
         containers_setup_docker_compose_template: "files/vps/docker-compose.yml.j2"
         containers_setup_make_dirs:
-#          - "{{ services_data_dir }}/influxdb-data"
-#          - "{{ services_configs_dir }}/influxdb-config"
+          #          - "{{ services_data_dir }}/influxdb-data"
+          #          - "{{ services_configs_dir }}/influxdb-config"
           - "{{ services_configs_dir }}/pihole"
           - "{{ services_configs_dir }}/pihole-dnsmasq.d"
         containers_setup_touch_files: []
