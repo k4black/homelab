@@ -1,0 +1,7 @@
+---
+
+dotfiles_repo_url: "https://github.com/k4black/dotfiles.git"
+dotfiles_dest: "{{ ansible_user_dir }}/.dotfiles"
+dotfiles_overwrite_if_exists: true
+dotfiles_symlinks: {}
+dotfiles_run_scripts: []

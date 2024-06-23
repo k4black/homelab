@@ -1,0 +1,63 @@
+---
+
+# - name: Ensure dotfiles directory exists
+#   ansible.builtin.file:
+#     path: "{{ dotfiles_dest }}"
+#     state: directory
+#     owner: "{{ ansible_user_id }}"
+
+- name: Clone or update dotfiles repository
+  ansible.builtin.git:
+    repo: "{{ dotfiles_repo_url }}"
+    dest: "{{ dotfiles_dest }}"
+    version: main
+    force: yes
+    update: yes
+    depth: 1
+    
+- name: Symlink dotfiles
+  ansible.builtin.file:
+    src: "{{ dotfiles_dest }}/{{ item.key }}"
+    dest: "{{ item.value }}"
+    state: link
+    force: "{{ dotfiles_overwrite_if_exists }}"
+  with_dict: "{{ dotfiles_symlinks }}"
+  register: symlink_result
+  
+- name: Make .localrc empty file
+  ansible.builtin.file:
+    path: "~/.localrc"
+    state: touch
+    owner: "{{ ansible_user_id }}"
+  changed_when: false
+
+- name: Make empty .gitconfig.local file
+  ansible.builtin.file:
+    path: "~/.gitconfig.local"
+    state: touch
+    owner: "{{ ansible_user_id }}"
+  changed_when: false
+
+- name: Make all .sh/.zsh/.bash files executable
+  block:
+    - name: Search files to make executable
+      ansible.builtin.find:
+        paths: "{{ dotfiles_dest }}"
+        patterns: "*.sh,*.zsh,*.bash"
+        recurse: yes
+        hidden: yes
+      register: find_result
+    - name: Make files executable
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        mode: 0755
+      with_items: "{{ find_result.files }}"
+    
+- name: Run dotfiles setup scripts
+  when: dotfiles_run_scripts is defined
+  ansible.builtin.command: "{{ item }}"
+  with_items: "{{ dotfiles_run_scripts }}"
+  args:
+    chdir: "{{ dotfiles_dest }}"
+  become: true
+  changed_when: false
