@@ -137,11 +137,19 @@
 
     - role: geerlingguy.docker
       become: true
+      
+    - role: dotfiles
+      tags: ["dotfiles"]
+      vars:
+        dotfiles_repo_url: "https://github.com/k4black/dotfiles.git"
+        dotfiles_dest: "~/.dotfiles"
+        dotfiles_symlinks:
+          .zshrc: "~/.zshrc"
+          .gitconfig: "~/.gitconfig"
 
     - role: zsh_setup
       vars:
         zsh_setup_set_default_shell: true
-        zsh_setup_config_src: files/.zshrc.style-config-block.zsh
         zsh_setup_user: "{{ username }}"
       become: true
 
@@ -163,7 +171,14 @@
           ansible.builtin.command: rpi-eeprom-config --apply /tmp/boot.conf
           changed_when: false
           become: true
-
+          
+    - name: Setup .gitconfig.local
+      ansible.builtin.template:
+        src: files/.gitconfig.local.j2
+        dest: ~/.gitconfig.local
+        mode: 0600
+        owner: "{{ ansible_user_id }}"
+              
     - name: Setup disk auto-mount
       block:
         - name: Create mount point directories

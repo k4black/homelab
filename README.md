@@ -22,9 +22,14 @@ Also be sure to set up `inventory.ini` with the correct IP addresses of your hos
 
 ## Running the Playbook
 
+Update the roles
+```bash
+ansible-galaxy install -r requirements.yml --force
+```
+
 To run the playbooks, execute the following command:
 ```bash
-ansible-playbook playbook_macbook.yml
+ansible-playbook playbook_macbook.yml --ask-become-pass
 ansible-playbook playbook_homelab.yml
 ansible-playbook playbook_vps.yml
 ```

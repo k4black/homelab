@@ -9,36 +9,34 @@ admin_username: !vault |
           3938
 
 
-default_browser: "brave-browser"
+default_browser: "orion"
 
 
 homebrew_cask_appdir: /Applications
 homebrew_cask_apps:
   # web and social
-  - brave-browser
+  - orion
   - slack
-  - telegram
+  - telegram-desktop
   - zoom
-  - beeper
+  # - beeper
   # dev
-  - chromedriver
+  - zed
   - docker
   - sublime-text
-  - jetbrains-toolbox
+  # - jetbrains-toolbox
   # fun
-  - autodesk-fusion360
-  - steam
+  # - autodesk-fusion360
+  # - steam
   # utils
   - google-drive
-  - transmit
   - tunnelblick
   - the-unarchiver
   - lulu
-  - alt-tab
+  # - alt-tab
   - MonitorControl  # TODO: add permissions to Accessibility and login item
   # mix
   - todoist
-  - notion
   - obsidian
   - zotero
 homebrew_installed_packages:
@@ -46,7 +44,7 @@ homebrew_installed_packages:
   - git
   - git-lfs
   - sqlite
-  - lotyp/formulae/dockutil
+  - dockutil
   - gh
   # languages
   - pyenv
@@ -59,7 +57,8 @@ homebrew_installed_packages:
 homebrew_taps: []
 
 # error when installed this way, include in homebrew_installed_packages
-dockutil_install: false
+dockutil_install: true
+configure_dock: true
 dockitems_remove:
   - TV
   - Podcasts
@@ -99,21 +98,18 @@ dockitems_persist:
   - name: "System Settings"
     path: "/System/Applications/System Settings.app"
     pos: 8
-  - name: "Brave Browser"
-    path: "/Applications/Brave Browser.app"
+  - name: "Orion"
+    path: "/Applications/Orion.app"
     pos: 9
-  - name: "Telegram"
-    path: "/Applications/Telegram.app"
+  - name: "Telegram Desktop"
+    path: "/Applications/Telegram Desktop.app"
     pos: 10
-  - name: "Slack"
-    path: "/Applications/Slack.app"
-    pos: 11
   - name: "Terminal"
     path: "/System/Applications/Utilities/Terminal.app"
-    pos: 12
+    pos: 11
   - name: "Activity Monitor"
     path: "/System/Applications/Utilities/Activity Monitor.app"
-    pos: 13
+    pos: 12
 #  - name: "Sublime Text"
 #    path: "/Applications/Sublime Text.app/"
 #    pos: 13
@@ -138,6 +134,8 @@ mas_installed_apps:
   - {id: 1423210932, name: "Flow"}
   - {id: 1441195209, name: "WireGuard"}
   - {id: 572688855, name: "Todoist"}
-mas_uninstalled_apps:
-  - {id: 408981434, name: "iMovie"}
-  - {id: 682658836, name: "GarageBand"}
+# required admin permissions
+mas_uninstalled_apps: []
+# mas_uninstalled_apps:
+#   - {id: 408981434, name: "iMovie"}
+#   - {id: 682658836, name: "GarageBand"}

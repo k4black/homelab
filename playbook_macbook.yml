@@ -1,107 +1,42 @@
 ---
-
 - name: Configure MacOS device.
   hosts: localhost
   connection: local
-
 
   vars_files:
     - vars/all.yml
     - vars/macbook.yml
 
-  vars_prompt:
-    - name: "admin_password"
-      prompt: "Enter the password for the admin user"
-      private: true
-    - name: "user_account_password"
-      prompt: "Enter the password for the user account"
-      private: true
-
-
   pre_tasks:
-    - name: Juggle macos admin - get sudo to current user
-      block:
-        - name: Assert current user is not admin_username
-          ansible.builtin.assert:
-            that: ansible_user_id != admin_username
-            msg: "Current user {{ ansible_user_id }} has to be different from admin user"
-
-        - name: Check current user groups
-          ansible.builtin.command: id -Gn {{ ansible_user_id }}
-          register: user_groups
-          changed_when: false
-
-
-        - name: Check admin password valid
-          ansible.builtin.command: dscl /Local/Default -authonly {{ admin_username }} {{ admin_password }}
-          changed_when: false
-          when: admin_user_exists.stdout
-
-        - name: Check user password valid
-          ansible.builtin.command: dscl /Local/Default -authonly {{ ansible_user_id }} {{ user_account_password }}
-          changed_when: false
-          when: testing is undefined or testing != 'true'
-
-        - name: Create admin user (we have admin privileges at the moment)
-          when: not admin_user_exists.stdout
-          block:
-            - name: Check current user can create admin user
-              ansible.builtin.assert:
-                that: '"admin" in user_groups.stdout'
-                msg: "Current user {{ ansible_user_id }} has to be in admin group to create admin user"
-            - name: Create new admin user
-              ansible.builtin.command: "sysadminctl -addUser {{ admin_username }} -fullName {{ admin_username }} -password {{ admin_password }} -admin"
-              changed_when: false
-              become: true
-
-        - name: Set current user is admin
-          when: 'not "admin" in user_groups.stdout'
-          ansible.builtin.command: dseditgroup -o edit -a {{ ansible_user_id }} -u {{ admin_username }} -P {{ admin_password }} -t user admin
-          become: true
-          become_method: ansible.builtin.su
-          become_user: "{{ admin_username }}"
-          vars:
-            ansible_become_password: "{{ admin_password }}"
-          changed_when: false
-
-        - name: Check current user is admin
-          ansible.builtin.command: dseditgroup -o checkmember -m {{ ansible_user_id }} admin
-          changed_when: false
-
-
-  post_tasks:
-    - name: Juggle macos admin - remove sudo from current user
-      block:
-        - name: Remove admin rights
-          ansible.builtin.command: dseditgroup -o edit -d {{ ansible_user_id }} -u {{ admin_username }} -P {{ admin_password }} -t user admin
-          become: true
-          become_method: ansible.builtin.su
-          become_user: "{{ admin_username }}"
-          vars:
-            ansible_become_password: "{{ admin_password }}"
-          changed_when: false
-        - name: Check current user is not admin
-          ansible.builtin.command: dseditgroup -o checkmember -m {{ ansible_user_id }} admin
-          register: result
-          changed_when: false
-          failed_when: result.rc == 0
-
+    - name: Macos Admin Juggling
+      ansible.builtin.include_tasks: tasks/macos_admin_juggling.yml
 
   roles:
     - role: elliotweiser.osx-command-line-tools
     - role: geerlingguy.mac.homebrew
-      tags: ['homebrew']
+      tags: ["homebrew"]
+      vars:
+        # homebrew_upgrade_all_packages: true
+        homebrew_cask_accept_external_apps: true
     - role: geerlingguy.mac.mas
       when: mas_installed_apps or mas_uninstalled_apps
-      tags: ['mas']
+      tags: ["mas"]
     - role: geerlingguy.mac.dock
-      tags: ['dock']
+      tags: ["dock"]
+    - role: dotfiles
+      tags: ["dotfiles"]
+      vars:
+        dotfiles_repo_url: "https://github.com/k4black/dotfiles.git"
+        dotfiles_dest: "~/.dotfiles"
+        dotfiles_symlinks:
+          .zshrc: "~/.zshrc"
+          .gitconfig: "~/.gitconfig"
+        dotfiles_run_scripts:
+          - "~/.dotfiles/.macos.sh"
     - role: zsh_setup
       vars:
         zsh_setup_set_default_shell: true
-        zsh_setup_config_src: files/.zshrc.style-config-block.zsh
         zsh_setup_user: "{{ ansible_user_id }}"
-
 
   tasks:
     - name: Setup hostname
@@ -109,52 +44,36 @@
         name: "{{ device_name }}"
         use: "macos"
       become: true
-      vars:
-        ansible_become_password: "{{ user_account_password }}"
-
-    - name: Setup MacOS system settings
-      ansible.builtin.command: sh files/macbook/setup-system.sh
-      changed_when: false
-      become: true
-      vars:
-        ansible_become_password: "{{ user_account_password }}"
 
     - name: Add ssh-agent to zshrc
       ansible.builtin.lineinfile:
         path: ~/.zshrc
-        line: "eval \"$(ssh-agent -s)\""
+        line: 'eval "$(ssh-agent -s)"'
         state: present
-        create: yes
+        create: true
         insertafter: EOF
       become: true
-      vars:
-        ansible_become_password: "{{ user_account_password }}"
     - name: Ensure Host * line in ssh config
       ansible.builtin.lineinfile:
         path: ~/.ssh/config
         line: "Host *\n"
         state: present
-        create: yes
+        create: true
         insertbefore: BOF
       become: true
-      vars:
-        ansible_become_password: "{{ user_account_password }}"
     - name: Add AddKeysToAgent yes to ssh config Host *
       ansible.builtin.lineinfile:
         path: ~/.ssh/config
         line: "    AddKeysToAgent yes"
         state: present
-        create: yes
+        create: true
         insertafter: "Host *\n"
       become: true
-      vars:
-        ansible_become_password: "{{ user_account_password }}"
 
-
-    - name: Setup .gitconfig
+    - name: Setup .gitconfig.local
       ansible.builtin.template:
-        src: files/.gitconfig.j2
-        dest: ~/.gitconfig
+        src: files/.gitconfig.local.j2
+        dest: ~/.gitconfig.local
         mode: 0600
         owner: "{{ ansible_user_id }}"
 
@@ -165,19 +84,28 @@
           community.general.homebrew:
             name: MonitorControl
             state: present
-#        - name: Enable MonitorControl in System Preferences -> Privacy & Security -> Privacy -> Accessibility
-#          ansible.builtin.command: osascript -e 'tell application "System Events" to tell process "System Preferences"
-#  to tell window "Security & Privacy" to tell scroll area "Privacy" to tell table 1 to tell row 1 to tell checkbox 1 to if value is 0 then click'
-#          become: true
+    #        - name: Enable MonitorControl in System Preferences -> Privacy & Security -> Privacy -> Accessibility
+    #          ansible.builtin.command: osascript -e 'tell application "System Events" to tell process "System Preferences"
+    #  to tell window "Security & Privacy" to tell scroll area "Privacy" to tell table 1 to tell row 1 to tell checkbox 1 to if value is 0 then click'
+    #          become: true
 
     - name: Set Default browser
       block:
-        - name: Set Brave as default browser
-          ansible.builtin.command: open -a "Brave Browser" --args --make-default-browser
-          changed_when: false
-        - name: Set Brave as default browser
-          ansible.builtin.command: open -a "Brave Browser" --args --always-authorize-plugins
-          changed_when: false
+        - name: Check if Orion is installed
+          ansible.builtin.stat:
+            path: /Applications/Orion.app
+          register: orion_app
+          
+        - name: Install defaultbrowser
+          community.general.homebrew:
+            name: defaultbrowser
+            state: present
+          when: orion_app.stat.exists
+
+        - name: Set Orion as default browser
+          ansible.builtin.command: osascript files/macbook/setDefaultBrowser.scpt kagimacos
+          when: orion_app.stat.exists
+          become: true
 
     - name: Setup Wireguard VPN
       when: '"wireguard-tools" in homebrew_installed_packages or "WireGuard" in mas_installed_apps'
@@ -214,7 +142,6 @@
             src: files/macbook/vpn-client-guests-sasha-bakalova.conf.j2
             dest: "~/.config/wireguard/vpn_guests_sasha_bakalova.conf"
             mode: 0600
-        
 
     # Setup Accounts
 #    - block:

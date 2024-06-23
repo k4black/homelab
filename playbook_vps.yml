@@ -105,16 +105,31 @@
 
     - role: geerlingguy.docker
       become: true
+      
+    - role: dotfiles
+      tags: ["dotfiles"]
+      vars:
+        dotfiles_repo_url: "https://github.com/k4black/dotfiles.git"
+        dotfiles_dest: "~/.dotfiles"
+        dotfiles_symlinks:
+          .zshrc: "~/.zshrc"
+          .gitconfig: "~/.gitconfig"
 
     - role: zsh_setup
       vars:
         zsh_setup_set_default_shell: true
-        zsh_setup_config_src: files/.zshrc.style-config-block.zsh
         zsh_setup_user: "{{ username }}"
       become: true
 
 
   tasks:
+    - name: Setup .gitconfig.local
+      ansible.builtin.template:
+        src: files/.gitconfig.local.j2
+        dest: ~/.gitconfig.local
+        mode: 0600
+        owner: "{{ ansible_user_id }}"
+
     - name: Copy docker configs and run containers
       ansible.builtin.include_role:
         name: containers_setup

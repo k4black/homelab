@@ -1,16 +1,16 @@
 ---
 
-- name: Copy Zsh configuration block
-  ansible.builtin.blockinfile:
-    path: /home/{{ zsh_setup_user }}/.zshrc
-    marker: "# {mark} ANSIBLE MANAGED BLOCK: style config"
-    block: "{{ lookup('file', '{{ zsh_setup_config_src }}') }}"
-    create: true
-    mode: 0644
-    owner: "{{ zsh_setup_user }}"
-    group: "{{ zsh_setup_user }}"
-  failed_when: false  # TODO: fix macos problem on github actions
-  become: true
+# - name: Copy Zsh configuration block
+#   ansible.builtin.blockinfile:
+#     path: /home/{{ zsh_setup_user }}/.zshrc
+#     marker: "# {mark} ANSIBLE MANAGED BLOCK: style config"
+#     block: "{{ lookup('file', '{{ zsh_setup_config_src }}') }}"
+#     create: true
+#     mode: 0644
+#     owner: "{{ zsh_setup_user }}"
+#     group: "{{ zsh_setup_user }}"
+#   failed_when: false  # TODO: fix macos problem on github actions
+#   become: true
 
 - name: Install Zsh
   block:
