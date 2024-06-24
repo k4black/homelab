@@ -27,6 +27,7 @@
   ansible.builtin.file:
     path: "~/.localrc"
     state: touch
+    mode: 0600
     owner: "{{ ansible_user_id }}"
   changed_when: false
 
@@ -34,23 +35,24 @@
   ansible.builtin.file:
     path: "~/.gitconfig.local"
     state: touch
+    mode: 0600
     owner: "{{ ansible_user_id }}"
   changed_when: false
 
-- name: Make all .sh/.zsh/.bash files executable
-  block:
-    - name: Search files to make executable
-      ansible.builtin.find:
-        paths: "{{ dotfiles_dest }}"
-        patterns: "*.sh,*.zsh,*.bash"
-        recurse: true
-        hidden: true
-      register: find_result
-    - name: Make files executable
-      ansible.builtin.file:
-        path: "{{ item.path }}"
-        mode: 0755
-      with_items: "{{ find_result.files }}"
+# - name: Make all .sh/.zsh/.bash files executable
+#   block:
+#     - name: Search files to make executable
+#       ansible.builtin.find:
+#         paths: "{{ dotfiles_dest }}"
+#         patterns: "*.sh,*.zsh,*.bash"
+#         recurse: true
+#         hidden: true
+#       register: find_result
+#     - name: Make files executable
+#       ansible.builtin.file:
+#         path: "{{ item.path }}"
+#         mode: 0755
+#       with_items: "{{ find_result.files }}"
 
 - name: Run dotfiles setup scripts
   when: dotfiles_run_scripts is defined

@@ -10,6 +10,7 @@
         upgrade: safe
         autoremove: true
       become: true
+      changed_when: false
       when: ansible_os_family == 'Debian'
     - name: Update yum cache (CentOS/RHEL)  # noqa: package-latest
       ansible.builtin.dnf:
@@ -17,6 +18,7 @@
         state: latest
         update_cache: true
       become: true
+      changed_when: false
       when: ansible_os_family == 'RedHat'
 
 - name: Install necessary packages
@@ -29,7 +31,7 @@
       when: ansible_os_family == 'Debian'
 
     - name: Install packages (CentOS/RHEL)
-      ansible.builtin.yum:
+      ansible.builtin.dnf:
         name: "{{ packages_install_list }}"
         state: present
       become: true

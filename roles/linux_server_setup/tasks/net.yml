@@ -40,7 +40,7 @@
       failed_when: false
       become: true
     - name: Install systemd-resolved
-      when: systemd_resolved_exists.stat.exists == false and resolvectl_exists.stat.exists == false
+      when: not systemd_resolved_exists.stat.exists and not resolvectl_exists.stat.exists
       become: true
       block:
         - name: Install on Ubuntu

@@ -72,21 +72,22 @@
       failed_when: false
       when: testing is undefined or testing != 'true'
     - name: Check if pi user exists
-      command: id -u pi
+      ansible.builtin.command: id -u pi
       register: pi_user_check
       ignore_errors: true
+      changed_when: false
     - name: Rename pi user and group if exists
+      when: pi_user_check.rc == 0
       block:
         - name: Rename pi user
-          user:
+          ansible.builtin.user:
             name: pi
             newname: "{{ username }}"
             move_home: true
         - name: Rename pi group
-          group:
+          ansible.builtin.group:
             name: pi
             newname: "{{ username }}"
-      when: pi_user_check.rc == 0
 
   roles:
     - role: geerlingguy.raspberry-pi  # disable hdmi, set gpu_mem to 16 and 1200ma for usb
@@ -188,7 +189,7 @@
             - /mnt/timemachine
           become: true
         - name: Add mount points to fstab
-          ansible.builtin.mount:
+          ansible.posix.mount:
             path: "{{ item.path }}"
             src: "UUID={{ item.uuid }}"
             fstype: "{{ item.fstype }}"
@@ -201,8 +202,8 @@
             - {path: /mnt/timemachine, uuid: "{{ backup_timemachine_uuid }}", fstype: ext4, opts: "defaults"}
           become: true
         - name: Try to mount all
-          ansible.builtin.command: mount -a
-          changed_when: false
+          ansible.posix.mount:
+            state: mounted
           become: true
         - name: List mounted devices
           ansible.builtin.command: df -h
