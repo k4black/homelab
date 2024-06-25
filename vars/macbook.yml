@@ -19,7 +19,6 @@ homebrew_cask_apps:
   - slack
   - telegram-desktop
   - zoom
-  # - beeper
   # dev
   - zed
   - docker
@@ -33,7 +32,6 @@ homebrew_cask_apps:
   - tunnelblick
   - the-unarchiver
   - lulu
-  # - alt-tab
   - MonitorControl  # TODO: add permissions to Accessibility and login item
   # mix
   - todoist

@@ -46,6 +46,28 @@
         use: "macos"
       become: true
 
+    - name: Create Projects directory at ~/
+      ansible.builtin.file:
+        path: "~/Projects"
+        state: directory
+        owner: "{{ ansible_user_id }}"
+        mode: "0700"
+        create: true
+    - name: Create Applications directory at ~/
+      ansible.builtin.file:
+        path: "~/Applications"
+        state: directory
+        owner: "{{ ansible_user_id }}"
+        mode: "0755"
+        create: true
+    - name: Create .ssh directory at ~/
+      ansible.builtin.file:
+        path: "~/.ssh"
+        state: directory
+        owner: "{{ ansible_user_id }}"
+        mode: "0700"
+        create: true
+
     - name: Add ssh-agent to localrc
       ansible.builtin.lineinfile:
         path: ~/.localrc
@@ -147,13 +169,3 @@
             src: files/macbook/vpn-client-guests-sasha-bakalova.conf.j2
             dest: "~/.config/wireguard/vpn_guests_sasha_bakalova.conf"
             mode: 0600
-
-    # Setup Accounts
-#    - block:
-#      - name: Open Account Settings
-#        command: open /System/Library/PreferencePanes/InternetAccounts.prefPane
-#        become: no
-#      - name: Notification to manually add Accounts
-#        command: osascript -e 'display dialog "Please add your Account manually by navigating to System Preferences > Internet Accounts.
-#   \nClick Ok once done." with title "Manual Action Required" buttons {"Ok"}'
-#        become: no
