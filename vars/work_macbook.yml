@@ -1,0 +1,118 @@
+username: "k4black"
+device_name: "k4pro-m3"
+
+
+default_browser: "orion"
+
+
+homebrew_cask_appdir: /Applications
+homebrew_cask_apps:
+  # web and social
+  - orion
+  - telegram-desktop
+  # dev
+  - zed
+  - docker
+  - sublime-text
+  - jetbrains-toolbox
+  # fun
+  # - autodesk-fusion360
+  # - steam
+  # utils
+  - google-drive
+  - tunnelblick
+  - the-unarchiver
+  - lulu
+  - MonitorControl  # TODO: add permissions to Accessibility and login item
+  # mix
+  - todoist
+  - obsidian
+  - zotero
+homebrew_installed_packages:
+  # dev
+  - git
+  - git-lfs
+  - sqlite
+  - dockutil
+  - gh
+  # languages
+  - pyenv
+  - go
+  - rustup
+  # ssh
+  - ssh-copy-id
+  - openssl
+# "failed to tap: homebrew/core due to [31mError:[0m Tapping homebrew/core is no longer typically necessary."
+homebrew_taps: []
+
+# error when installed this way, include in homebrew_installed_packages
+dockutil_install: true
+configure_dock: true
+dockitems_remove:
+  - TV
+  - Podcasts
+  - "App Store"
+  - Safari
+  - Siri
+  - FaceTime
+  - Contacts
+  - Reminders
+  - Maps
+  - Messages
+  - Podcasts
+  - News
+  - Music
+dockitems_persist:
+  - name: "Finder"
+    path: "/System/Library/CoreServices/Finder.app"
+    pos: 0
+  - name: "Launchpad"
+    path: "/System/Applications/Launchpad.app"
+    pos: 1
+  - name: "Mail"
+    path: "/Applications/Mail.app"
+    pos: 2
+  - name: "Calendar"
+    path: "/Applications/Calendar.app"
+    pos: 3
+  - name: "Notes"
+    path: "/Applications/Notes.app"
+    pos: 4
+  - name: "Todoist"
+    path: "/Applications/Todoist.app/"
+    pos: 5
+  - name: "Obsidian"
+    path: "/Applications/Obsidian.app/"
+    pos: 6
+  - name: "System Settings"
+    path: "/System/Applications/System Settings.app"
+    pos: 7
+  - name: "Orion"
+    path: "/Applications/Orion.app"
+    pos: 8
+  - name: "Telegram Desktop"
+    path: "/Applications/Telegram Desktop.app"
+    pos: 9
+  - name: "Terminal"
+    path: "/System/Applications/Utilities/Terminal.app"
+    pos: 10
+  - name: "Activity Monitor"
+    path: "/System/Applications/Utilities/Activity Monitor.app"
+    pos: 11
+#  - name: "Sublime Text"
+#    path: "/Applications/Sublime Text.app/"
+#    pos: 12
+
+
+mas_email: "TBA"
+mas_password: "TBA"
+mas_installed_apps: []
+  # - {id: 1444383602, name: "Goodnotes 6"}
+  # - {id: 1423210932, name: "Flow"}
+  # - {id: 1441195209, name: "WireGuard"}
+  # - {id: 572688855, name: "Todoist"}
+# required admin permissions
+mas_uninstalled_apps: []
+# mas_uninstalled_apps:
+#   - {id: 408981434, name: "iMovie"}
+#   - {id: 682658836, name: "GarageBand"}

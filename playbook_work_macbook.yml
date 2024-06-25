@@ -1,0 +1,130 @@
+---
+- name: Configure Work MacOS device.
+  hosts: localhost
+  connection: local
+
+  vars_files:
+    - vars/all.yml
+    - vars/work_macbook.yml
+
+  roles:
+    - role: elliotweiser.osx-command-line-tools
+    - role: geerlingguy.mac.homebrew
+      tags: ["homebrew"]
+      vars:
+        # homebrew_upgrade_all_packages: true
+        homebrew_cask_accept_external_apps: true
+    - role: geerlingguy.mac.mas
+      when: mas_installed_apps or mas_uninstalled_apps
+      tags: ["mas"]
+    - role: geerlingguy.mac.dock
+      tags: ["dock"]
+    - role: dotfiles
+      tags: ["dotfiles"]
+      vars:
+        dotfiles_repo_url: "https://github.com/k4black/dotfiles.git"
+        dotfiles_dest: "/Users/{{ ansible_user_id }}/.dotfiles"
+        dotfiles_symlinks:
+          .zshrc: "/Users/{{ ansible_user_id }}/.zshrc"
+          .gitconfig: "/Users/{{ ansible_user_id }}/.gitconfig"
+        dotfiles_run_scripts:
+          - "/Users/{{ ansible_user_id }}/.dotfiles/.macos.sh"
+    - role: zsh_setup
+      vars:
+        zsh_setup_set_default_shell: true
+        zsh_setup_user: "{{ ansible_user_id }}"
+
+  tasks:
+    - name: Setup hostname
+      ansible.builtin.hostname:
+        name: "{{ device_name }}"
+        use: "macos"
+      become: true
+
+    - name: Create Projects directory at ~/
+      ansible.builtin.file:
+        path: "~/Projects"
+        state: directory
+        owner: "{{ ansible_user_id }}"
+        mode: "0700"
+        create: true
+    - name: Create Applications directory at ~/
+      ansible.builtin.file:
+        path: "~/Applications"
+        state: directory
+        owner: "{{ ansible_user_id }}"
+        mode: "0755"
+        create: true
+    - name: Create .ssh directory at ~/
+      ansible.builtin.file:
+        path: "~/.ssh"
+        state: directory
+        owner: "{{ ansible_user_id }}"
+        mode: "0700"
+        create: true
+
+    - name: Add ssh-agent to localrc
+      ansible.builtin.lineinfile:
+        path: ~/.localrc
+        line: 'eval "$(ssh-agent -s)"'
+        state: present
+        create: true
+        mode: 0600
+        insertafter: EOF
+      become: true
+    - name: Ensure Host * line in ssh config
+      ansible.builtin.lineinfile:
+        path: ~/.ssh/config
+        line: "Host *\n"
+        state: present
+        create: true
+        mode: 0600
+        insertbefore: BOF
+      become: true
+    - name: Add AddKeysToAgent yes to ssh config Host *
+      ansible.builtin.lineinfile:
+        path: ~/.ssh/config
+        line: "    AddKeysToAgent yes"
+        state: present
+        create: true
+        mode: 0600
+        insertafter: "Host *\n"
+      become: true
+
+    - name: Setup .gitconfig.local
+      ansible.builtin.template:
+        src: files/.gitconfig.local.j2
+        dest: ~/.gitconfig.local
+        mode: 0600
+        owner: "{{ ansible_user_id }}"
+
+    - name: Setup MonitorControl
+      when: not 'MonitorControl' in homebrew_cask_apps
+      block:
+        - name: Install MonitorControl
+          community.general.homebrew:
+            name: MonitorControl
+            state: present
+    #        - name: Enable MonitorControl in System Preferences -> Privacy & Security -> Privacy -> Accessibility
+    #          ansible.builtin.command: osascript -e 'tell application "System Events" to tell process "System Preferences"
+    #  to tell window "Security & Privacy" to tell scroll area "Privacy" to tell table 1 to tell row 1 to tell checkbox 1 to if value is 0 then click'
+    #          become: true
+
+    - name: Set Default browser
+      block:
+        - name: Check if Orion is installed
+          ansible.builtin.stat:
+            path: /Applications/Orion.app
+          register: orion_app
+
+        - name: Install defaultbrowser
+          community.general.homebrew:
+            name: defaultbrowser
+            state: present
+          when: orion_app.stat.exists
+
+        - name: Set Orion as default browser
+          ansible.builtin.command: osascript files/macbook/setDefaultBrowser.scpt kagimacos
+          when: orion_app.stat.exists
+          changed_when: false
+          become: true
