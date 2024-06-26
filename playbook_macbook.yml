@@ -55,21 +55,18 @@
         state: directory
         owner: "{{ ansible_user_id }}"
         mode: "0700"
-        create: true
     - name: Create Applications directory at ~/
       ansible.builtin.file:
         path: "~/Applications"
         state: directory
         owner: "{{ ansible_user_id }}"
         mode: "0755"
-        create: true
     - name: Create .ssh directory at ~/
       ansible.builtin.file:
         path: "~/.ssh"
         state: directory
         owner: "{{ ansible_user_id }}"
         mode: "0700"
-        create: true
 
     - name: Add ssh-agent to localrc
       ansible.builtin.lineinfile:
