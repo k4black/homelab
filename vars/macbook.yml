@@ -77,9 +77,10 @@ dockitems_remove:
   - Numbers
   - Pages
 dockitems_persist:
-  - name: "Finder"
-    path: "/System/Library/CoreServices/Finder.app"
-    # pos: 0
+  # NOTE: Finder is always first
+  # - name: "Finder"
+  #   path: "/System/Library/CoreServices/Finder.app"
+  #   pos: 0
   - name: "Launchpad"
     path: "/System/Applications/Launchpad.app"
     pos: 1
