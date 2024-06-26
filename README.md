@@ -22,6 +22,18 @@ Also be sure to set up `inventory.ini` with the correct IP addresses of your hos
 
 ## Running the Playbook
 
+Install command line tools to get git
+```bash
+xcode-select –-install
+```
+
+Create env and install ansible
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
 Update the roles
 ```bash
 ansible-galaxy install -r requirements.yml --force
@@ -30,6 +42,7 @@ ansible-galaxy install -r requirements.yml --force
 To run the playbooks, execute the following command:
 ```bash
 ansible-playbook playbook_macbook.yml --ask-become-pass
+ansible-playbook playbook_work_macbook.yml --ask-become-pass
 ansible-playbook playbook_homelab.yml
 ansible-playbook playbook_vps.yml
 ```

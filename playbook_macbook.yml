@@ -11,6 +11,9 @@
     - name: Macos Admin Juggling
       ansible.builtin.include_tasks: tasks/macos_admin_juggling.yml
       when: testing is undefined or testing != 'true'
+    - name: Add homebrew to local env PATH
+      ansible.builtin.command: echo 'export PATH="/opt/homebrew/bin:$PATH"'
+      changed_when: false
 
   roles:
     - role: elliotweiser.osx-command-line-tools
@@ -72,6 +75,15 @@
       ansible.builtin.lineinfile:
         path: ~/.localrc
         line: 'eval "$(ssh-agent -s)"'
+        state: present
+        create: true
+        mode: 0600
+        insertafter: EOF
+      become: true
+    - name: Add brew to path in localrc
+      ansible.builtin.lineinfile:
+        path: ~/.localrc
+        line: 'export PATH="/opt/homebrew/bin:$PATH"'
         state: present
         create: true
         mode: 0600
