@@ -20,7 +20,6 @@ homebrew_cask_apps:
   # - steam
   # utils
   - google-drive
-  - tunnelblick
   - the-unarchiver
   - lulu
   - MonitorControl  # TODO: add permissions to Accessibility and login item
