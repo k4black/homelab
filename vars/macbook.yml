@@ -71,10 +71,15 @@ dockitems_remove:
   - Podcasts
   - News
   - Music
+  - Photos
+  - Freeform
+  - Keynote
+  - Numbers
+  - Pages
 dockitems_persist:
   - name: "Finder"
     path: "/System/Library/CoreServices/Finder.app"
-    pos: 0
+    # pos: 0
   - name: "Launchpad"
     path: "/System/Applications/Launchpad.app"
     pos: 1

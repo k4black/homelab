@@ -62,10 +62,15 @@ dockitems_remove:
   - Podcasts
   - News
   - Music
+  - Photos
+  - Freeform
+  - Keynote
+  - Numbers
+  - Pages
 dockitems_persist:
   - name: "Finder"
     path: "/System/Library/CoreServices/Finder.app"
-    pos: 0
+    # pos: 0
   - name: "Launchpad"
     path: "/System/Applications/Launchpad.app"
     pos: 1
@@ -84,24 +89,27 @@ dockitems_persist:
   - name: "Obsidian"
     path: "/Applications/Obsidian.app/"
     pos: 6
+  - name: "Slack"
+    path: "/Applications/Slack.app"
+    pos: 7
   - name: "System Settings"
     path: "/System/Applications/System Settings.app"
-    pos: 7
+    pos: 8
   - name: "Orion"
     path: "/Applications/Orion.app"
-    pos: 8
+    pos: 9
   - name: "Telegram Desktop"
     path: "/Applications/Telegram Desktop.app"
-    pos: 9
+    pos: 10
   - name: "Terminal"
     path: "/System/Applications/Utilities/Terminal.app"
-    pos: 10
+    pos: 11
   - name: "Activity Monitor"
     path: "/System/Applications/Utilities/Activity Monitor.app"
-    pos: 11
+    pos: 12
 #  - name: "Sublime Text"
 #    path: "/Applications/Sublime Text.app/"
-#    pos: 12
+#    pos: 13
 
 
 mas_email: "TBA"
