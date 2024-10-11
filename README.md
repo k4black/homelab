@@ -140,3 +140,6 @@ Create duckdns [DOMAIN] and [TOKEN]
     Name: wg0
     ```
     Load config from `.tmp/router-wg0.conf`
+
+
+Text string $\$15$, $q = 4.2 \cdot (p - 2)$ for a price $p$.
