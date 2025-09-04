@@ -40,8 +40,8 @@
     src: "{{ item.key }}"
     dest: "{{ containers_setup_configs_dir }}/{{ item.value }}"
     mode: 0644
-    owner: "{{ containers_setup_user }}"
-    group: "{{ containers_setup_user }}"
+    owner: "{{ containers_setup_user if (testing is undefined or testing != 'true') else omit }}"
+    group: "{{ containers_setup_user if (testing is undefined or testing != 'true') else omit }}"
   become: true
   loop: "{{ containers_setup_config_templates | dict2items }}"
   when: item.key.endswith('.j2')
@@ -51,8 +51,8 @@
     src: "{{ item.key }}"
     dest: "{{ containers_setup_configs_dir }}/{{ item.value }}"
     mode: 0644
-    owner: "{{ containers_setup_user }}"
-    group: "{{ containers_setup_user }}"
+    owner: "{{ containers_setup_user if (testing is undefined or testing != 'true') else omit }}"
+    group: "{{ containers_setup_user if (testing is undefined or testing != 'true') else omit }}"
   become: true
   loop: "{{ containers_setup_config_templates | dict2items }}"
   when: not item.key.endswith('.j2')

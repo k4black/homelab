@@ -99,7 +99,7 @@
         state: present
         create: true
         mode: 0600
-        insertafter: "Host *\n"
+        insertafter: "Host *"
       become: true
 
     - name: Setup .gitconfig.local
