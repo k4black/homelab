@@ -9,13 +9,13 @@ admin_username: !vault |
           3938
 
 
-default_browser: "orion"
+default_browser: "zen-browser"
 
 
 homebrew_cask_appdir: /Applications
 homebrew_cask_apps:
   # web and social
-  - orion
+  - zen-browser
   - slack
   - telegram-desktop
   - zoom
@@ -102,8 +102,8 @@ dockitems_persist:
   - name: "System Settings"
     path: "/System/Applications/System Settings.app"
     pos: 7
-  - name: "Orion"
-    path: "/Applications/Orion.app"
+  - name: "Zen Browser"
+    path: "/Applications/Zen Browser.app"
     pos: 8
   - name: "Telegram Desktop"
     path: "/Applications/Telegram Desktop.app"

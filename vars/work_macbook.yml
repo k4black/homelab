@@ -8,7 +8,7 @@ default_browser: "orion"
 homebrew_cask_appdir: /Applications
 homebrew_cask_apps:
   # web and social
-  - orion
+  - zen-browser
   - telegram-desktop
   # dev
   - zed
@@ -95,8 +95,8 @@ dockitems_persist:
   - name: "System Settings"
     path: "/System/Applications/System Settings.app"
     pos: 8
-  - name: "Orion"
-    path: "/Applications/Orion.app"
+  - name: "Zen Browser"
+    path: "/Applications/Zen Browser.app"
     pos: 9
   - name: "Telegram Desktop"
     path: "/Applications/Telegram Desktop.app"

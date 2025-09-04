@@ -125,7 +125,7 @@
       block:
         - name: Check if Orion is installed
           ansible.builtin.stat:
-            path: /Applications/Orion.app
+            path: /Applications/Zen Browser.app
           register: orion_app
 
         - name: Install defaultbrowser
