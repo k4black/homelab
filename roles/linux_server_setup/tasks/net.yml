@@ -28,19 +28,19 @@
     - name: Check if systemd-resolved is installed
       ansible.builtin.stat:
         path: /usr/bin/systemd-resolved
-      register: systemd_resolved_exists
+      register: linux_server_setup_systemd_resolved_exists
       changed_when: false
       failed_when: false
       become: true
     - name: Check if resolvectl is installed
       ansible.builtin.stat:
         path: /usr/bin/resolvectl
-      register: resolvectl_exists
+      register: linux_server_setup_resolvectl_exists
       changed_when: false
       failed_when: false
       become: true
     - name: Install systemd-resolved
-      when: not systemd_resolved_exists.stat.exists and not resolvectl_exists.stat.exists
+      when: not linux_server_setup_systemd_resolved_exists.stat.exists and not linux_server_setup_resolvectl_exists.stat.exists
       become: true
       block:
         - name: Install on Ubuntu
@@ -125,15 +125,15 @@
         seconds: 5
     - name: Test DNS resolution
       ansible.builtin.command: nslookup google.com
-      register: nslookup_output
+      register: linux_server_setup_nslookup_output
       changed_when: false
     - name: Show nslookup results
       ansible.builtin.debug:
-        msg: "{{ nslookup_output.stdout_lines }}"
+        msg: "{{ linux_server_setup_nslookup_output.stdout_lines }}"
     - name: Fail if DNS resolution is not working
       ansible.builtin.fail:
         msg: "DNS resolution test failed"
-      when: nslookup_output.rc != 0
+      when: linux_server_setup_nslookup_output.rc != 0
 
 
 - name: Setup ufw
@@ -141,7 +141,9 @@
   block:
     - name: Convert linux_server_setup_open_ports to ufw_rules format
       ansible.builtin.set_fact:
-        ufw_rules_converted: "{{ ufw_rules_converted | default([]) + [{'rule': 'allow', 'to_port': item.port, 'protocol': item.protocol, 'comment': item.comment}] }}"
+        linux_server_setup_ufw_rules_converted: >-
+          {{ linux_server_setup_ufw_rules_converted | default([]) +
+             [{'rule': 'allow', 'to_port': item.port, 'protocol': item.protocol, 'comment': item.comment}] }}
       loop: "{{ linux_server_setup_open_ports }}"
     - name: Enable ufw with oeufenweb.ufw role
       ansible.builtin.include_role:
@@ -152,7 +154,7 @@
         ufw_default_incoming_policy: "deny"
         ufw_default_outgoing_policy: "allow"
         ufw_logging: "medium"
-        ufw_rules: "{{ ufw_rules_converted }}"
+        ufw_rules: "{{ linux_server_setup_ufw_rules_converted }}"
       when: testing is undefined or testing != 'true'
 
     # https://github.com/chaifeng/ufw-docker

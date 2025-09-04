@@ -79,15 +79,46 @@
     - name: Rename pi user and group if exists
       when: pi_user_check.rc == 0
       block:
-        - name: Rename pi user
+        - name: Create new user with desired name
+          ansible.builtin.user:
+            name: "{{ username }}"
+            uid: 1000
+            group: "{{ username }}"
+            home: "/home/{{ username }}"
+            shell: /bin/bash
+            state: present
+        - name: Create new group with desired name
+          ansible.builtin.group:
+            name: "{{ username }}"
+            gid: 1000
+            state: present
+        - name: Copy pi home directory to new user
+          ansible.posix.synchronize:
+            src: /home/pi/
+            dest: "/home/{{ username }}/"
+            archive: true
+            delete: false
+          when: pi_user_check.rc == 0
+          failed_when: false
+        - name: Set ownership of new home directory
+          ansible.builtin.file:
+            path: "/home/{{ username }}"
+            owner: "{{ username }}"
+            group: "{{ username }}"
+            recurse: true
+          when: pi_user_check.rc == 0
+        - name: Remove pi user
           ansible.builtin.user:
             name: pi
-            newname: "{{ username }}"
-            move_home: true
-        - name: Rename pi group
+            state: absent
+            remove: true
+          when: pi_user_check.rc == 0
+        - name: Remove pi group
           ansible.builtin.group:
             name: pi
-            newname: "{{ username }}"
+            state: absent
+          when: pi_user_check.rc == 0
+          failed_when: false
 
   roles:
     - role: geerlingguy.raspberry-pi  # disable hdmi, set gpu_mem to 16 and 1200ma for usb
@@ -201,9 +232,15 @@
             - {path: /mnt/backups, uuid: "{{ backup_general_uuid }}", fstype: ext4, opts: "defaults"}
             - {path: /mnt/timemachine, uuid: "{{ backup_timemachine_uuid }}", fstype: ext4, opts: "defaults"}
           become: true
-        - name: Try to mount all
+        - name: Try to mount all filesystems
           ansible.posix.mount:
+            path: "{{ item.path }}"
+            src: "UUID={{ item.uuid }}"
+            fstype: "{{ item.fstype }}"
             state: mounted
+          loop:
+            - {path: /mnt/backups, uuid: "{{ backup_general_uuid }}", fstype: ext4}
+            - {path: /mnt/timemachine, uuid: "{{ backup_timemachine_uuid }}", fstype: ext4}
           become: true
         - name: List mounted devices
           ansible.builtin.command: df -h

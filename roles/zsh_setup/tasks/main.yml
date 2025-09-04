@@ -17,34 +17,34 @@
     - name: Check if Zsh is installed
       ansible.builtin.stat:
         path: /bin/zsh
-      register: zsh_installed
+      register: zsh_setup_zsh_installed
     - name: Install Zsh (Debian/Ubuntu)
       ansible.builtin.apt:
         name: zsh
         state: present
-      when: ansible_facts['os_family'] == "Debian" and not zsh_installed.stat.exists
+      when: ansible_facts['os_family'] == "Debian" and not zsh_setup_zsh_installed.stat.exists
       become: true
     - name: Install Zsh (RedHat/CentOS)
       ansible.builtin.dnf:
         name: zsh
         state: present
-      when: ansible_facts['os_family'] == "RedHat" and not zsh_installed.stat.exists
+      when: ansible_facts['os_family'] == "RedHat" and not zsh_setup_zsh_installed.stat.exists
       become: true
     - name: Install Zsh (macOS)
       community.general.homebrew:
         name: zsh
         state: present
-      when: ansible_facts['os_family'] == "Darwin" and not zsh_installed.stat.exists
+      when: ansible_facts['os_family'] == "Darwin" and not zsh_setup_zsh_installed.stat.exists
 
 - name: Setup Zsh as login shell (not on Darwin platform)
   when: zsh_setup_set_default_shell and ansible_facts['os_family'] != "Darwin"
   block:
     - name: Check if Zsh is the login shell
       ansible.builtin.command: grep "{{ zsh_setup_user }}.*zsh$" /etc/passwd
-      register: zsh_login_shell
+      register: zsh_setup_zsh_login_shell
       ignore_errors: true
       changed_when: false
     - name: Set Zsh as the login shell
       ansible.builtin.command: chsh -s /bin/zsh "{{ zsh_setup_user }}"
-      when: not zsh_login_shell.stdout
+      when: not zsh_setup_zsh_login_shell.stdout
       changed_when: false

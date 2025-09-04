@@ -26,13 +26,14 @@
   become: true
   loop: "{{ containers_setup_make_dirs }}"
 
-- name: Touch files
-  ansible.builtin.file:
-    path: "{{ item }}"
-    state: touch
+- name: Create empty files if they don't exist
+  ansible.builtin.copy:
+    content: ""
+    dest: "{{ item }}"
     mode: 0644
     owner: "{{ containers_setup_user }}"
     group: "{{ containers_setup_user }}"
+    force: false
   become: true
   loop: "{{ containers_setup_touch_files }}"
 
@@ -45,6 +46,18 @@
     group: "{{ containers_setup_user }}"
   become: true
   loop: "{{ containers_setup_config_templates | dict2items }}"
+  when: item.key.endswith('.j2')
+
+- name: Copy static files to configs directory
+  ansible.builtin.copy:
+    src: "{{ item.key }}"
+    dest: "{{ containers_setup_configs_dir }}/{{ item.value }}"
+    mode: 0644
+    owner: "{{ containers_setup_user }}"
+    group: "{{ containers_setup_user }}"
+  become: true
+  loop: "{{ containers_setup_config_templates | dict2items }}"
+  when: not item.key.endswith('.j2')
 
 - name: Validate docker compose file
   ansible.builtin.command:

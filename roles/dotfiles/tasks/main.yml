@@ -21,7 +21,7 @@
     state: link
     force: "{{ dotfiles_overwrite_if_exists }}"
   with_dict: "{{ dotfiles_symlinks }}"
-  register: symlink_result
+  register: dotfiles_symlink_result
 
 - name: Make .localrc empty file
   ansible.builtin.file:
