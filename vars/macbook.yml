@@ -99,10 +99,10 @@ dockitems_persist:
     path: "/Applications/Notes.app"
     pos: 4
   - name: "Todoist"
-    path: "/Applications/Todoist.app/"
+    path: "/Applications/Todoist.app"
     pos: 5
   - name: "Obsidian"
-    path: "/Applications/Obsidian.app/"
+    path: "/Applications/Obsidian.app"
     pos: 6
   - name: "System Settings"
     path: "/System/Applications/System Settings.app"

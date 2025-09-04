@@ -86,7 +86,7 @@
     - name: Ensure Host * line in ssh config
       ansible.builtin.lineinfile:
         path: ~/.ssh/config
-        line: "Host *\n"
+        line: "Host *"
         state: present
         create: true
         mode: 0600

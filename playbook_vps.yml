@@ -27,7 +27,7 @@
     # https://medium.com/opsops/ansible-default-ipv4-is-not-what-you-think-edb8ab154b10
     - name: Geather local_ipv4
       ansible.builtin.set_fact:
-        local_ipv4: "{{ ansible_default_ipv4.address | default(ansible_all_ipv4_addresses[0]) }}"
+        local_ipv4: "{{ '127.0.0.1' if (testing is defined and testing == 'true') else (ansible_default_ipv4.address | default(ansible_all_ipv4_addresses[0])) }}"
     - name: Debug local_ipv4
       ansible.builtin.debug:
         var: local_ipv4

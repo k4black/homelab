@@ -19,11 +19,12 @@
 # https://web.archive.org/web/20220612212822/https://www.bklynit.net/ubuntu-20-04-lts-docker-pihole/
 - name: Setup systemd-resolved DNS
   block:
-    - name: Force add 1.1.1.1 to /etc/resolv.conf in case
+    - name: Ensure 1.1.1.1 is in /etc/resolv.conf
       ansible.builtin.lineinfile:
         path: /etc/resolv.conf
-        regexp: "^nameserver.*"
+        regexp: "^nameserver 1\\.1\\.1\\.1$"
         line: "nameserver 1.1.1.1"
+        state: present
       become: true
     - name: Check if systemd-resolved is installed
       ansible.builtin.stat:
