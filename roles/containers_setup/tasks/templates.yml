@@ -35,6 +35,40 @@
   become: true
   loop: "{{ containers_setup_touch_files }}"
 
+- name: Debug template variables for troubleshooting
+  ansible.builtin.debug:
+    msg: 
+      - "Processing template: {{ item.key }}"
+      - "Destination: {{ containers_setup_configs_dir }}/{{ item.value }}"
+      - "local_ipv4 variable: {{ local_ipv4 | default('UNDEFINED') }}"
+      - "containers_setup_user: {{ containers_setup_user }}"
+      - "testing mode: {{ testing | default('undefined') }}"
+  loop: "{{ containers_setup_config_templates | dict2items }}"
+  when: item.key.endswith('.j2') and (testing is defined and testing == 'true')
+
+- name: Check if template destination exists
+  ansible.builtin.stat:
+    path: "{{ containers_setup_configs_dir }}/{{ item.value }}"
+  register: template_dest_stat
+  loop: "{{ containers_setup_config_templates | dict2items }}"
+  when: item.key.endswith('.j2') and (testing is defined and testing == 'true')
+
+- name: Show existing file content if it exists
+  ansible.builtin.command:
+    cmd: "cat {{ containers_setup_configs_dir }}/{{ item.item.value }}"
+  register: existing_content
+  loop: "{{ template_dest_stat.results }}"
+  when: item.stat is defined and item.stat.exists and (testing is defined and testing == 'true')
+  ignore_errors: true
+
+- name: Debug existing file content
+  ansible.builtin.debug:
+    msg:
+      - "Existing content of {{ item.item.item.value }}:"
+      - "{{ item.stdout_lines | default(['FILE NOT FOUND']) }}"
+  loop: "{{ existing_content.results }}"
+  when: item.stdout_lines is defined and (testing is defined and testing == 'true')
+
 - name: Copy and apply templates to configs directory
   ansible.builtin.template:
     src: "{{ item.key }}"
@@ -45,6 +79,39 @@
   become: true
   loop: "{{ containers_setup_config_templates | dict2items }}"
   when: item.key.endswith('.j2')
+
+- name: Debug static file variables for troubleshooting  
+  ansible.builtin.debug:
+    msg:
+      - "Processing static file: {{ item.key }}"
+      - "Destination: {{ containers_setup_configs_dir }}/{{ item.value }}"
+      - "containers_setup_user: {{ containers_setup_user }}"
+      - "testing mode: {{ testing | default('undefined') }}"
+  loop: "{{ containers_setup_config_templates | dict2items }}"
+  when: not item.key.endswith('.j2') and (testing is defined and testing == 'true')
+
+- name: Check if static file destination exists
+  ansible.builtin.stat:
+    path: "{{ containers_setup_configs_dir }}/{{ item.value }}"
+  register: static_dest_stat
+  loop: "{{ containers_setup_config_templates | dict2items }}"
+  when: not item.key.endswith('.j2') and (testing is defined and testing == 'true')
+
+- name: Show existing static file content
+  ansible.builtin.command:
+    cmd: "cat {{ containers_setup_configs_dir }}/{{ item.item.value }}"
+  register: existing_static_content
+  loop: "{{ static_dest_stat.results }}"
+  when: item.stat is defined and item.stat.exists and (testing is defined and testing == 'true')
+  ignore_errors: true
+
+- name: Debug existing static file content
+  ansible.builtin.debug:
+    msg:
+      - "Existing static content of {{ item.item.item.value }}:"
+      - "{{ item.stdout_lines | default(['FILE NOT FOUND']) }}"
+  loop: "{{ existing_static_content.results }}"
+  when: item.stdout_lines is defined and (testing is defined and testing == 'true')
 
 - name: Copy static files to configs directory
   ansible.builtin.copy:
