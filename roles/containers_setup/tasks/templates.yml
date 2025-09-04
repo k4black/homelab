@@ -49,16 +49,17 @@
 - name: Check if template destination exists
   ansible.builtin.stat:
     path: "{{ containers_setup_configs_dir }}/{{ item.value }}"
-  register: template_dest_stat
+  register: containers_setup_template_dest_stat
   loop: "{{ containers_setup_config_templates | dict2items }}"
   when: item.key.endswith('.j2') and (testing is defined and testing == 'true')
 
 - name: Show existing file content if it exists
   ansible.builtin.command:
     cmd: "cat {{ containers_setup_configs_dir }}/{{ item.item.value }}"
-  register: existing_content
-  loop: "{{ template_dest_stat.results }}"
+  register: containers_setup_existing_content
+  loop: "{{ containers_setup_template_dest_stat.results }}"
   when: item.stat is defined and item.stat.exists and (testing is defined and testing == 'true')
+  changed_when: false
   ignore_errors: true
 
 - name: Debug existing file content
@@ -66,7 +67,7 @@
     msg:
       - "Existing content of {{ item.item.item.value }}:"
       - "{{ item.stdout_lines | default(['FILE NOT FOUND']) }}"
-  loop: "{{ existing_content.results }}"
+  loop: "{{ containers_setup_existing_content.results }}"
   when: item.stdout_lines is defined and (testing is defined and testing == 'true')
 
 - name: Copy and apply templates to configs directory
