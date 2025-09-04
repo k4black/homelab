@@ -81,6 +81,7 @@
           - {port: 51820, protocol: "udp", comment: "wireguard"}
           - {port: 80, protocol: "tcp", comment: "http"}
           - {port: 443, protocol: "tcp", comment: "https"}
+          - {port: 30000, protocol: "tcp", comment: "foundryvtt"}
 
     - role: hifis.unattended_upgrades
       vars:
@@ -137,6 +138,8 @@
           #          - "{{ services_configs_dir }}/influxdb-config"
           - "{{ services_configs_dir }}/pihole"
           - "{{ services_configs_dir }}/pihole-dnsmasq.d"
+          - "{{ services_data_dir }}/foundryvtt"
+          - "{{ services_configs_dir }}/foundryvtt"
         containers_setup_touch_files: []
         containers_setup_config_templates:
           files/vps/server-wg0.conf.j2: "server-wg0.conf"  # TODO: fix permissions

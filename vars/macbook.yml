@@ -16,9 +16,8 @@ homebrew_cask_appdir: /Applications
 homebrew_cask_apps:
   # web and social
   - zen-browser
-  - slack
   - telegram-desktop
-  - zoom
+  - ungoogled-chromium
   # dev
   - zed
   - docker
@@ -27,6 +26,7 @@ homebrew_cask_apps:
   # fun
   # - autodesk-fusion360
   # - steam
+  - anki
   # utils
   - google-drive
   - tunnelblick
@@ -37,6 +37,8 @@ homebrew_cask_apps:
   - todoist
   - obsidian
   - zotero
+  - chatgpt
+  - notion
 homebrew_installed_packages:
   # dev
   - git
@@ -44,10 +46,13 @@ homebrew_installed_packages:
   - sqlite
   - dockutil
   - gh
+  - npm
+  - claude-code
   # languages
   - pyenv
   - go
   - rustup
+  - openjdk
   # ssh
   - ssh-copy-id
   - openssl

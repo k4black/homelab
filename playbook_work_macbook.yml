@@ -123,19 +123,19 @@
 
     - name: Set Default browser
       block:
-        - name: Check if Orion is installed
+        - name: Check if Zen Browser is installed
           ansible.builtin.stat:
             path: /Applications/Zen Browser.app
-          register: orion_app
+          register: zen_browser_app
 
         - name: Install defaultbrowser
           community.general.homebrew:
             name: defaultbrowser
             state: present
-          when: orion_app.stat.exists
+          when: zen_browser_app.stat.exists
 
-        - name: Set Orion as default browser
-          ansible.builtin.command: osascript files/macbook/setDefaultBrowser.scpt kagimacos
-          when: orion_app.stat.exists
+        - name: Set Zen Browser as default browser
+          ansible.builtin.command: osascript files/macbook/setDefaultBrowser.scpt com.zen.browser
+          when: zen_browser_app.stat.exists
           changed_when: false
           become: true

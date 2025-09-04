@@ -93,6 +93,37 @@ services:
       retries: 3
     restart: unless-stopped
 
+  ### Games ###
+  foundryvtt:
+    image: felddy/foundryvtt:release
+    container_name: foundryvtt
+    hostname: foundryvtt.homelab.local
+    environment:
+      PUID: 1000
+      PGID: 1000
+      TZ: {{ timezone }}
+      FOUNDRY_MINIFY_STATIC_FILES: "true"
+      FOUNDRY_PROXY_SSL: "false"
+      FOUNDRY_PROXY_PORT: 30000
+      CONTAINER_PRESERVE_CONFIG: "true"
+      # You'll need to provide your Foundry license key
+      # FOUNDRY_USERNAME: your_foundry_username
+      # FOUNDRY_PASSWORD: your_foundry_password
+      # Or volume mount the license file
+    volumes:
+      - {{ containers_setup_data_dir }}/foundryvtt:/data
+      # Optional: mount license file if you have one
+      # - {{ containers_setup_configs_dir }}/foundryvtt/license.json:/home/foundry/license.json:ro
+    ports:
+      - "30000:30000/tcp"
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:30000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+
   ### Metrics ###
   node-exporter:
     image: prom/node-exporter:latest
