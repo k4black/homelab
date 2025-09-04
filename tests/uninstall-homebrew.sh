@@ -8,6 +8,9 @@ chmod +x ./uninstall.sh
 sudo ./uninstall.sh --force
 
 # Clean up Homebrew directories.
+# Intel Mac paths
 sudo rm -rf /usr/local/Homebrew
 sudo rm -rf /usr/local/Caskroom
 sudo rm -rf /usr/local/bin/brew
+# Apple Silicon Mac paths
+sudo rm -rf /opt/homebrew

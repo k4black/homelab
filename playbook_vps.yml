@@ -38,9 +38,9 @@
   become: true
 
   tasks:
-    - name: For testing at github actions set username to "runneradmin"
+    - name: For testing at github actions set username to "runner"
       ansible.builtin.set_fact:
-        username: "runneradmin"
+        username: "runner"
       when: testing is defined and testing == 'true'
 
     - name: List all ports used
