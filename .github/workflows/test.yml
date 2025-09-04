@@ -11,6 +11,9 @@ on:
   schedule:
     - cron: "23 2 * * 2"  # semi-random time once a week
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   lint:
