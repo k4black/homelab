@@ -6,7 +6,7 @@
   vars_files:
     - vars/all.yml
     - vars/work_macbook.yml
-  
+
   pre_tasks:
     - name: Add homebrew to local env PATH
       ansible.builtin.command: echo 'export PATH="/opt/homebrew/bin:$PATH"'
