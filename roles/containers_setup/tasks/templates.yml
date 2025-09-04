@@ -37,7 +37,7 @@
 
 - name: Debug template variables for troubleshooting
   ansible.builtin.debug:
-    msg: 
+    msg:
       - "Processing template: {{ item.key }}"
       - "Destination: {{ containers_setup_configs_dir }}/{{ item.value }}"
       - "local_ipv4 variable: {{ local_ipv4 | default('UNDEFINED') }}"
