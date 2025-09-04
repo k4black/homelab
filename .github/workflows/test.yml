@@ -40,10 +40,10 @@ jobs:
           ansible-lint
 
   test-macbook-playbook:
-    runs-on: macos-13  # TODO: set macos-latest when it's will be v13
+    runs-on: macos-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Uninstall GitHub Actions' built-in Homebrew
         run: sudo /bin/bash tests/uninstall-homebrew.sh
@@ -85,7 +85,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Debug print /etc/resolv.conf  # TODO: remove this debug print
         run: | 
@@ -137,7 +137,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Debug print /etc/resolv.conf  # TODO: remove this debug print
         run: | 

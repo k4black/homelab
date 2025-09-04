@@ -1,6 +1,6 @@
 username: "k4black"
-device_name: "iceland"
-ssh_port: 4221
+device_name: "hetzner"
+ssh_port: 22
 password: !vault |
           $ANSIBLE_VAULT;1.1;AES256
           32626433643035316135626238373433623261656464326335383532313030656265653462396338
