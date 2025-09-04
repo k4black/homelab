@@ -4,9 +4,9 @@
   ansible.builtin.template:
     src: "{{ containers_setup_docker_compose_template }}"
     dest: "{{ containers_setup_configs_dir }}/docker-compose.yml"
-    mode: 0644
-    owner: "{{ containers_setup_user if (testing is undefined or testing != 'true') else omit }}"
-    group: "{{ containers_setup_user if (testing is undefined or testing != 'true') else omit }}"
+    mode: '0644'
+    owner: "{{ containers_setup_user }}"
+    group: "{{ containers_setup_user }}"
   become: true
 
 - name: Debug docker-compose file on the server
@@ -28,9 +28,9 @@
   ansible.builtin.copy:
     content: ""
     dest: "{{ item }}"
-    mode: 0644
-    owner: "{{ containers_setup_user if (testing is undefined or testing != 'true') else omit }}"
-    group: "{{ containers_setup_user if (testing is undefined or testing != 'true') else omit }}"
+    mode: '0644'
+    owner: "{{ containers_setup_user }}"
+    group: "{{ containers_setup_user }}"
     force: false
   become: true
   loop: "{{ containers_setup_touch_files }}"
@@ -73,56 +73,11 @@
   ansible.builtin.template:
     src: "{{ item.key }}"
     dest: "{{ containers_setup_configs_dir }}/{{ item.value }}"
-    mode: 0644
-    owner: "{{ containers_setup_user if (testing is undefined or testing != 'true') else omit }}"
-    group: "{{ containers_setup_user if (testing is undefined or testing != 'true') else omit }}"
+    mode: '0644'
+    owner: "{{ containers_setup_user }}"
+    group: "{{ containers_setup_user }}"
   become: true
   loop: "{{ containers_setup_config_templates | dict2items }}"
-  when: item.key.endswith('.j2')
-
-- name: Debug static file variables for troubleshooting  
-  ansible.builtin.debug:
-    msg:
-      - "Processing static file: {{ item.key }}"
-      - "Destination: {{ containers_setup_configs_dir }}/{{ item.value }}"
-      - "containers_setup_user: {{ containers_setup_user }}"
-      - "testing mode: {{ testing | default('undefined') }}"
-  loop: "{{ containers_setup_config_templates | dict2items }}"
-  when: not item.key.endswith('.j2') and (testing is defined and testing == 'true')
-
-- name: Check if static file destination exists
-  ansible.builtin.stat:
-    path: "{{ containers_setup_configs_dir }}/{{ item.value }}"
-  register: static_dest_stat
-  loop: "{{ containers_setup_config_templates | dict2items }}"
-  when: not item.key.endswith('.j2') and (testing is defined and testing == 'true')
-
-- name: Show existing static file content
-  ansible.builtin.command:
-    cmd: "cat {{ containers_setup_configs_dir }}/{{ item.item.value }}"
-  register: existing_static_content
-  loop: "{{ static_dest_stat.results }}"
-  when: item.stat is defined and item.stat.exists and (testing is defined and testing == 'true')
-  ignore_errors: true
-
-- name: Debug existing static file content
-  ansible.builtin.debug:
-    msg:
-      - "Existing static content of {{ item.item.item.value }}:"
-      - "{{ item.stdout_lines | default(['FILE NOT FOUND']) }}"
-  loop: "{{ existing_static_content.results }}"
-  when: item.stdout_lines is defined and (testing is defined and testing == 'true')
-
-- name: Copy static files to configs directory
-  ansible.builtin.copy:
-    src: "{{ item.key }}"
-    dest: "{{ containers_setup_configs_dir }}/{{ item.value }}"
-    mode: 0644
-    owner: "{{ containers_setup_user if (testing is undefined or testing != 'true') else omit }}"
-    group: "{{ containers_setup_user if (testing is undefined or testing != 'true') else omit }}"
-  become: true
-  loop: "{{ containers_setup_config_templates | dict2items }}"
-  when: not item.key.endswith('.j2')
 
 - name: Validate docker compose file
   ansible.builtin.command:
