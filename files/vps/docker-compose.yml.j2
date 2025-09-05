@@ -1,8 +1,5 @@
 # {{ ansible_managed }}
 
-version: '3.8'
-
-
 networks:
   default:
     driver: bridge
@@ -14,11 +11,9 @@ networks:
 
 services:
   ### Utils ###
-
   whoami:
     image: traefik/whoami
     container_name: whoami
-    hostname: whoami.homelab.local
     ports:
       - "5000:80"
     restart: unless-stopped
@@ -44,7 +39,7 @@ services:
       PUID: 1000
       PGID: 1000
       TZ: {{ timezone }}
-      SERVERURL: {{ vps_duckdns_subdomain }}.duckdns.org
+      SERVERURL: wireguard.{{ vps_duckdns_subdomain }}.duckdns.org
       SERVERPORT: 51820
       INTERNAL_SUBNET: {{ vpn_network_subnet }}
     volumes:
@@ -93,35 +88,88 @@ services:
       retries: 3
     restart: unless-stopped
 
+  traefik:
+    image: traefik:v3.5
+    container_name: traefik
+    command:
+      - --providers.docker=true
+      - --providers.docker.endpoint=unix:///var/run/docker.sock
+      - --providers.docker.exposedbydefault=false
+      - --providers.docker.watch=true
+{#      - --providers.docker.network={{ vps_docker_network_name }}#}
+      # entrypoints
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+      - --entrypoints.ping.address=:8082
+      # HTTP to HTTPS redirect (but allow ACME challenges)
+      - --entrypoints.web.http.redirections.entrypoint.to=websecure
+      - --entrypoints.web.http.redirections.entrypoint.scheme=https
+      - --entrypoints.web.http.redirections.entrypoint.priority=1
+      # ACME (Let's Encrypt) - HTTP-01 (no email set; optional)
+      - --certificatesresolvers.lehttp.acme.storage=/letsencrypt/acme.json
+      - --certificatesresolvers.lehttp.acme.httpchallenge.entrypoint=web
+      # ping
+      - --ping=true
+      - --ping.entrypoint=ping
+      # (optional) dashboard (secure behind your VPN if you expose 8080)
+      - --api.dashboard=true
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080"  # optional dashboard
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - {{ containers_setup_data_dir }}/traefik-letsencrypt:/letsencrypt
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O- http://127.0.0.1:8082/ping >/dev/null || exit 1"]
+{#      test: ["CMD", "traefik", "healthcheck", "--ping=true", "--ping.entrypoint=ping"]#}
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
   ### Games ###
   foundryvtt:
     image: felddy/foundryvtt:release
     container_name: foundryvtt
-    hostname: foundryvtt.homelab.local
     environment:
       PUID: 1000
       PGID: 1000
       TZ: {{ timezone }}
       FOUNDRY_MINIFY_STATIC_FILES: "true"
       FOUNDRY_COMPRESS_WEBSOCKET: "true"
-      FOUNDRY_PROXY_SSL: "false"
-      FOUNDRY_PROXY_PORT: 30000
+      FOUNDRY_PROXY_SSL: "true"            # behind TLS-terminating proxy
+      FOUNDRY_PROXY_PORT: 443              # external port the clients hit
+      FOUNDRY_HOSTNAME: "foundry.{{ vps_duckdns_subdomain }}.duckdns.org"
       CONTAINER_PRESERVE_CONFIG: "true"
       FOUNDRY_USERNAME: "{{ foundry_username }}"
       FOUNDRY_PASSWORD: "{{ foundry_password }}"
       FOUNDRY_ADMIN_KEY: "{{ foundry_admin_password }}"
     volumes:
       - {{ containers_setup_data_dir }}/foundryvtt:/data
-      # Optional: mount license file if you have one
-      # - {{ containers_setup_configs_dir }}/foundryvtt/license.json:/home/foundry/license.json:ro
+    labels:
+      - traefik.enable=true
+      # service (backend) → Foundry on :30000 inside the container
+      - traefik.http.services.foundry.loadbalancer.server.port=30000
+      # router → subdomain host
+      - traefik.http.routers.foundry.rule=Host(`foundry.{{ vps_duckdns_subdomain }}.duckdns.org`)
+      - traefik.http.routers.foundry.entrypoints=websecure
+      - traefik.http.routers.foundry.tls=true
+      - traefik.http.routers.foundry.tls.certresolver=lehttp
+      - traefik.http.routers.foundry.service=foundry
     ports:
-      - "30000:30000/tcp"
+      - "30000:30000"
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:30000"]
+      test: ["CMD", "node", "-e",
+        "const http=require('http');\
+const req=http.request({host:'127.0.0.1',port:30000,path:'/',timeout:2000},res=>{process.exit(res.statusCode<500?0:1)});\
+req.on('timeout',()=>{req.destroy();process.exit(1)});\
+req.on('error',()=>process.exit(1));\
+req.end();"]
       interval: 30s
       timeout: 10s
-      retries: 3
-      start_period: 30s
+      retries: 10
+      start_period: 120s
     restart: unless-stopped
 
   ### Metrics ###
@@ -134,11 +182,6 @@ services:
       - /proc:/host/proc:ro
       - /sys:/host/sys:ro
       - /:/rootfs:ro
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9100/metrics"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
     restart: unless-stopped
 
   cadvisor:
