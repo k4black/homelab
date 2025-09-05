@@ -8,11 +8,11 @@
     - vars/vps.yml
 
   tasks:
-    - name: SSH Port Juggle
-      ansible.builtin.import_tasks: tasks/sshd_port_juggling.yml
-      when: testing is undefined or testing != 'true'
     - name: SSH User Juggle
       ansible.builtin.import_tasks: tasks/sshd_login_user_juggling.yml
+      when: testing is undefined or testing != 'true'
+    - name: SSH Port Juggle
+      ansible.builtin.import_tasks: tasks/sshd_port_juggling.yml
       when: testing is undefined or testing != 'true'
     - name: Read ssh_public_key from {{ ssh_public_key_file }}
       ansible.builtin.set_fact:

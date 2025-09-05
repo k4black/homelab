@@ -68,8 +68,8 @@ services:
     image: pihole/pihole:latest
     container_name: pihole
     environment:
-      PUID: 1000
-      PGID: 1000
+      PIHOLE_UID: 1000
+      PIHOLE_GID: 1000
       TZ: {{ timezone }}
       WEBPASSWORD: password  # for http://pi.hole/admin
       PIHOLE_DNS_: "1.1.1.1;8.8.8.8"
@@ -103,13 +103,13 @@ services:
       PGID: 1000
       TZ: {{ timezone }}
       FOUNDRY_MINIFY_STATIC_FILES: "true"
+      FOUNDRY_COMPRESS_WEBSOCKET: "true"
       FOUNDRY_PROXY_SSL: "false"
       FOUNDRY_PROXY_PORT: 30000
       CONTAINER_PRESERVE_CONFIG: "true"
-      # You'll need to provide your Foundry license key
-      # FOUNDRY_USERNAME: your_foundry_username
-      # FOUNDRY_PASSWORD: your_foundry_password
-      # Or volume mount the license file
+      FOUNDRY_USERNAME: "{{ foundry_username }}"
+      FOUNDRY_PASSWORD: "{{ foundry_password }}"
+      FOUNDRY_ADMIN_KEY: "{{ foundry_admin_password }}"
     volumes:
       - {{ containers_setup_data_dir }}/foundryvtt:/data
       # Optional: mount license file if you have one

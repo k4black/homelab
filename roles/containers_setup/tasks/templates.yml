@@ -21,6 +21,8 @@
     path: "{{ item }}"
     state: directory
     mode: 0755
+    owner: "{{ containers_setup_user if (testing is undefined or testing != 'true') else omit }}"
+    group: "{{ containers_setup_user if (testing is undefined or testing != 'true') else omit }}"
   become: true
   loop: "{{ containers_setup_make_dirs }}"
 
