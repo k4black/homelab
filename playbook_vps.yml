@@ -81,7 +81,6 @@
           - {port: 51820, protocol: "udp", comment: "wireguard"}
           - {port: 80, protocol: "tcp", comment: "http"}
           - {port: 443, protocol: "tcp", comment: "https"}
-          - {port: 8080, protocol: "tcp", comment: "traefik dashboard"}
           - {port: 30000, protocol: "tcp", comment: "foundryvtt"}
 
     - role: hifis.unattended_upgrades
