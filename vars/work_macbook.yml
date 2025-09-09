@@ -17,6 +17,7 @@ homebrew_cask_apps:
   - docker
   - sublime-text
   - jetbrains-toolbox
+  - cursor
   # fun
   # - autodesk-fusion360
   # - steam
@@ -32,6 +33,17 @@ homebrew_cask_apps:
   - zotero
   - chatgpt
   - notion
+  - inkscape
+  - gimp
+  - steam
+  # fonts
+  - font-inter
+  - font-helvetica
+  - font-roboto
+  - font-roboto-condensed
+  - font-roboto-mono
+  - font-roboto-slab
+  - font-jetbrains-mono
 homebrew_installed_packages:
   # dev
   - git
@@ -50,7 +62,8 @@ homebrew_installed_packages:
   - ssh-copy-id
   - openssl
 # "failed to tap: homebrew/core due to [31mError:[0m Tapping homebrew/core is no longer typically necessary."
-homebrew_taps: []
+homebrew_taps:
+  - homebrew/cask-fonts
 
 # error when installed this way, include in homebrew_installed_packages
 dockutil_install: true
