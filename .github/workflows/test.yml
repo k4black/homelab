@@ -20,7 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Set up Python 3.12
         uses: actions/setup-python@v6
@@ -49,7 +49,7 @@ jobs:
         profile: [personal, work]
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Uninstall GitHub Actions' built-in Homebrew
         run: sudo /bin/bash tests/uninstall-homebrew.sh
@@ -91,7 +91,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Debug print /etc/resolv.conf  # TODO: remove this debug print
         run: | 
@@ -143,7 +143,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Debug print /etc/resolv.conf  # TODO: remove this debug print
         run: | 
