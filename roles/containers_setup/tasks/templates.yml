@@ -29,12 +29,13 @@
   become: true
 
 - name: Create ACME file with secure permissions
-  ansible.builtin.file:
-    path: "{{ containers_setup_data_dir }}/traefik-letsencrypt/acme.json"
-    state: touch
+  ansible.builtin.copy:
+    content: ""
+    dest: "{{ containers_setup_data_dir }}/traefik-letsencrypt/acme.json"
     mode: 0600
     owner: "{{ containers_setup_user if (testing is undefined or testing != 'true') else omit }}"
     group: "{{ containers_setup_user if (testing is undefined or testing != 'true') else omit }}"
+    force: false
   become: true
 
 - name: Create empty files if they don't exist
@@ -48,7 +49,7 @@
   become: true
   loop: "{{ containers_setup_touch_files }}"
 
-- name: Copy and apply templates to configs directory
+- name: Copy and apply Jinja2 templates to configs directory
   ansible.builtin.template:
     src: "{{ item.key }}"
     dest: "{{ containers_setup_configs_dir }}/{{ item.value }}"
@@ -57,6 +58,18 @@
     group: "{{ containers_setup_user }}"
   become: true
   loop: "{{ containers_setup_config_templates | dict2items }}"
+  when: item.key.endswith('.j2')
+
+- name: Copy static files to configs directory
+  ansible.builtin.copy:
+    src: "{{ item.key }}"
+    dest: "{{ containers_setup_configs_dir }}/{{ item.value }}"
+    mode: '0644'
+    owner: "{{ containers_setup_user }}"
+    group: "{{ containers_setup_user }}"
+  become: true
+  loop: "{{ containers_setup_config_templates | dict2items }}"
+  when: not item.key.endswith('.j2')
 
 - name: Validate docker compose file
   ansible.builtin.command:

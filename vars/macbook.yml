@@ -92,9 +92,8 @@ homebrew_installed_packages_extra:
   work:
     - azure-cli
 homebrew_installed_packages: "{{ homebrew_installed_packages_common + homebrew_installed_packages_extra[macbook_profile] }}"
-# "failed to tap: homebrew/core due to [31mError:[0m Tapping homebrew/core is no longer typically necessary."
-homebrew_taps:
-  - homebrew/cask-fonts
+# homebrew/cask-fonts was deprecated; font casks are now in homebrew/cask
+homebrew_taps: []
 
 # error when installed this way, include in homebrew_installed_packages
 dockutil_install: true
