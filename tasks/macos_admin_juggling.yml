@@ -38,6 +38,7 @@
       ansible.builtin.command: "sysadminctl -addUser {{ _admin_username.user_input }} -fullName {{ _admin_username.user_input }} -password {{ _admin_password.user_input }} -admin"
       changed_when: false
       become: true
+      no_log: true
 
     - name: Macos Admin Juggling | Add current user to sudoers
       ansible.builtin.lineinfile:
