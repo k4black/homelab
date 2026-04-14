@@ -15,14 +15,16 @@ default_browser: "zen-browser"
 homebrew_cask_appdir: /Applications
 homebrew_cask_apps:
   # web and social
-  - zen-browser
+  - zen
   - telegram-desktop
   - ungoogled-chromium
   # dev
   - zed
-  - docker
+  - docker-desktop
   - sublime-text
   - cursor
+  - claude
+  - claude-code
   # - jetbrains-toolbox
   # fun
   # - autodesk-fusion360
@@ -33,19 +35,23 @@ homebrew_cask_apps:
   - tunnelblick
   - the-unarchiver
   - lulu
-  - MonitorControl  # TODO: add permissions to Accessibility and login item
+  - basictex
+  - monitorcontrol  # TODO: add permissions to Accessibility and login item
+  # creative
+  - affinity
+  # - inkscape  # superseded by affinity
+  # - gimp  # superseded by affinity
+  # 3d printing
+  - prusaslicer  # Original Prusa Drivers must be installed manually
   # mix
-  - todoist
+  # - todoist-app  # migrated to Reminders
   - obsidian
   - zotero
   - chatgpt
   - notion
-  - inkscape
-  - gimp
   - steam
   # fonts
   - font-inter
-  - font-helvetica
   - font-roboto
   - font-roboto-condensed
   - font-roboto-mono
@@ -59,12 +65,14 @@ homebrew_installed_packages:
   - dockutil
   - gh
   - npm
-  - claude-code
+  - ripgrep
   # languages
   - pyenv
   - go
   - rustup
   - openjdk
+  # utils
+  - grpcurl
   # ssh
   - ssh-copy-id
   - openssl
@@ -83,7 +91,6 @@ dockitems_remove:
   - Siri
   - FaceTime
   - Contacts
-  - Reminders
   - Maps
   - Messages
   - Podcasts
@@ -95,10 +102,7 @@ dockitems_remove:
   - Numbers
   - Pages
 dockitems_persist:
-  # NOTE: Finder is always first
-  # - name: "Finder"
-  #   path: "/System/Library/CoreServices/Finder.app"
-  #   pos: 0
+  # NOTE: Finder is always first (pos 0)
   - name: "Launchpad"
     path: "/System/Applications/Launchpad.app"
     pos: 1
@@ -108,20 +112,20 @@ dockitems_persist:
   - name: "Calendar"
     path: "/Applications/Calendar.app"
     pos: 3
-  - name: "Notes"
-    path: "/Applications/Notes.app"
+  - name: "Reminders"
+    path: "/System/Applications/Reminders.app"
     pos: 4
-  - name: "Todoist"
-    path: "/Applications/Todoist.app"
+  - name: "Notes"
+    path: "/System/Applications/Notes.app"
     pos: 5
-  - name: "Obsidian"
-    path: "/Applications/Obsidian.app"
-    pos: 6
   - name: "System Settings"
     path: "/System/Applications/System Settings.app"
-    pos: 7
+    pos: 6
   - name: "Zen Browser"
     path: "/Applications/Zen Browser.app"
+    pos: 7
+  - name: "Chromium"
+    path: "/Applications/Chromium.app"
     pos: 8
   - name: "Telegram Desktop"
     path: "/Applications/Telegram Desktop.app"
@@ -132,9 +136,6 @@ dockitems_persist:
   - name: "Activity Monitor"
     path: "/System/Applications/Utilities/Activity Monitor.app"
     pos: 11
-#  - name: "Sublime Text"
-#    path: "/Applications/Sublime Text.app/"
-#    pos: 12
 
 
 mas_email: !vault |

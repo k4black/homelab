@@ -111,11 +111,11 @@
         owner: "{{ ansible_user_id }}"
 
     - name: Setup MonitorControl
-      when: not 'MonitorControl' in homebrew_cask_apps
+      when: not 'monitorcontrol' in homebrew_cask_apps
       block:
         - name: Install MonitorControl
           community.general.homebrew:
-            name: MonitorControl
+            name: monitorcontrol
             state: present
     #        - name: Enable MonitorControl in System Preferences -> Privacy & Security -> Privacy -> Accessibility
     #          ansible.builtin.command: osascript -e 'tell application "System Events" to tell process "System Preferences"
