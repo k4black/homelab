@@ -13,11 +13,3 @@
   become: true
   changed_when: false
   retries: 2
-
-# TODO: restart separate containers if changes detected
-- name: Restart all containers
-  ansible.builtin.command:
-    cmd: docker compose restart
-    chdir: "{{ containers_setup_configs_dir }}"
-  become: true
-  changed_when: false

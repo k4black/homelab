@@ -25,7 +25,7 @@
 
   tasks:
     # https://medium.com/opsops/ansible-default-ipv4-is-not-what-you-think-edb8ab154b10
-    - name: Geather local_ipv4
+    - name: Gather local_ipv4
       ansible.builtin.set_fact:
         local_ipv4: "{{ '127.0.0.1' if (testing is defined and testing == 'true') else (ansible_default_ipv4.address | default(ansible_all_ipv4_addresses[0])) }}"
     - name: Debug local_ipv4
@@ -208,48 +208,19 @@
     - name: Setup disk auto-mount
       when: testing is undefined or testing != 'true'
       block:
-        - name: Create mount point directories
-          ansible.builtin.file:
-            path: "{{ item }}"
-            state: directory
-            owner: root
-            group: root
-            mode: "0755"
-          loop:
-            - /mnt/backups
-            - /mnt/timemachine
-          become: true
-        - name: Add mount points to fstab
+        - name: Mount filesystems (creates mount point and fstab entry)
           ansible.posix.mount:
             path: "{{ item.path }}"
             src: "UUID={{ item.uuid }}"
-            fstype: "{{ item.fstype }}"
-            opts: "{{ item.opts }}"
-            state: present
+            fstype: ext4
+            opts: defaults
+            state: mounted
             dump: 0
             passno: 2
           loop:
-            - {path: /mnt/backups, uuid: "{{ backup_general_uuid }}", fstype: ext4, opts: "defaults"}
-            - {path: /mnt/timemachine, uuid: "{{ backup_timemachine_uuid }}", fstype: ext4, opts: "defaults"}
+            - {path: /mnt/backups, uuid: "{{ backup_general_uuid }}"}
+            - {path: /mnt/timemachine, uuid: "{{ backup_timemachine_uuid }}"}
           become: true
-        - name: Try to mount all filesystems
-          ansible.posix.mount:
-            path: "{{ item.path }}"
-            src: "UUID={{ item.uuid }}"
-            fstype: "{{ item.fstype }}"
-            state: mounted
-          loop:
-            - {path: /mnt/backups, uuid: "{{ backup_general_uuid }}", fstype: ext4}
-            - {path: /mnt/timemachine, uuid: "{{ backup_timemachine_uuid }}", fstype: ext4}
-          become: true
-        - name: List mounted devices
-          ansible.builtin.command: df -h
-          register: df_output
-          changed_when: false
-        - name: Debug output all mounted devices
-          ansible.builtin.debug:
-            var: df_output.stdout_lines
-          when: testing is undefined or testing != 'true'
 
     - name: Copy docker configs and run containers
       ansible.builtin.include_role:

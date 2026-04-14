@@ -8,9 +8,10 @@
     - vars/work_macbook.yml
 
   pre_tasks:
-    - name: Add homebrew to local env PATH
-      ansible.builtin.command: echo 'export PATH="/opt/homebrew/bin:$PATH"'
-      changed_when: false
+    - name: Ensure homebrew is in PATH
+      ansible.builtin.stat:
+        path: /opt/homebrew/bin/brew
+      register: _homebrew_check
 
   roles:
     - role: elliotweiser.osx-command-line-tools
