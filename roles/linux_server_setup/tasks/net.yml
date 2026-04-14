@@ -41,23 +41,12 @@
       failed_when: false
       become: true
     - name: Install systemd-resolved
+      ansible.builtin.package:
+        name: systemd-resolved
+        state: present
+        update_cache: true
       when: not linux_server_setup_systemd_resolved_exists.stat.exists and not linux_server_setup_resolvectl_exists.stat.exists
       become: true
-      block:
-        - name: Install on Ubuntu
-          ansible.builtin.package:
-            name: systemd-resolved
-            state: present
-            update_cache: true
-          when: ansible_distribution == 'Ubuntu'
-          become: true
-        - name: Install on Debian
-          ansible.builtin.package:
-            name: systemd-resolved
-            state: present
-            update_cache: true
-          when: ansible_distribution == 'Debian'
-          become: true
     - name: If debian dpkg-reconfigure
       ansible.builtin.command: dpkg-reconfigure systemd
       changed_when: false

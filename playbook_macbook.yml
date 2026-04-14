@@ -8,12 +8,17 @@
     - vars/macbook.yml
 
   pre_tasks:
+    - name: Assert device_name is provided
+      ansible.builtin.assert:
+        that: device_name is defined
+        msg: "device_name must be provided via -e device_name=..."
     - name: Macos Admin Juggling
       ansible.builtin.include_tasks: tasks/macos_admin_juggling.yml
-      when: testing is undefined or testing != 'true'
-    - name: Add homebrew to local env PATH
-      ansible.builtin.command: echo 'export PATH="/opt/homebrew/bin:$PATH"'
-      changed_when: false
+      when: macbook_setup_admin_juggling | bool and (testing is undefined or testing != 'true')
+    - name: Ensure homebrew is in PATH
+      ansible.builtin.stat:
+        path: /opt/homebrew/bin/brew
+      register: _homebrew_check
 
   roles:
     - role: elliotweiser.osx-command-line-tools
@@ -113,11 +118,11 @@
         owner: "{{ ansible_user_id }}"
 
     - name: Setup MonitorControl
-      when: not 'MonitorControl' in homebrew_cask_apps
+      when: not 'monitorcontrol' in homebrew_cask_apps
       block:
         - name: Install MonitorControl
           community.general.homebrew:
-            name: MonitorControl
+            name: monitorcontrol
             state: present
     #        - name: Enable MonitorControl in System Preferences -> Privacy & Security -> Privacy -> Accessibility
     #          ansible.builtin.command: osascript -e 'tell application "System Events" to tell process "System Preferences"
@@ -126,25 +131,25 @@
 
     - name: Set Default browser
       block:
-        - name: Check if Orion is installed
+        - name: Check if Zen Browser is installed
           ansible.builtin.stat:
-            path: /Applications/Orion.app
-          register: orion_app
+            path: /Applications/Zen Browser.app
+          register: zen_browser_app
 
         - name: Install defaultbrowser
           community.general.homebrew:
             name: defaultbrowser
             state: present
-          when: orion_app.stat.exists
+          when: zen_browser_app.stat.exists
 
-        - name: Set Orion as default browser
-          ansible.builtin.command: osascript files/macbook/setDefaultBrowser.scpt kagimacos
-          when: orion_app.stat.exists
+        - name: Set Zen Browser as default browser
+          ansible.builtin.command: osascript files/macbook/setDefaultBrowser.scpt com.zen.browser
+          when: zen_browser_app.stat.exists
           changed_when: false
           become: true
 
     - name: Setup Wireguard VPN
-      when: '"wireguard-tools" in homebrew_installed_packages or "WireGuard" in mas_installed_apps'
+      when: macbook_setup_vpn | bool
       block:
         - name: Install Wireguard and killswitch
           community.general.homebrew:
@@ -158,23 +163,12 @@
             path: "~/.config/wireguard"
             state: directory
             mode: 0755
-        - name: Copy the wineguard config file
+        - name: Copy wireguard config files
           ansible.builtin.template:
-            src: files/macbook/vps-client-wg0.conf.j2
-            dest: "~/.config/wireguard/vps_wg0.conf"
+            src: "{{ item.src }}"
+            dest: "~/.config/wireguard/{{ item.dest }}"
             mode: 0600
-        - name: Copy the wineguard config file
-          ansible.builtin.template:
-            src: files/macbook/homelab-client-wg0.conf.j2
-            dest: "~/.config/wireguard/homelab_wg0.conf"
-            mode: 0600
-        - name: Copy the wineguard config file
-          ansible.builtin.template:
-            src: files/macbook/router-client-wg0.conf.j2
-            dest: "~/.config/wireguard/router_wg0.conf"
-            mode: 0600
-        - name: Copy the wineguard config file (guests)
-          ansible.builtin.template:
-            src: files/macbook/vpn-client-guests-sasha-bakalova.conf.j2
-            dest: "~/.config/wireguard/vpn_guests_sasha_bakalova.conf"
-            mode: 0600
+          loop:
+            - {src: "files/macbook/vps-client-wg0.conf.j2", dest: "vps_wg0.conf"}
+            - {src: "files/macbook/homelab-client-wg0.conf.j2", dest: "homelab_wg0.conf"}
+            - {src: "files/macbook/router-client-wg0.conf.j2", dest: "router_wg0.conf"}

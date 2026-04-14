@@ -1,5 +1,13 @@
-username: "kblack"  # TODO: change to k4black
-device_name: "k4pro-i7"
+username: "k4black"
+# device_name: must be provided via -e device_name=...
+
+# Profile: "personal" (default) or "work" (override with -e macbook_profile=work)
+macbook_profile: "personal"
+
+# Feature flags driven by profile
+macbook_setup_admin_juggling: "{{ macbook_profile == 'personal' }}"
+macbook_setup_vpn: "{{ macbook_profile == 'personal' }}"
+
 admin_username: !vault |
           $ANSIBLE_VAULT;1.1;AES256
           64663964666431656238323535373566393231343366366637316136373966326530383161653530
@@ -9,49 +17,57 @@ admin_username: !vault |
           3938
 
 
-default_browser: "zen-browser"
-
-
 homebrew_cask_appdir: /Applications
-homebrew_cask_apps:
+homebrew_cask_apps_common:
   # web and social
-  - zen-browser
+  - zen
   - telegram-desktop
   - ungoogled-chromium
   # dev
   - zed
-  - docker
+  - docker-desktop
   - sublime-text
+  - jetbrains-toolbox
   - cursor
-  # - jetbrains-toolbox
+  - claude
+  - claude-code
   # fun
-  # - autodesk-fusion360
-  # - steam
+  - autodesk-fusion
   - anki
+  - steam
   # utils
   - google-drive
-  - tunnelblick
   - the-unarchiver
   - lulu
-  - MonitorControl  # TODO: add permissions to Accessibility and login item
+  - basictex
+  - monitorcontrol  # TODO: add permissions to Accessibility and login item
+  # creative
+  - affinity
+  # - inkscape  # superseded by affinity
+  # - gimp  # superseded by affinity
+  # 3d printing
+  - prusaslicer  # Original Prusa Drivers must be installed manually
   # mix
-  - todoist
+  # - todoist-app  # migrated to Reminders
   - obsidian
   - zotero
   - chatgpt
   - notion
-  - inkscape
-  - gimp
-  - steam
   # fonts
   - font-inter
-  - font-helvetica
   - font-roboto
   - font-roboto-condensed
   - font-roboto-mono
   - font-roboto-slab
   - font-jetbrains-mono
-homebrew_installed_packages:
+# Profile-specific cask apps
+homebrew_cask_apps_extra:
+  personal:
+    - tunnelblick
+  work:
+    - slack
+homebrew_cask_apps: "{{ homebrew_cask_apps_common + homebrew_cask_apps_extra[macbook_profile] }}"
+homebrew_installed_packages_common:
   # dev
   - git
   - git-lfs
@@ -59,18 +75,25 @@ homebrew_installed_packages:
   - dockutil
   - gh
   - npm
-  - claude-code
+  - ripgrep
   # languages
   - pyenv
   - go
   - rustup
   - openjdk
+  # utils
+  - grpcurl
   # ssh
   - ssh-copy-id
   - openssl
-# "failed to tap: homebrew/core due to [31mError:[0m Tapping homebrew/core is no longer typically necessary."
-homebrew_taps:
-  - homebrew/cask-fonts
+# Profile-specific formulae
+homebrew_installed_packages_extra:
+  personal: []
+  work:
+    - azure-cli
+homebrew_installed_packages: "{{ homebrew_installed_packages_common + homebrew_installed_packages_extra[macbook_profile] }}"
+# homebrew/cask-fonts was deprecated; font casks are now in homebrew/cask
+homebrew_taps: []
 
 # error when installed this way, include in homebrew_installed_packages
 dockutil_install: true
@@ -83,7 +106,6 @@ dockitems_remove:
   - Siri
   - FaceTime
   - Contacts
-  - Reminders
   - Maps
   - Messages
   - Podcasts
@@ -95,10 +117,7 @@ dockitems_remove:
   - Numbers
   - Pages
 dockitems_persist:
-  # NOTE: Finder is always first
-  # - name: "Finder"
-  #   path: "/System/Library/CoreServices/Finder.app"
-  #   pos: 0
+  # NOTE: Finder is always first (pos 0)
   - name: "Launchpad"
     path: "/System/Applications/Launchpad.app"
     pos: 1
@@ -108,20 +127,20 @@ dockitems_persist:
   - name: "Calendar"
     path: "/Applications/Calendar.app"
     pos: 3
-  - name: "Notes"
-    path: "/Applications/Notes.app"
+  - name: "Reminders"
+    path: "/System/Applications/Reminders.app"
     pos: 4
-  - name: "Todoist"
-    path: "/Applications/Todoist.app"
+  - name: "Notes"
+    path: "/System/Applications/Notes.app"
     pos: 5
-  - name: "Obsidian"
-    path: "/Applications/Obsidian.app"
-    pos: 6
   - name: "System Settings"
     path: "/System/Applications/System Settings.app"
-    pos: 7
+    pos: 6
   - name: "Zen Browser"
     path: "/Applications/Zen Browser.app"
+    pos: 7
+  - name: "Chromium"
+    path: "/Applications/Chromium.app"
     pos: 8
   - name: "Telegram Desktop"
     path: "/Applications/Telegram Desktop.app"
@@ -132,9 +151,6 @@ dockitems_persist:
   - name: "Activity Monitor"
     path: "/System/Applications/Utilities/Activity Monitor.app"
     pos: 11
-#  - name: "Sublime Text"
-#    path: "/Applications/Sublime Text.app/"
-#    pos: 12
 
 
 mas_email: !vault |
@@ -155,7 +171,6 @@ mas_installed_apps:
   - {id: 1444383602, name: "Goodnotes 6"}
   - {id: 1423210932, name: "Flow"}
   - {id: 1441195209, name: "WireGuard"}
-  - {id: 572688855, name: "Todoist"}
 # required admin permissions
 mas_uninstalled_apps: []
 # mas_uninstalled_apps:

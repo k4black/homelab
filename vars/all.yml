@@ -21,7 +21,6 @@ vpn_network_homelab_ip: 10.1.0.2
 vpn_network_router_ip: 10.1.0.3
 vpn_network_macbook_client_ip: 10.1.0.10
 vpn_network_iphone_client_ip: 10.1.0.11
-vpn_network_guests_sasha_bakalova_client_ip: 10.1.0.100
 vpn_network_prefix: 10.1.0
 
 ### any docker subnets: 10.2.x.x
@@ -68,7 +67,7 @@ duckdns_token: !vault |
           3633366532366361650a323936373737326338363566303237363332636166383038336637303732
           35643165303733353262663739386534346536666664383936613935636539336337396165653562
           6338326531346230346131633566636530363161336136373665
-  
+
 
 foundry_username: !vault |
           $ANSIBLE_VAULT;1.1;AES256

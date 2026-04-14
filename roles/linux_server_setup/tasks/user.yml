@@ -25,77 +25,60 @@
 - name: Debug group_with_id_exists
   ansible.builtin.debug:
     msg: "{{ linux_server_setup_group_with_id_exists }}"
+    verbosity: 1
 - name: Debug user_with_id_exists
   ansible.builtin.debug:
     msg: "{{ linux_server_setup_user_with_id_exists }}"
+    verbosity: 1
 
-# - name: If other user with other name and same id exists, delete it
-#  ansible.builtin.user:
-#    name: "{{ linux_server_setup_user_with_id_exists.stdout.split(':')[0] }}"
-#    state: absent
-#  when: linux_server_setup_user_with_id_exists.stdout != "" and linux_server_setup_user_with_id_exists.stdout.split(':')[0] != linux_server_setup_login_user
-# - name: If other group with other name and same id exists, delete it
-#  ansible.builtin.group:
-#    name: "{{ linux_server_setup_group_with_id_exists.stdout.split(':')[0] }}"
-#    state: absent
-#  when: linux_server_setup_group_with_id_exists.stdout != "" and linux_server_setup_group_with_id_exists.stdout.split(':')[0] != linux_server_setup_login_user
-
-- name: Create a login user group
-  ansible.builtin.group:
-    name: "{{ linux_server_setup_login_user }}"
-    gid: "{{ linux_server_setup_login_user_gid }}"
-    state: present
-  become: true
+- name: Setup login user
   when: testing is undefined or testing != 'true'
-
-- name: Create a login user (Linux only)
-  ansible.builtin.user:
-    name: "{{ linux_server_setup_login_user }}"
-    password: "{{ linux_server_setup_login_password | password_hash('sha512') }}"
-    uid: "{{ linux_server_setup_login_user_uid }}"
-    groups:
-      - sudo
-      - docker
-      - users
-    state: present
-    append: true
   become: true
-  when: testing is undefined or testing != 'true'
+  block:
+    - name: Create a login user group
+      ansible.builtin.group:
+        name: "{{ linux_server_setup_login_user }}"
+        gid: "{{ linux_server_setup_login_user_gid }}"
+        state: present
 
-- name: Chmod the user home directory
-  ansible.builtin.file:
-    path: "/home/{{ linux_server_setup_login_user }}"
-    state: directory
-    mode: 0755
-    owner: "{{ linux_server_setup_login_user }}"
-    group: "{{ linux_server_setup_login_user }}"
-    recurse: true
-  become: true
-  when: testing is undefined or testing != 'true'
+    - name: Create a login user
+      ansible.builtin.user:
+        name: "{{ linux_server_setup_login_user }}"
+        password: "{{ linux_server_setup_login_password | password_hash('sha512') }}"
+        uid: "{{ linux_server_setup_login_user_uid }}"
+        groups:
+          - sudo
+          - docker
+          - users
+        state: present
+        append: true
 
-- name: Copy the public SSH key
-  ansible.posix.authorized_key:
-    user: "{{ linux_server_setup_login_user }}"
-    state: present
-    key: "{{ linux_server_setup_login_ssh_public_key }}"
-  become: true
-  when: testing is undefined or testing != 'true'
+    - name: Set user home directory permissions
+      ansible.builtin.file:
+        path: "/home/{{ linux_server_setup_login_user }}"
+        state: directory
+        mode: 0755
+        owner: "{{ linux_server_setup_login_user }}"
+        group: "{{ linux_server_setup_login_user }}"
+        recurse: true
 
-- name: Allow sudo group to have passwordless sudo
-  ansible.builtin.lineinfile:
-    path: /etc/sudoers
-    state: present
-    regexp: '^%sudo'
-    line: '%sudo ALL=(ALL) NOPASSWD: ALL'
-    validate: '/usr/sbin/visudo -cf %s'
-  become: true
-  when: testing is undefined or testing != 'true'
+    - name: Copy the public SSH key
+      ansible.posix.authorized_key:
+        user: "{{ linux_server_setup_login_user }}"
+        state: present
+        key: "{{ linux_server_setup_login_ssh_public_key }}"
 
-- name: Disable cron e-mail notifications
-  ansible.builtin.cron:
-    name: MAILTO
-    user: "{{ linux_server_setup_login_user }}"
-    env: true
-    job: ""
-  become: true
-  when: testing is undefined or testing != 'true'
+    - name: Allow sudo group to have passwordless sudo
+      ansible.builtin.lineinfile:
+        path: /etc/sudoers
+        state: present
+        regexp: '^%sudo'
+        line: '%sudo ALL=(ALL) NOPASSWD: ALL'
+        validate: '/usr/sbin/visudo -cf %s'
+
+    - name: Disable cron e-mail notifications
+      ansible.builtin.cron:
+        name: MAILTO
+        user: "{{ linux_server_setup_login_user }}"
+        env: true
+        job: ""
