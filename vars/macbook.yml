@@ -1,5 +1,13 @@
-username: "kblack"  # TODO: change to k4black
-device_name: "k4pro-i7"
+username: "k4black"
+# device_name: must be provided via -e device_name=...
+
+# Profile: "personal" (default) or "work" (override with -e macbook_profile=work)
+macbook_profile: "personal"
+
+# Feature flags driven by profile
+macbook_setup_admin_juggling: "{{ macbook_profile == 'personal' }}"
+macbook_setup_vpn: "{{ macbook_profile == 'personal' }}"
+
 admin_username: !vault |
           $ANSIBLE_VAULT;1.1;AES256
           64663964666431656238323535373566393231343366366637316136373966326530383161653530
@@ -9,11 +17,8 @@ admin_username: !vault |
           3938
 
 
-default_browser: "zen-browser"
-
-
 homebrew_cask_appdir: /Applications
-homebrew_cask_apps:
+homebrew_cask_apps_common:
   # web and social
   - zen
   - telegram-desktop
@@ -22,17 +27,16 @@ homebrew_cask_apps:
   - zed
   - docker-desktop
   - sublime-text
+  - jetbrains-toolbox
   - cursor
   - claude
   - claude-code
-  # - jetbrains-toolbox
   # fun
-  # - autodesk-fusion360
-  # - steam
+  - autodesk-fusion
   - anki
+  - steam
   # utils
   - google-drive
-  - tunnelblick
   - the-unarchiver
   - lulu
   - basictex
@@ -49,7 +53,6 @@ homebrew_cask_apps:
   - zotero
   - chatgpt
   - notion
-  - steam
   # fonts
   - font-inter
   - font-roboto
@@ -57,7 +60,14 @@ homebrew_cask_apps:
   - font-roboto-mono
   - font-roboto-slab
   - font-jetbrains-mono
-homebrew_installed_packages:
+# Profile-specific cask apps
+homebrew_cask_apps_extra:
+  personal:
+    - tunnelblick
+  work:
+    - slack
+homebrew_cask_apps: "{{ homebrew_cask_apps_common + homebrew_cask_apps_extra[macbook_profile] }}"
+homebrew_installed_packages_common:
   # dev
   - git
   - git-lfs
@@ -76,6 +86,12 @@ homebrew_installed_packages:
   # ssh
   - ssh-copy-id
   - openssl
+# Profile-specific formulae
+homebrew_installed_packages_extra:
+  personal: []
+  work:
+    - azure-cli
+homebrew_installed_packages: "{{ homebrew_installed_packages_common + homebrew_installed_packages_extra[macbook_profile] }}"
 # "failed to tap: homebrew/core due to [31mError:[0m Tapping homebrew/core is no longer typically necessary."
 homebrew_taps:
   - homebrew/cask-fonts
@@ -156,7 +172,6 @@ mas_installed_apps:
   - {id: 1444383602, name: "Goodnotes 6"}
   - {id: 1423210932, name: "Flow"}
   - {id: 1441195209, name: "WireGuard"}
-  - {id: 572688855, name: "Todoist"}
 # required admin permissions
 mas_uninstalled_apps: []
 # mas_uninstalled_apps:

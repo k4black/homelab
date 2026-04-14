@@ -8,9 +8,13 @@
     - vars/macbook.yml
 
   pre_tasks:
+    - name: Assert device_name is provided
+      ansible.builtin.assert:
+        that: device_name is defined
+        msg: "device_name must be provided via -e device_name=..."
     - name: Macos Admin Juggling
       ansible.builtin.include_tasks: tasks/macos_admin_juggling.yml
-      when: testing is undefined or testing != 'true'
+      when: macbook_setup_admin_juggling | bool and (testing is undefined or testing != 'true')
     - name: Ensure homebrew is in PATH
       ansible.builtin.stat:
         path: /opt/homebrew/bin/brew
@@ -127,25 +131,25 @@
 
     - name: Set Default browser
       block:
-        - name: Check if Orion is installed
+        - name: Check if Zen Browser is installed
           ansible.builtin.stat:
-            path: /Applications/Orion.app
-          register: orion_app
+            path: /Applications/Zen Browser.app
+          register: zen_browser_app
 
         - name: Install defaultbrowser
           community.general.homebrew:
             name: defaultbrowser
             state: present
-          when: orion_app.stat.exists
+          when: zen_browser_app.stat.exists
 
-        - name: Set Orion as default browser
-          ansible.builtin.command: osascript files/macbook/setDefaultBrowser.scpt kagimacos
-          when: orion_app.stat.exists
+        - name: Set Zen Browser as default browser
+          ansible.builtin.command: osascript files/macbook/setDefaultBrowser.scpt com.zen.browser
+          when: zen_browser_app.stat.exists
           changed_when: false
           become: true
 
     - name: Setup Wireguard VPN
-      when: '"wireguard-tools" in homebrew_installed_packages or "WireGuard" in mas_installed_apps'
+      when: macbook_setup_vpn | bool
       block:
         - name: Install Wireguard and killswitch
           community.general.homebrew:
