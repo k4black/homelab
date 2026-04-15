@@ -8,8 +8,6 @@ Address = {{ vpn_network_homelab_ip }}/32
 ListenPort = 51820
 # The server's private key
 PrivateKey = {{ wg0_homelab_private_key }}
-# Auto update on config change
-SaveConfig = true
 # Optionally, you can configure PostUp and PostDown rules, e.g., for iptables
 PostUp = iptables -A FORWARD -i %i -j ACCEPT; iptables -A FORWARD -o %i -j ACCEPT; iptables -t nat -A POSTROUTING -s {{ vpn_network_subnet }} -o eth0 -j MASQUERADE
 PostDown = iptables -D FORWARD -i %i -j ACCEPT; iptables -D FORWARD -o %i -j ACCEPT; iptables -t nat -D POSTROUTING -s {{ vpn_network_subnet }} -o eth0 -j MASQUERADE

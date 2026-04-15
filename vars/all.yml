@@ -35,7 +35,9 @@ homelab_docker_network_gateway: 10.2.2.1
 homelab_docker_network_prefix: 10.2.2
 homelab_docker_network_pihole_ip: 10.2.2.53
 
-router_local_ipv4: 192.168.178.1
+router_local_ipv4: 192.168.1.1
+homelab_local_ipv4: 192.168.1.100
+homelab_ssh_port: 4221
 
 
 vps_duckdns_subdomain: !vault |

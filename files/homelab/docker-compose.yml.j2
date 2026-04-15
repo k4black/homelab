@@ -57,6 +57,17 @@ services:
     restart: unless-stopped
 
   ## Networking ##
+  # Cloudflare Tunnel: secure remote access without port forwarding
+  # Setup: https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/
+  # Create tunnel and get token: cloudflared tunnel create homelab
+  cloudflared:
+    image: cloudflare/cloudflared:2026.3.0
+    container_name: cloudflared
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: {{ cloudflared_tunnel_token }}
+    restart: unless-stopped
+
   duckdns:
     image: linuxserver/duckdns:latest
     container_name: duckdns
@@ -68,7 +79,7 @@ services:
     restart: unless-stopped
 
   wireguard:
-    image: linuxserver/wireguard:latest
+    image: linuxserver/wireguard:1.0.20250521
     container_name: wireguard
     cap_add:
       - NET_ADMIN
@@ -98,16 +109,16 @@ services:
 
   # TODO: thing about unbound to resolve DNS and not send it to the google etc
   pihole:
-    image: pihole/pihole:latest
+    image: pihole/pihole:2026.04.0
     container_name: pihole
     environment:
       PUID: 1000
       PGID: 1000
       TZ: {{ timezone }}
-      WEBPASSWORD: password  # for http://pi.hole/admin
-      PIHOLE_DNS_: "1.1.1.1;8.8.8.8"
+      FTLCONF_webserver_api_password: password  # for http://<ip>:8053/admin
+      FTLCONF_dns_listeningMode: 'ALL'
+      FTLCONF_dns_upstreams: "1.1.1.1;8.8.8.8"
       DNSMASQ_LISTENING: "all"  # TODO: make local, but re-route from reserved-proxy
-      WEBTHEME: default-dark
       FTLCONF_LOCAL_IPV4: "{{ local_ipv4 }}"
     ports:
       - "53:53/tcp"
@@ -134,7 +145,7 @@ services:
     restart: unless-stopped
 
   heimdall:
-    image: linuxserver/heimdall:latest
+    image: linuxserver/heimdall:2.7.6
     container_name: heimdall
     environment:
       PUID: 1000
@@ -215,9 +226,31 @@ services:
 {#    network_mode: host#}
     restart: unless-stopped
 
+  ### Downloads ###
+  transmission:
+    image: linuxserver/transmission:4.1.1
+    container_name: transmission
+    environment:
+      PUID: 1000
+      PGID: 1000
+      TZ: {{ timezone }}
+    ports:
+      - "9091:9091"
+      - "51413:51413"
+      - "51413:51413/udp"
+    volumes:
+      - {{ containers_setup_configs_dir }}/transmission-config:/config
+      - /mnt/backups/downloads:/downloads
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9091"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
   ### Metrics ###
   influxdb:
-    image: influxdb:2.7.6-alpine
+    image: influxdb:2.8-alpine  # TODO: update to v3 if needed.
     container_name: influxdb
     environment:
       TZ: {{ timezone }}
@@ -243,12 +276,11 @@ services:
     restart: unless-stopped
 
   telegraf:
-    image: telegraf:1.28.5-alpine
+    image: telegraf:1.38-alpine
     container_name: telegraf
-    # "992" is the group id of the docker daemon, run on host: $(stat -c '%g' /var/run/docker.sock)
+    # docker group GID is looked up dynamically by the playbook
     # https://github.com/influxdata/telegraf/issues/10050#issuecomment-1607706376
-    # https://www.influxdata.com/blog/docker-run-telegraf-as-non-root/
-    user: "telegraf:992"
+    user: "telegraf:{{ docker_gid }}"
     environment:
       TZ: {{ timezone }}
       DOCKER_INFLUXDB_INIT_ORG: homelab

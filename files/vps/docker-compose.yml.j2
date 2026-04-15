@@ -172,6 +172,28 @@ req.end();"]
       start_period: 120s
     restart: unless-stopped
 
+  ### Downloads ###
+  transmission:
+    image: linuxserver/transmission:4.1.1
+    container_name: transmission
+    environment:
+      PUID: 1000
+      PGID: 1000
+      TZ: {{ timezone }}
+    ports:
+      - "9091:9091"
+      - "51413:51413"
+      - "51413:51413/udp"
+    volumes:
+      - {{ containers_setup_configs_dir }}/transmission-config:/config
+      - {{ containers_setup_data_dir }}/downloads:/downloads
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9091"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
   ### Metrics ###
   node-exporter:
     image: prom/node-exporter:latest

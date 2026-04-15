@@ -79,6 +79,11 @@
     - name: Rename pi user and group if exists
       when: pi_user_check.rc == 0
       block:
+        - name: Create new group with desired name
+          ansible.builtin.group:
+            name: "{{ username }}"
+            gid: 1000
+            state: present
         - name: Create new user with desired name
           ansible.builtin.user:
             name: "{{ username }}"
@@ -87,41 +92,31 @@
             home: "/home/{{ username }}"
             shell: /bin/bash
             state: present
-        - name: Create new group with desired name
-          ansible.builtin.group:
-            name: "{{ username }}"
-            gid: 1000
-            state: present
         - name: Copy pi home directory to new user
-          ansible.posix.synchronize:
-            src: /home/pi/
-            dest: "/home/{{ username }}/"
-            archive: true
-            delete: false
-          when: pi_user_check.rc == 0
+          ansible.builtin.command: cp -a /home/pi/. /home/{{ username }}/
           failed_when: false
+          changed_when: false
         - name: Set ownership of new home directory
           ansible.builtin.file:
             path: "/home/{{ username }}"
             owner: "{{ username }}"
             group: "{{ username }}"
             recurse: true
-          when: pi_user_check.rc == 0
         - name: Remove pi user
           ansible.builtin.user:
             name: pi
             state: absent
             remove: true
-          when: pi_user_check.rc == 0
         - name: Remove pi group
           ansible.builtin.group:
             name: pi
             state: absent
-          when: pi_user_check.rc == 0
           failed_when: false
 
   roles:
-    - role: geerlingguy.raspberry-pi  # disable hdmi, set gpu_mem to 16 and 1200ma for usb
+    - role: geerlingguy.raspberry-pi  # set gpu_mem to 16 and 1200ma for usb
+      vars:
+        raspberry_pi_rc_local_options: []  # /etc/rc.local doesn't exist on bookworm+
       when: testing is undefined or testing != 'true'
       become: true
 
@@ -145,6 +140,8 @@
           - {port: 53, protocol: "tcp", comment: "pihole dns"}
           - {port: 80, protocol: "tcp", comment: "http"}
           - {port: 443, protocol: "tcp", comment: "https"}
+          - {port: 51413, protocol: "tcp", comment: "transmission peer"}
+          - {port: 51413, protocol: "udp", comment: "transmission peer"}
 
     - role: hifis.unattended_upgrades
       vars:
@@ -208,19 +205,44 @@
     - name: Setup disk auto-mount
       when: testing is undefined or testing != 'true'
       block:
-        - name: Mount filesystems (creates mount point and fstab entry)
+        - name: Add fstab entries for backup disks (auto-mount when connected)
           ansible.posix.mount:
             path: "{{ item.path }}"
             src: "UUID={{ item.uuid }}"
             fstype: ext4
-            opts: defaults
-            state: mounted
+            opts: defaults,nofail
+            state: present
             dump: 0
             passno: 2
           loop:
             - {path: /mnt/backups, uuid: "{{ backup_general_uuid }}"}
             - {path: /mnt/timemachine, uuid: "{{ backup_timemachine_uuid }}"}
           become: true
+        - name: Try mounting disks (warn if not attached)
+          ansible.builtin.command: mount {{ item }}
+          loop:
+            - /mnt/backups
+            - /mnt/timemachine
+          become: true
+          register: mount_result
+          changed_when: mount_result.rc == 0
+          failed_when: false
+        - name: Warn about unmounted disks
+          ansible.builtin.debug:
+            msg: "WARNING: {{ item.item }} could not be mounted — disk not attached?"
+          loop: "{{ mount_result.results }}"
+          when: item.rc != 0
+          loop_control:
+            label: "{{ item.item }}"
+
+    - name: Get docker group GID for telegraf
+      ansible.builtin.command: getent group docker
+      register: docker_group_info
+      changed_when: false
+      failed_when: false
+    - name: Set docker_gid fact
+      ansible.builtin.set_fact:
+        docker_gid: "{{ docker_group_info.stdout.split(':')[2] if docker_group_info.rc == 0 else '999' }}"
 
     - name: Copy docker configs and run containers
       ansible.builtin.include_role:
@@ -233,17 +255,17 @@
         containers_setup_make_dirs:
           - "{{ services_data_dir }}/traefik-certs"
           - "{{ services_data_dir }}/influxdb-data"
-          - "{{ services_configs_dir }}/influxdb-config"
           - "{{ services_configs_dir }}/home-assistant-config"
           - "{{ services_configs_dir }}/heimdall-config"
           - "{{ services_configs_dir }}/pihole"
           - "{{ services_configs_dir }}/pihole-dnsmasq.d"
+          - "{{ services_configs_dir }}/transmission-config"
         containers_setup_touch_files:
           - "{{ services_configs_dir }}/traefik-acme.json"
         containers_setup_config_templates:
           files/homelab/server-wg0.conf.j2: "server-wg0.conf"  # TODO: fix permissions
           files/homelab/home-assistant-config.yml.j2: "home-assistant-config/configuration.yaml"
-          files/homelab/influxdb-config.toml.j2: "influxdb-config/influxdb-config.toml"
+          files/homelab/influxdb-config.yml.j2: "influxdb-config.yml"
           files/homelab/influxdb-init-script.sh.j2: "influxdb-init-script.sh"
           files/homelab/pihole-02-custom-dns.conf.j2: "pihole-dnsmasq.d/02-custom-dns.conf"
           files/homelab/pihole-adlists.list: "pihole/adlists.list"

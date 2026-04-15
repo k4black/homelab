@@ -100,9 +100,9 @@ update vars/homelab.yml
     Gateway: [homelab fixed ip]
     Ipv4 route active: checked
     ```
-5. Forward ports to homelab  
-    Internet -> Permit Access -> Port Sharing -> New Port Sharing Rule  
-    Device: homelab  
+5. Forward ports to homelab
+    Internet -> Permit Access -> Port Sharing -> New Port Sharing Rule
+    Device: homelab
     New Sharing -> Port Sharing
     ```
     Application: Custom
@@ -110,6 +110,28 @@ update vars/homelab.yml
     Protocol: UPD
     Port: 51820
     ```
+    ```
+    Application: Custom
+    Service Name: SSH
+    Protocol: TCP
+    Port: 4221
+    ```
+
+### Remote access (without VPN)
+
+After setup, you can SSH into the homelab via DuckDNS hostname:
+```bash
+ssh k4black@[HOMELAB_DOMAIN].duckdns.org -p 4221
+```
+This requires the SSH port forwarding (4221) configured above.
+
+**Alternative: Cloudflare Tunnel**
+Instead of exposing SSH via port forwarding, you can use a Cloudflare Tunnel (`cloudflared` container is included in the docker-compose stack). No router port forwarding needed for SSH.
+1. Install cloudflared locally: `brew install cloudflared`
+2. Create a tunnel: `cloudflared tunnel create homelab`
+3. Encrypt the tunnel token: `ansible-vault encrypt_string --stdin-name cloudflared_tunnel_token`
+4. Update `vars/homelab.yml` with the encrypted token
+5. Configure the tunnel in Cloudflare dashboard to proxy SSH
    
 
 ## router setup

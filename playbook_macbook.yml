@@ -109,6 +109,32 @@
         mode: 0600
         insertafter: "Host *"
       become: true
+    - name: Add homelab-local SSH config (LAN access)
+      ansible.builtin.blockinfile:
+        path: ~/.ssh/config
+        marker: "# {mark} ANSIBLE MANAGED: homelab-local"
+        block: |
+          Host homelab-local
+              HostName {{ homelab_local_ipv4 }}
+              User {{ default_username }}
+              Port {{ homelab_ssh_port }}
+              IdentityFile ~/.ssh/id_ed25519
+              PasswordAuthentication no
+        create: true
+        mode: 0600
+    - name: Add homelab SSH config (remote via DuckDNS)
+      ansible.builtin.blockinfile:
+        path: ~/.ssh/config
+        marker: "# {mark} ANSIBLE MANAGED: homelab"
+        block: |
+          Host homelab
+              HostName {{ homelab_duckdns_subdomain }}.duckdns.org
+              User {{ default_username }}
+              Port {{ homelab_ssh_port }}
+              IdentityFile ~/.ssh/id_ed25519
+              PasswordAuthentication no
+        create: true
+        mode: 0600
 
     - name: Setup .gitconfig.local
       ansible.builtin.template:
