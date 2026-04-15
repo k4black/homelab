@@ -30,7 +30,7 @@ services:
     restart: unless-stopped
 
   wireguard:
-    image: linuxserver/wireguard:latest
+    image: linuxserver/wireguard:1.0.20250521
     container_name: wireguard
     cap_add:
       - NET_ADMIN
@@ -60,16 +60,15 @@ services:
 
   # TODO: thing about unbound to resolve DNS and not send it to the google etc
   pihole:
-    image: pihole/pihole:latest
+    image: pihole/pihole:2026.04.0
     container_name: pihole
     environment:
       PIHOLE_UID: 1000
       PIHOLE_GID: 1000
       TZ: {{ timezone }}
-      WEBPASSWORD: password  # for http://pi.hole/admin
-      PIHOLE_DNS_: "1.1.1.1;8.8.8.8"
-      DNSMASQ_LISTENING: "local"
-      WEBTHEME: default-dark
+      FTLCONF_webserver_api_password: password  # for http://<ip>:8053/admin
+      FTLCONF_dns_upstreams: "1.1.1.1;8.8.8.8"
+      FTLCONF_dns_listeningMode: "local"
       FTLCONF_LOCAL_IPV4: "{{ local_ipv4 }}"
     ports:
       - "53:53/tcp"
@@ -196,7 +195,7 @@ req.end();"]
 
   ### Metrics ###
   node-exporter:
-    image: prom/node-exporter:latest
+    image: prom/node-exporter:v1.11.1
     container_name: node-exporter
     ports:
       - "9100:9100"
@@ -207,7 +206,7 @@ req.end();"]
     restart: unless-stopped
 
   cadvisor:
-    image: gcr.io/cadvisor/cadvisor:v0.49.1
+    image: gcr.io/cadvisor/cadvisor:v0.56.2
     container_name: cadvisor
     ports:
       - "8081:8080"

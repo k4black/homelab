@@ -256,7 +256,8 @@
           - "{{ services_data_dir }}/traefik-certs"
           - "{{ services_data_dir }}/influxdb-data"
           - "{{ services_configs_dir }}/home-assistant-config"
-          - "{{ services_configs_dir }}/heimdall-config"
+          - "{{ services_configs_dir }}/homepage-config"
+          - "{{ services_data_dir }}/homepage-logs"
           - "{{ services_configs_dir }}/pihole"
           - "{{ services_configs_dir }}/pihole-dnsmasq.d"
           - "{{ services_configs_dir }}/transmission-config"
@@ -272,6 +273,11 @@
           files/homelab/pihole-custom.list.j2: "pihole/custom.list"
           files/homelab/telegraf.conf: "telegraf.conf"
           files/homelab/traefik-config.yml.j2: "traefik-config.yml"
+          files/homelab/homepage-docker.yaml.j2: "homepage-config/docker.yaml"
+          files/homelab/homepage-settings.yaml.j2: "homepage-config/settings.yaml"
+          files/homelab/homepage-services.yaml.j2: "homepage-config/services.yaml"
+          files/homelab/homepage-widgets.yaml.j2: "homepage-config/widgets.yaml"
+          files/homelab/homepage-bookmarks.yaml.j2: "homepage-config/bookmarks.yaml"
 
   # handlers:
 #    - name: Restart avahi service

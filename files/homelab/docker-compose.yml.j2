@@ -26,6 +26,10 @@ services:
       - "traefik.http.routers.whoami.entrypoints=web"
       - "traefik.http.services.whoami.loadbalancer.server.port=80"
 {#      - "traefik.http.routers.whoami.tls.certresolver=myresolver"#}
+      - homepage.group=Services
+      - homepage.name=Whoami
+      - homepage.icon=traefik
+      - homepage.href=http://{{ local_ipv4 }}:5000
     restart: unless-stopped
 
   ### Reverse Proxy ###
@@ -49,6 +53,12 @@ services:
       - "traefik.http.routers.traefik.entrypoints=web"
       - "traefik.http.services.traefik.loadbalancer.server.port=8080"
 {#      - "traefik.http.routers.traefik.tls.certresolver=myresolver"#}
+      - homepage.group=Networking
+      - homepage.name=Traefik
+      - homepage.icon=traefik
+      - homepage.href=http://{{ local_ipv4 }}:8080
+      - homepage.widget.type=traefik
+      - homepage.widget.url=http://traefik:8080
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080"]
       interval: 30s
@@ -66,6 +76,10 @@ services:
     command: tunnel --no-autoupdate run
     environment:
       TUNNEL_TOKEN: {{ cloudflared_tunnel_token }}
+    labels:
+      - homepage.group=Networking
+      - homepage.name=Cloudflare Tunnel
+      - homepage.icon=cloudflare
     restart: unless-stopped
 
   duckdns:
@@ -76,6 +90,10 @@ services:
       SUBDOMAINS: {{ homelab_duckdns_subdomain }}
       TOKEN: {{ duckdns_token }}
       LOG_FILE: true
+    labels:
+      - homepage.group=Networking
+      - homepage.name=DuckDNS
+      - homepage.icon=duckdns
     restart: unless-stopped
 
   wireguard:
@@ -100,6 +118,10 @@ services:
     sysctls:
       - net.ipv4.conf.all.src_valid_mark=1
       - net.ipv4.ip_forward=1
+    labels:
+      - homepage.group=Networking
+      - homepage.name=WireGuard
+      - homepage.icon=wireguard
     healthcheck:
       test: ["CMD", "wg", "show", "server_wg0"]
       interval: 30s
@@ -134,6 +156,14 @@ services:
       - "traefik.http.routers.pihole.entrypoints=web"
       - "traefik.http.services.pihole.loadbalancer.server.port=80"
 {#      - "traefik.http.routers.pihole.tls.certresolver=myresolver"#}
+      - homepage.group=Networking
+      - homepage.name=Pi-hole
+      - homepage.icon=pi-hole
+      - homepage.href=http://{{ local_ipv4 }}:8053/admin
+      - homepage.widget.type=pihole
+      - homepage.widget.url=http://pihole:80
+      - homepage.widget.version=6
+      - homepage.widget.key=password
     networks:
       default:
         ipv4_address: {{ homelab_docker_network_pihole_ip }}
@@ -144,19 +174,24 @@ services:
       retries: 3
     restart: unless-stopped
 
-  heimdall:
-    image: linuxserver/heimdall:2.7.6
-    container_name: heimdall
+  homepage:
+    image: ghcr.io/gethomepage/homepage:v1.2.0
+    container_name: homepage
+    user: "1000:{{ docker_gid }}"
     environment:
       PUID: 1000
       PGID: 1000
       TZ: {{ timezone }}
+      HOMEPAGE_ALLOWED_HOSTS: "*"
+      LOG_PATH: /app/logs
     ports:
-      - 81:80
+      - "81:3000"
     volumes:
-      - {{ containers_setup_configs_dir }}/heimdall-config:/config
+      - {{ containers_setup_configs_dir }}/homepage-config:/app/config
+      - {{ containers_setup_data_dir }}/homepage-logs:/app/logs
+      - /var/run/docker.sock:/var/run/docker.sock:ro
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:80"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -224,6 +259,10 @@ services:
       - "139:139"
       - "445:445"
 {#    network_mode: host#}
+    labels:
+      - homepage.group=Storage
+      - homepage.name=Time Machine
+      - homepage.icon=apple
     restart: unless-stopped
 
   ### Downloads ###
@@ -241,6 +280,13 @@ services:
     volumes:
       - {{ containers_setup_configs_dir }}/transmission-config:/config
       - /mnt/backups/downloads:/downloads
+    labels:
+      - homepage.group=Downloads
+      - homepage.name=Transmission
+      - homepage.icon=transmission
+      - homepage.href=http://{{ local_ipv4 }}:9091
+      - homepage.widget.type=transmission
+      - homepage.widget.url=http://transmission:9091
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9091"]
       interval: 30s
@@ -268,6 +314,11 @@ services:
       - {{ containers_setup_data_dir }}/influxdb-data:/var/lib/influxdb2
       - {{ containers_setup_configs_dir }}/influxdb-config.yml:/etc/influxdb2/config.yml
       - {{ containers_setup_configs_dir }}/influxdb-init-script.sh:/docker-entrypoint-initdb.d/init-script.sh:ro
+    labels:
+      - homepage.group=Monitoring
+      - homepage.name=InfluxDB
+      - homepage.icon=influxdb
+      - homepage.href=http://{{ local_ipv4 }}:8086
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8086/health"]
       interval: 30s
@@ -294,6 +345,10 @@ services:
       - /sys:/host/sys:ro
       - /proc:/host/proc:ro
       - /:/rootfs:ro
+    labels:
+      - homepage.group=Monitoring
+      - homepage.name=Telegraf
+      - homepage.icon=telegraf
     depends_on:
       - influxdb
     links:
