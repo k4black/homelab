@@ -17,6 +17,24 @@ volumes:
 
 services:
   ### Utils ###
+  myspeed:
+    image: germannewsmaker/myspeed:1.0.9
+    container_name: myspeed
+    ports:
+      - "5216:5216"
+    volumes:
+      - {{ containers_setup_data_dir }}/myspeed:/myspeed/data
+    labels:
+      - homepage.group=Monitoring
+      - homepage.name=MySpeed
+      - homepage.icon=myspeed
+      - homepage.href=http://{{ local_ipv4 }}:5216
+      - homepage.statusStyle=basic
+      - homepage.ping=http://myspeed:5216
+      - homepage.widget.type=myspeed
+      - homepage.widget.url=http://myspeed:5216
+    restart: unless-stopped
+
   whoami:
     image: traefik/whoami
     container_name: whoami
@@ -28,10 +46,12 @@ services:
       - "traefik.http.routers.whoami.entrypoints=web"
       - "traefik.http.services.whoami.loadbalancer.server.port=80"
 {#      - "traefik.http.routers.whoami.tls.certresolver=myresolver"#}
-      - homepage.group=Services
+      - homepage.group=Networking
       - homepage.name=Whoami
       - homepage.icon=traefik
       - homepage.href=http://{{ local_ipv4 }}:5000
+      - homepage.statusStyle=basic
+      - homepage.ping=http://whoami:80
     restart: unless-stopped
 
   ### Reverse Proxy ###
@@ -59,6 +79,8 @@ services:
       - homepage.name=Traefik
       - homepage.icon=traefik
       - homepage.href=http://{{ local_ipv4 }}:8080
+      - homepage.statusStyle=basic
+      - homepage.ping=http://traefik:8080
       - homepage.widget.type=traefik
       - homepage.widget.url=http://traefik:8080
     healthcheck:
@@ -162,6 +184,8 @@ services:
       - homepage.name=Pi-hole
       - homepage.icon=pi-hole
       - homepage.href=http://{{ local_ipv4 }}:8053/admin
+      - homepage.statusStyle=basic
+      - homepage.ping=http://pihole:80
       - homepage.widget.type=pihole
       - homepage.widget.url=http://pihole:80
       - homepage.widget.version=6
@@ -177,7 +201,7 @@ services:
     restart: unless-stopped
 
   homepage:
-    image: ghcr.io/gethomepage/homepage:v1.2.0
+    image: ghcr.io/gethomepage/homepage:v1.12.3
     container_name: homepage
     user: "1000:{{ docker_gid }}"
     environment:
@@ -283,10 +307,12 @@ services:
       - {{ containers_setup_configs_dir }}/transmission-config:/config
       - /mnt/backups/downloads:/downloads
     labels:
-      - homepage.group=Downloads
+      - homepage.group=Storage
       - homepage.name=Transmission
       - homepage.icon=transmission
       - homepage.href=http://{{ local_ipv4 }}:9091
+      - homepage.statusStyle=basic
+      - homepage.ping=http://transmission:9091
       - homepage.widget.type=transmission
       - homepage.widget.url=http://transmission:9091
     healthcheck:
@@ -330,4 +356,8 @@ services:
       - homepage.name=Netdata
       - homepage.icon=netdata
       - homepage.href=http://{{ local_ipv4 }}:19999
+      - homepage.statusStyle=basic
+      - homepage.ping=http://{{ local_ipv4 }}:19999
+      - homepage.widget.type=netdata
+      - homepage.widget.url=http://{{ local_ipv4 }}:19999
     restart: unless-stopped

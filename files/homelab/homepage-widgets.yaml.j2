@@ -1,8 +1,28 @@
 # {{ ansible_managed }}
-- search:
-    provider: google
-    target: _blank
+- openmeteo:
+    label: Berlin
+    latitude: 52.52
+    longitude: 13.405
+    units: metric
+    cache: 15
+    format:
+      maximumFractionDigits: 0
+
+- openmeteo:
+    label: Belgrade
+    latitude: 44.787
+    longitude: 20.457
+    units: metric
+    cache: 15
+    format:
+      maximumFractionDigits: 0
+
+- docker:
+    socket: /var/run/docker.sock
+
 - resources:
     cpu: true
     memory: true
     disk: /
+    uptime: true
+    label: Pi5 Homelab

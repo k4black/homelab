@@ -15,6 +15,15 @@ volumes:
 
 services:
   ### Utils ###
+  myspeed:
+    image: germannewsmaker/myspeed:1.0.9
+    container_name: myspeed
+    ports:
+      - "5216:5216"
+    volumes:
+      - {{ containers_setup_data_dir }}/myspeed:/myspeed/data
+    restart: unless-stopped
+
   whoami:
     image: traefik/whoami
     container_name: whoami

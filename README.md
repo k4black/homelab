@@ -43,8 +43,14 @@ To run the playbooks, execute the following command:
 ```bash
 ansible-playbook playbook_macbook.yml -e device_name=k4pro-i7 --ask-become-pass
 ansible-playbook playbook_macbook.yml -e macbook_profile=work -e device_name=k4pro-m3 --ask-become-pass
-ansible-playbook playbook_homelab.yml
+ansible-playbook playbook_homelab.yml --ask-become-pass
 ansible-playbook playbook_vps.yml
+```
+
+Fast docker-only update (skip packages, security, SSH setup — only deploy configs and restart containers):
+```bash
+ansible-playbook playbook_homelab.yml --tags docker --ask-become-pass
+ansible-playbook playbook_vps.yml --tags docker
 ```
 
 

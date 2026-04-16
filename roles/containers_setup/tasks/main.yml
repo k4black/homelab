@@ -1,10 +1,12 @@
 ---
 
 - name: Install remote management libs and make docker folders
-  ansible.builtin.include_tasks: install.yml
+  ansible.builtin.import_tasks: install.yml
+  tags: [docker]
 
 - name: Copy templates
-  ansible.builtin.include_tasks: templates.yml
+  ansible.builtin.import_tasks: templates.yml
+  tags: [docker]
 
 - name: Run docker compose
   ansible.builtin.command:
@@ -13,4 +15,4 @@
   become: true
   changed_when: false
   retries: 2
-  tags: ["run_docker"]
+  tags: [docker, run_docker]

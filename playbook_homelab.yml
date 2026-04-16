@@ -28,9 +28,11 @@
     - name: Gather local_ipv4
       ansible.builtin.set_fact:
         local_ipv4: "{{ '127.0.0.1' if (testing is defined and testing == 'true') else (ansible_default_ipv4.address | default(ansible_all_ipv4_addresses[0])) }}"
+      tags: [docker]
     - name: Debug local_ipv4
       ansible.builtin.debug:
         var: local_ipv4
+      tags: [docker]
 
 - name: Setup for testing
   hosts: homelab
@@ -240,13 +242,16 @@
       register: docker_group_info
       changed_when: false
       failed_when: false
+      tags: [docker]
     - name: Set docker_gid fact
       ansible.builtin.set_fact:
         docker_gid: "{{ docker_group_info.stdout.split(':')[2] if docker_group_info.rc == 0 else '999' }}"
+      tags: [docker]
 
     - name: Copy docker configs and run containers
       ansible.builtin.include_role:
         name: containers_setup
+      tags: [docker]
       vars:
         containers_setup_user: "{{ username }}"
         containers_setup_configs_dir: "{{ services_configs_dir }}"
@@ -260,6 +265,7 @@
           - "{{ services_configs_dir }}/pihole"
           - "{{ services_configs_dir }}/pihole-dnsmasq.d"
           - "{{ services_configs_dir }}/transmission-config"
+          - "{{ services_data_dir }}/myspeed"
           - "{{ services_configs_dir }}/netdata-config"
           - "{{ services_configs_dir }}/netdata-config/go.d"
         containers_setup_touch_files:
