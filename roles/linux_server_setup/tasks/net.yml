@@ -135,6 +135,12 @@
           {{ linux_server_setup_ufw_rules_converted | default([]) +
              [{'rule': 'allow', 'to_port': item.port, 'protocol': item.protocol, 'comment': item.comment}] }}
       loop: "{{ linux_server_setup_open_ports }}"
+    - name: Convert linux_server_setup_allow_subnets to ufw_rules format
+      ansible.builtin.set_fact:
+        linux_server_setup_ufw_rules_converted: >-
+          {{ linux_server_setup_ufw_rules_converted | default([]) +
+             [{'rule': 'allow', 'from_ip': item.subnet, 'comment': item.comment}] }}
+      loop: "{{ linux_server_setup_allow_subnets | default([]) }}"
     - name: Enable ufw with oeufenweb.ufw role
       ansible.builtin.include_role:
         name: oefenweb.ufw

@@ -1,3 +1,53 @@
 # {{ ansible_managed }}
-# Services are auto-discovered from Docker container labels
+# Most services are auto-discovered from Docker container labels.
+# Glances widgets are defined here for per-server monitoring panels.
 ---
+- Servers:
+    - Pi5 Info:
+        widget:
+          type: glances
+          url: http://glances:61208
+          version: 4
+          metric: info
+    - Pi5 CPU:
+        widget:
+          type: glances
+          url: http://glances:61208
+          version: 4
+          metric: cpu
+    - Pi5 Memory:
+        widget:
+          type: glances
+          url: http://glances:61208
+          version: 4
+          metric: memory
+    - Pi5 Containers:
+        widget:
+          type: glances
+          url: http://glances:61208
+          version: 4
+          metric: containers
+    - VPS Info:
+        widget:
+          type: glances
+          url: http://{{ vpn_network_vps_ip }}:61208
+          version: 4
+          metric: info
+    - VPS CPU:
+        widget:
+          type: glances
+          url: http://{{ vpn_network_vps_ip }}:61208
+          version: 4
+          metric: cpu
+    - VPS Memory:
+        widget:
+          type: glances
+          url: http://{{ vpn_network_vps_ip }}:61208
+          version: 4
+          metric: memory
+    - VPS Containers:
+        widget:
+          type: glances
+          url: http://{{ vpn_network_vps_ip }}:61208
+          version: 4
+          metric: containers

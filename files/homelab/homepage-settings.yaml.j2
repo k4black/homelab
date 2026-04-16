@@ -1,15 +1,23 @@
 # {{ ansible_managed }}
 title: Homelab
 headerStyle: clean
+{#headerStyle: boxedWidgets#}
 useEqualHeights: true
 hideVersion: false
+disableUpdateCheck: true
+showStats: false
+disableIndexing: true
+{#maxGroupColumns: 8#}
 
 layout:
-  Networking:
-    style: column
-  Monitoring:
+  Servers:
+    style: row
+    columns: 4
+  Services:
     style: column
   Storage:
     style: column
-  Services:
+  Networking:
+    style: column
+  Monitoring:
     style: column

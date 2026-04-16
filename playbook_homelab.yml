@@ -134,7 +134,10 @@
         linux_server_setup_login_user_gid: 1000
         linux_server_setup_login_ssh_public_key: "{{ ssh_public_key }}"
         linux_server_setup_block_ports: true
-        linux_server_setup_open_ports:  # IMPORTANT: DO NOT open no-auth endpoints
+        linux_server_setup_allow_subnets:
+          - {subnet: "192.168.1.0/24", comment: "LAN full access"}
+          - {subnet: "{{ vpn_network_subnet }}", comment: "VPN full access"}
+        linux_server_setup_open_ports:
           - {port: 22, protocol: "tcp", comment: "default ssh"}
           - {port: "{{ ssh_port }}", protocol: "tcp", comment: "custom ssh"}
           - {port: 51820, protocol: "udp", comment: "wireguard"}

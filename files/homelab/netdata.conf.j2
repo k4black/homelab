@@ -17,8 +17,7 @@
     cleanup orphan hosts after = 30d
 
 [web]
-    # Restrict to localhost and VPN interface only — no public access
-    bind to = localhost {{ vpn_network_homelab_ip }} {{ local_ipv4 }}
+    bind to = *
 
 [ml]
     enabled = no

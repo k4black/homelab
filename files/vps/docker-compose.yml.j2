@@ -207,6 +207,26 @@ req.end();"]
     restart: unless-stopped
 
   ### Metrics ###
+  glances:
+    image: nicolargo/glances:4.3.1-full
+    container_name: glances
+    pid: host
+    environment:
+      TZ: {{ timezone }}
+      GLANCES_OPT: "-w"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /:/rootfs:ro
+      - /etc/os-release:/etc/os-release:ro
+    ports:
+      - "61208:61208"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:61208/api/4/status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
   netdata:
     image: netdata/netdata:v2.10
     container_name: netdata
