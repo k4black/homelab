@@ -17,7 +17,7 @@ timezone: Europe/Berlin
 # vpn: any ip in the 10.1.0.X subnet
 vpn_network_subnet: 10.1.0.0/24
 vpn_network_vps_ip: 10.1.0.1
-vpn_network_homelab_ip: 10.1.0.2
+vpn_network_pi5_ip: 10.1.0.2
 vpn_network_router_ip: 10.1.0.3
 vpn_network_macbook_client_ip: 10.1.0.10
 vpn_network_iphone_client_ip: 10.1.0.11
@@ -29,15 +29,15 @@ vps_docker_network_subnet: 10.2.1.0/24
 vps_docker_network_gateway: 10.2.1.1
 vps_docker_network_prefix: 10.2.1
 vps_docker_network_pihole_ip: 10.2.1.53
-# homelab docker: any ip in the 10.2.2.X subnet
-homelab_docker_network_subnet: 10.2.2.0/24
-homelab_docker_network_gateway: 10.2.2.1
-homelab_docker_network_prefix: 10.2.2
-homelab_docker_network_pihole_ip: 10.2.2.53
+# pi5 docker: any ip in the 10.2.2.X subnet
+pi5_docker_network_subnet: 10.2.2.0/24
+pi5_docker_network_gateway: 10.2.2.1
+pi5_docker_network_prefix: 10.2.2
+pi5_docker_network_pihole_ip: 10.2.2.53
 
 router_local_ipv4: 192.168.1.1
-homelab_local_ipv4: 192.168.1.100
-homelab_ssh_port: 4221
+pi5_local_ipv4: 192.168.1.100
+pi5_ssh_port: 4221
 
 
 # metrics
@@ -59,7 +59,7 @@ vps_duckdns_subdomain: !vault |
           31313765346431373836373736613038663338636232643439363864333534373966306635396138
           3439383239373439310a383866633232633536343166643938306363306431353933353666623864
           6532
-homelab_duckdns_subdomain: !vault |
+pi5_duckdns_subdomain: !vault |
           $ANSIBLE_VAULT;1.1;AES256
           33653336616432623565333537313565346666643464393961656437323330316432656561306530
           3934303536333366386230376430333263393665613130620a343930366665346263303638346664
@@ -123,7 +123,7 @@ wg0_vps_public_key: !vault |
           64323338663065366562376438313039346437653662303666383061666232663133313362333563
           3864393130383733326261656130356365623931393765336233
 
-wg0_homelab_private_key: !vault |
+wg0_pi5_private_key: !vault |
           $ANSIBLE_VAULT;1.1;AES256
           38363039653162616662353263636664666463653436653938376565643431636230373566656231
           3135613936396536333861373963393433346137316234620a363535333735363638366439393830
@@ -131,7 +131,7 @@ wg0_homelab_private_key: !vault |
           6235663837383237320a663965386264633265366166626230313563376332376435353538623562
           32396264653330383962323064323361373136313435636236373363326463303338326332383961
           3335356234353465313437343935613962613932333332643231
-wg0_homelab_public_key: !vault |
+wg0_pi5_public_key: !vault |
           $ANSIBLE_VAULT;1.1;AES256
           36633163383634346433663936613661366464363838646533346637346536356237333765393438
           3431353030376335633961643532653330633961636663320a346534323430616236653333643365

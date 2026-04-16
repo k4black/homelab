@@ -139,7 +139,7 @@ jobs:
 #      - name: Enable github actions systemd-resolved
 #        run: sudo /bin/bash tests/enable-systemd-resolved.sh
 
-  test-homelab-playbook:
+  test-pi5-playbook:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -173,17 +173,17 @@ jobs:
           echo "${{ secrets.VAULT_PASS }}" > .vault_pass.txt
 
       - name: Test the playbook's syntax
-        run: ansible-playbook playbook_homelab.yml -i inventory-test.ini --syntax-check
+        run: ansible-playbook playbook_pi5.yml -i inventory-test.ini --syntax-check
 
       - name: Test the playbook
-        run: ansible-playbook playbook_homelab.yml -i inventory-test.ini -e "testing=true" --skip-tags "run_docker"
+        run: ansible-playbook playbook_pi5.yml -i inventory-test.ini -e "testing=true" --skip-tags "run_docker"
         env:
           ANSIBLE_FORCE_COLOR: '1'
 
       - name: Idempotence check
         run: |
           idempotence=$(mktemp)
-          ansible-playbook playbook_homelab.yml -i inventory-test.ini -e "testing=true" --skip-tags "run_docker" | tee -a ${idempotence}
+          ansible-playbook playbook_pi5.yml -i inventory-test.ini -e "testing=true" --skip-tags "run_docker" | tee -a ${idempotence}
           tail ${idempotence} | grep -q 'changed=0.*failed=0' && (echo 'Idempotence test: pass' && exit 0) || (echo 'Idempotence test: fail' && exit 1)
         env:
           ANSIBLE_FORCE_COLOR: '1'

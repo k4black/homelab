@@ -21,9 +21,9 @@ AllowedIPs = 0.0.0.0/0, ::/0
 # Persistent keepalive interval (usually necessary if you're behind a NAT)
 PersistentKeepalive = 25
 
-# homelab
+# pi5
 [Peer]
-PublicKey = {{ wg0_homelab_public_key }}
-Endpoint = {{ homelab_duckdns_subdomain }}.duckdns.org:51820
-AllowedIPs = {{ vpn_network_homelab_ip }}/32
+PublicKey = {{ wg0_pi5_public_key }}
+Endpoint = {{ pi5_duckdns_subdomain }}.duckdns.org:51820
+AllowedIPs = {{ vpn_network_pi5_ip }}/32
 PersistentKeepalive = 25

@@ -15,11 +15,11 @@ PrivateKey = {{ wg0_router_private_key }}
 # PostDown = iptables -D FORWARD -i %i -j ACCEPT; iptables -D FORWARD -o %i -j ACCEPT; iptables -t nat -D POSTROUTING -s {{ vpn_network_subnet }} -o eth0 -j MASQUERADE
 
 
-# homelab
+# pi5
 [Peer]
-PublicKey = {{ wg0_homelab_public_key }}
-Endpoint = {{ homelab_duckdns_subdomain }}.duckdns.org:51820
-AllowedIPs = {{ vpn_network_homelab_ip }}/32
+PublicKey = {{ wg0_pi5_public_key }}
+Endpoint = {{ pi5_duckdns_subdomain }}.duckdns.org:51820
+AllowedIPs = {{ vpn_network_pi5_ip }}/32
 PersistentKeepalive = 25
 
 # vps

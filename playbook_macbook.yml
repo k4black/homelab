@@ -109,28 +109,28 @@
         mode: 0600
         insertafter: "Host *"
       become: true
-    - name: Add homelab-local SSH config (LAN access)
+    - name: Add pi5-local SSH config (LAN access)
       ansible.builtin.blockinfile:
         path: ~/.ssh/config
-        marker: "# {mark} ANSIBLE MANAGED: homelab-local"
+        marker: "# {mark} ANSIBLE MANAGED: pi5-local"
         block: |
-          Host homelab-local
-              HostName {{ homelab_local_ipv4 }}
+          Host pi5-local
+              HostName {{ pi5_local_ipv4 }}
               User {{ default_username }}
-              Port {{ homelab_ssh_port }}
+              Port {{ pi5_ssh_port }}
               IdentityFile ~/.ssh/id_ed25519
               PasswordAuthentication no
         create: true
         mode: 0600
-    - name: Add homelab SSH config (remote via DuckDNS)
+    - name: Add pi5 SSH config (remote via DuckDNS)
       ansible.builtin.blockinfile:
         path: ~/.ssh/config
-        marker: "# {mark} ANSIBLE MANAGED: homelab"
+        marker: "# {mark} ANSIBLE MANAGED: pi5"
         block: |
-          Host homelab
-              HostName {{ homelab_duckdns_subdomain }}.duckdns.org
+          Host pi5
+              HostName {{ pi5_duckdns_subdomain }}.duckdns.org
               User {{ default_username }}
-              Port {{ homelab_ssh_port }}
+              Port {{ pi5_ssh_port }}
               IdentityFile ~/.ssh/id_ed25519
               PasswordAuthentication no
         create: true
@@ -196,5 +196,5 @@
             mode: 0600
           loop:
             - {src: "files/macbook/vps-client-wg0.conf.j2", dest: "vps_wg0.conf"}
-            - {src: "files/macbook/homelab-client-wg0.conf.j2", dest: "homelab_wg0.conf"}
+            - {src: "files/macbook/pi5-client-wg0.conf.j2", dest: "pi5_wg0.conf"}
             - {src: "files/macbook/router-client-wg0.conf.j2", dest: "router_wg0.conf"}

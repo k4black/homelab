@@ -8,14 +8,14 @@ Address = {{ vpn_network_macbook_client_ip }}/24
 PrivateKey = {{ wg0_macbook_client_private_key }}
 # The DNS server you'll use while connected to the VPN
 # local pihole DNS server first, then other DNS servers
-DNS = {{ homelab_docker_network_pihole_ip }},1.1.1.1,8.8.8.8
+DNS = {{ pi5_docker_network_pihole_ip }},1.1.1.1,8.8.8.8
 
-# homelab
+# pi5
 [Peer]
 # VPN server's wireguard public key
-PublicKey = {{ wg0_homelab_public_key }}
+PublicKey = {{ wg0_pi5_public_key }}
 # Use the floating IP address if you created one for your VPN server
-Endpoint = {{ homelab_duckdns_subdomain }}.duckdns.org:51820
+Endpoint = {{ pi5_duckdns_subdomain }}.duckdns.org:51820
 # Route all traffic through VPN
 AllowedIPs = 0.0.0.0/0, ::/0
 # Persistent keepalive interval (usually necessary if you're behind a NAT)

@@ -1,11 +1,11 @@
 ---
 - name: Setup ssh port
-  hosts: homelab
+  hosts: pi5
   gather_facts: false
 
   vars_files:
     - vars/all.yml
-    - vars/homelab.yml
+    - vars/pi5.yml
 
   tasks:
     - name: SSH User Juggle
@@ -20,7 +20,7 @@
       when: testing is undefined or testing != 'true'
 
 - name: Setup local_ipv4
-  hosts: homelab
+  hosts: pi5
   gather_facts: true
 
   tasks:
@@ -35,7 +35,7 @@
       tags: [docker]
 
 - name: Setup for testing
-  hosts: homelab
+  hosts: pi5
   gather_facts: false
   become: true
 
@@ -58,12 +58,12 @@
             var: netstat_output.stdout_lines
           when: testing is defined and testing == 'true'
 
-- name: Configure HomeLab personal server.
-  hosts: homelab
+- name: Configure Pi5 personal server.
+  hosts: pi5
 
   vars_files:
     - vars/all.yml
-    - vars/homelab.yml
+    - vars/pi5.yml
 
   pre_tasks:
     - name: Disable VPN if it is enabled
@@ -189,7 +189,7 @@
       block:
         - name: Create temp boot.conf file
           ansible.builtin.template:
-            src: files/homelab/boot.conf.j2
+            src: files/pi5/boot.conf.j2
             dest: /tmp/boot.conf
             mode: 0755
             owner: root
@@ -259,7 +259,7 @@
         containers_setup_user: "{{ username }}"
         containers_setup_configs_dir: "{{ services_configs_dir }}"
         containers_setup_data_dir: "{{ services_data_dir }}"
-        containers_setup_docker_compose_template: "files/homelab/docker-compose.yml.j2"
+        containers_setup_docker_compose_template: "files/pi5/docker-compose.yml.j2"
         containers_setup_make_dirs:
           - "{{ services_data_dir }}/traefik-certs"
           - "{{ services_configs_dir }}/home-assistant-config"
@@ -274,20 +274,20 @@
         containers_setup_touch_files:
           - "{{ services_configs_dir }}/traefik-acme.json"
         containers_setup_config_templates:
-          files/homelab/server-wg0.conf.j2: "server-wg0.conf"  # TODO: fix permissions
-          files/homelab/home-assistant-config.yml.j2: "home-assistant-config/configuration.yaml"
-          files/homelab/pihole-02-custom-dns.conf.j2: "pihole-dnsmasq.d/02-custom-dns.conf"
-          files/homelab/pihole-adlists.list: "pihole/adlists.list"
-          files/homelab/pihole-custom.list.j2: "pihole/custom.list"
-          files/homelab/traefik-config.yml.j2: "traefik-config.yml"
-          files/homelab/homepage-docker.yaml.j2: "homepage-config/docker.yaml"
-          files/homelab/homepage-settings.yaml.j2: "homepage-config/settings.yaml"
-          files/homelab/homepage-services.yaml.j2: "homepage-config/services.yaml"
-          files/homelab/homepage-widgets.yaml.j2: "homepage-config/widgets.yaml"
-          files/homelab/homepage-bookmarks.yaml.j2: "homepage-config/bookmarks.yaml"
-          files/homelab/netdata.conf.j2: "netdata-config/netdata.conf"
-          files/homelab/netdata-stream.conf.j2: "netdata-config/stream.conf"
-          files/homelab/netdata-pihole.conf: "netdata-config/go.d/pihole.conf"
+          files/pi5/server-wg0.conf.j2: "server-wg0.conf"  # TODO: fix permissions
+          files/pi5/home-assistant-config.yml.j2: "home-assistant-config/configuration.yaml"
+          files/pi5/pihole-02-custom-dns.conf.j2: "pihole-dnsmasq.d/02-custom-dns.conf"
+          files/pi5/pihole-adlists.list: "pihole/adlists.list"
+          files/pi5/pihole-custom.list.j2: "pihole/custom.list"
+          files/pi5/traefik-config.yml.j2: "traefik-config.yml"
+          files/pi5/homepage-docker.yaml.j2: "homepage-config/docker.yaml"
+          files/pi5/homepage-settings.yaml.j2: "homepage-config/settings.yaml"
+          files/pi5/homepage-services.yaml.j2: "homepage-config/services.yaml"
+          files/pi5/homepage-widgets.yaml.j2: "homepage-config/widgets.yaml"
+          files/pi5/homepage-bookmarks.yaml.j2: "homepage-config/bookmarks.yaml"
+          files/pi5/netdata.conf.j2: "netdata-config/netdata.conf"
+          files/pi5/netdata-stream.conf.j2: "netdata-config/stream.conf"
+          files/pi5/netdata-pihole.conf: "netdata-config/go.d/pihole.conf"
 
   # handlers:
 #    - name: Restart avahi service

@@ -1,6 +1,6 @@
 username: "k4black"
-device_name: "homelab"
-ssh_port: "{{ homelab_ssh_port }}"
+device_name: "pi5"
+ssh_port: "{{ pi5_ssh_port }}"
 password: !vault |
           $ANSIBLE_VAULT;1.1;AES256
           32626433643035316135626238373433623261656464326335383532313030656265653462396338
@@ -10,7 +10,7 @@ password: !vault |
           6433
 ssh_public_key_file: "~/.ssh/id_ed25519.pub"
 
-# Cloudflare Tunnel token (create with: cloudflared tunnel create homelab)
+# Cloudflare Tunnel token (create with: cloudflared tunnel create pi5)
 cloudflared_tunnel_id: !vault |
           $ANSIBLE_VAULT;1.1;AES256
           65623566386263336138636132343734623839336363306566663861333937666637613030316331
@@ -40,7 +40,7 @@ cloudflared_tunnel_token: !vault |
           3033
 
 # TODO: fix, now auto resolved to default ipv4 address
-# homelab_local_ipv4 is defined in vars/all.yml
+# pi5_local_ipv4 is defined in vars/all.yml
 
 
 backup_general_uuid: "5670da9f-23f5-4711-80a6-e3b7d1745b6a"
