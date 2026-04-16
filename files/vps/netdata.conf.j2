@@ -1,0 +1,24 @@
+# {{ ansible_managed }}
+
+[global]
+    hostname = {{ device_name }}
+
+[db]
+    mode = dbengine
+    storage tiers = 3
+    dbengine page cache size MB = 32
+    dbengine tier 0 retention time = 14d
+    dbengine tier 1 update every iterations = 60
+    dbengine tier 1 retention time = 3mo
+    dbengine tier 2 update every iterations = 60
+    dbengine tier 2 retention time = 2y
+    replication threads = 2
+    cleanup obsolete charts after = 3d
+    cleanup orphan hosts after = 30d
+
+[web]
+    # Restrict to localhost and VPN interface only — no public access
+    bind to = localhost {{ vpn_network_vps_ip }}
+
+[ml]
+    enabled = no

@@ -12,6 +12,8 @@ volumes:
   timemachine-var-lib-samba:
   timemachine-var-cache-samba:
   timemachine-run-samba:
+  netdata-lib:
+  netdata-cache:
 
 services:
   ### Utils ###
@@ -295,69 +297,37 @@ services:
     restart: unless-stopped
 
   ### Metrics ###
-  influxdb:
-    image: influxdb:2.8-alpine  # TODO: update to v3 if needed.
-    container_name: influxdb
+  netdata:
+    image: netdata/netdata:v2.10
+    container_name: netdata
+    hostname: {{ device_name }}
+    pid: host
+    network_mode: host
+    cap_add:
+      - SYS_PTRACE
+      - SYS_ADMIN
+    security_opt:
+      - apparmor:unconfined
     environment:
-      TZ: {{ timezone }}
-      DOCKER_INFLUXDB_INIT_MODE: setup
-      DOCKER_INFLUXDB_INIT_USERNAME: admin
-      DOCKER_INFLUXDB_INIT_PASSWORD: adminpassword
-      DOCKER_INFLUXDB_INIT_ORG: homelab
-      DOCKER_INFLUXDB_INIT_BUCKET: homelab_raw
-      DOCKER_INFLUXDB_INIT_RETENTION: 1d
-      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: admintoken
-      INFLUXDB_LOG_LEVEL: debug
-    ports:
-      - "8086:8086"
+      - DISABLE_TELEMETRY=1
     volumes:
-      - {{ containers_setup_data_dir }}/influxdb-data:/var/lib/influxdb2
-      - {{ containers_setup_configs_dir }}/influxdb-config.yml:/etc/influxdb2/config.yml
-      - {{ containers_setup_configs_dir }}/influxdb-init-script.sh:/docker-entrypoint-initdb.d/init-script.sh:ro
-    labels:
-      - homepage.group=Monitoring
-      - homepage.name=InfluxDB
-      - homepage.icon=influxdb
-      - homepage.href=http://{{ local_ipv4 }}:8086
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8086/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    restart: unless-stopped
-
-  telegraf:
-    image: telegraf:1.38-alpine
-    container_name: telegraf
-    # docker group GID is looked up dynamically by the playbook
-    # https://github.com/influxdata/telegraf/issues/10050#issuecomment-1607706376
-    user: "telegraf:{{ docker_gid }}"
-    environment:
-      TZ: {{ timezone }}
-      DOCKER_INFLUXDB_INIT_ORG: homelab
-      DOCKER_INFLUXDB_INIT_BUCKET: homelab_raw
-      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: admintoken
-    ports:
-       - 8125:8125
-    volumes:
-      - {{ containers_setup_configs_dir }}/telegraf.conf:/etc/telegraf/telegraf.conf:ro
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - /sys:/host/sys:ro
+      - {{ containers_setup_configs_dir }}/netdata-config/netdata.conf:/etc/netdata/netdata.conf:ro
+      - {{ containers_setup_configs_dir }}/netdata-config/stream.conf:/etc/netdata/stream.conf:ro
+      - {{ containers_setup_configs_dir }}/netdata-config/go.d/pihole.conf:/etc/netdata/go.d/pihole.conf:ro
+      - netdata-lib:/var/lib/netdata
+      - netdata-cache:/var/cache/netdata
+      - /:/host/root:ro,rslave
+      - /etc/passwd:/host/etc/passwd:ro
+      - /etc/group:/host/etc/group:ro
+      - /etc/localtime:/etc/localtime:ro
       - /proc:/host/proc:ro
-      - /:/rootfs:ro
+      - /sys:/host/sys:ro
+      - /etc/os-release:/host/etc/os-release:ro
+      - /var/log:/host/var/log:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
     labels:
       - homepage.group=Monitoring
-      - homepage.name=Telegraf
-      - homepage.icon=telegraf
-    depends_on:
-      - influxdb
-    links:
-      - influxdb
-      - pihole
-{#      - home-assistant#}
-    healthcheck:
-      test: ["CMD", "telegraf", "--test"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+      - homepage.name=Netdata
+      - homepage.icon=netdata
+      - homepage.href=http://{{ local_ipv4 }}:19999
     restart: unless-stopped

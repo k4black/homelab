@@ -8,6 +8,10 @@ networks:
         - subnet: {{ vps_docker_network_subnet }}
           gateway: {{ vps_docker_network_gateway }}
 
+volumes:
+  netdata-lib:
+  netdata-cache:
+
 
 services:
   ### Utils ###
@@ -194,27 +198,31 @@ req.end();"]
     restart: unless-stopped
 
   ### Metrics ###
-  node-exporter:
-    image: prom/node-exporter:v1.11.1
-    container_name: node-exporter
-    ports:
-      - "9100:9100"
+  netdata:
+    image: netdata/netdata:v2.10
+    container_name: netdata
+    hostname: {{ device_name }}
+    pid: host
+    network_mode: host
+    cap_add:
+      - SYS_PTRACE
+      - SYS_ADMIN
+    security_opt:
+      - apparmor:unconfined
+    environment:
+      - DISABLE_TELEMETRY=1
     volumes:
+      - {{ containers_setup_configs_dir }}/netdata-config/netdata.conf:/etc/netdata/netdata.conf:ro
+      - {{ containers_setup_configs_dir }}/netdata-config/stream.conf:/etc/netdata/stream.conf:ro
+      - netdata-lib:/var/lib/netdata
+      - netdata-cache:/var/cache/netdata
+      - /:/host/root:ro,rslave
+      - /etc/passwd:/host/etc/passwd:ro
+      - /etc/group:/host/etc/group:ro
+      - /etc/localtime:/etc/localtime:ro
       - /proc:/host/proc:ro
       - /sys:/host/sys:ro
-      - /:/rootfs:ro
-    restart: unless-stopped
-
-  cadvisor:
-    image: gcr.io/cadvisor/cadvisor:v0.56.2
-    container_name: cadvisor
-    ports:
-      - "8081:8080"
-    volumes:
-      - /:/rootfs:ro
-      - /var/run:/var/run:ro
-      - /sys:/sys:ro
-      - /var/lib/docker/:/var/lib/docker:ro
-      - /dev/disk/:/dev/disk:ro
-    # healthcheck: included in the image
+      - /etc/os-release:/host/etc/os-release:ro
+      - /var/log:/host/var/log:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
     restart: unless-stopped

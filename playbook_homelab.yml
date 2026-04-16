@@ -132,7 +132,7 @@
         linux_server_setup_login_user_gid: 1000
         linux_server_setup_login_ssh_public_key: "{{ ssh_public_key }}"
         linux_server_setup_block_ports: true
-        linux_server_setup_open_ports:
+        linux_server_setup_open_ports:  # IMPORTANT: DO NOT open no-auth endpoints
           - {port: 22, protocol: "tcp", comment: "default ssh"}
           - {port: "{{ ssh_port }}", protocol: "tcp", comment: "custom ssh"}
           - {port: 51820, protocol: "udp", comment: "wireguard"}
@@ -235,7 +235,7 @@
           loop_control:
             label: "{{ item.item }}"
 
-    - name: Get docker group GID for telegraf
+    - name: Get docker group GID for homepage
       ansible.builtin.command: getent group docker
       register: docker_group_info
       changed_when: false
@@ -254,30 +254,31 @@
         containers_setup_docker_compose_template: "files/homelab/docker-compose.yml.j2"
         containers_setup_make_dirs:
           - "{{ services_data_dir }}/traefik-certs"
-          - "{{ services_data_dir }}/influxdb-data"
           - "{{ services_configs_dir }}/home-assistant-config"
           - "{{ services_configs_dir }}/homepage-config"
           - "{{ services_data_dir }}/homepage-logs"
           - "{{ services_configs_dir }}/pihole"
           - "{{ services_configs_dir }}/pihole-dnsmasq.d"
           - "{{ services_configs_dir }}/transmission-config"
+          - "{{ services_configs_dir }}/netdata-config"
+          - "{{ services_configs_dir }}/netdata-config/go.d"
         containers_setup_touch_files:
           - "{{ services_configs_dir }}/traefik-acme.json"
         containers_setup_config_templates:
           files/homelab/server-wg0.conf.j2: "server-wg0.conf"  # TODO: fix permissions
           files/homelab/home-assistant-config.yml.j2: "home-assistant-config/configuration.yaml"
-          files/homelab/influxdb-config.yml.j2: "influxdb-config.yml"
-          files/homelab/influxdb-init-script.sh.j2: "influxdb-init-script.sh"
           files/homelab/pihole-02-custom-dns.conf.j2: "pihole-dnsmasq.d/02-custom-dns.conf"
           files/homelab/pihole-adlists.list: "pihole/adlists.list"
           files/homelab/pihole-custom.list.j2: "pihole/custom.list"
-          files/homelab/telegraf.conf: "telegraf.conf"
           files/homelab/traefik-config.yml.j2: "traefik-config.yml"
           files/homelab/homepage-docker.yaml.j2: "homepage-config/docker.yaml"
           files/homelab/homepage-settings.yaml.j2: "homepage-config/settings.yaml"
           files/homelab/homepage-services.yaml.j2: "homepage-config/services.yaml"
           files/homelab/homepage-widgets.yaml.j2: "homepage-config/widgets.yaml"
           files/homelab/homepage-bookmarks.yaml.j2: "homepage-config/bookmarks.yaml"
+          files/homelab/netdata.conf.j2: "netdata-config/netdata.conf"
+          files/homelab/netdata-stream.conf.j2: "netdata-config/stream.conf"
+          files/homelab/netdata-pihole.conf: "netdata-config/go.d/pihole.conf"
 
   # handlers:
 #    - name: Restart avahi service

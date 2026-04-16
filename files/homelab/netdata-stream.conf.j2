@@ -1,0 +1,16 @@
+# {{ ansible_managed }}
+
+# Stream to VPS (active-active parent)
+[stream]
+    enabled = yes
+    destination = {{ vpn_network_vps_ip }}:19999
+    api key = {{ netdata_stream_api_key }}
+    send charts matching = *
+
+# Accept streams from VPS
+[{{ netdata_stream_api_key }}]
+    enabled = yes
+    allow from = {{ vpn_network_vps_ip }}
+    db = dbengine
+    enable replication = yes
+    replication period = 14d
