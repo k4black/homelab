@@ -155,6 +155,21 @@
     #  to tell window "Security & Privacy" to tell scroll area "Privacy" to tell table 1 to tell row 1 to tell checkbox 1 to if value is 0 then click'
     #          become: true
 
+    # App Nap suspends background apps on macOS, which stops Anki-Connect
+    # from responding while another window is in the foreground.
+    # See: https://foosoft.net/projects/anki-connect/ (Notes for MacOS Users)
+    - name: Disable App Nap for Anki (keeps Anki-Connect responsive in background)
+      community.general.osx_defaults:
+        domain: "{{ item }}"
+        key: NSAppSleepDisabled
+        type: bool
+        value: true
+        state: present
+      loop:
+        - net.ankiweb.dtop
+        - net.ichi2.anki
+        - org.qt-project.Qt.QtWebEngineCore
+
     - name: Set Default browser
       block:
         - name: Check if Zen Browser is installed
