@@ -147,6 +147,7 @@
           - "{{ services_data_dir }}/downloads"
           - "{{ services_data_dir }}/myspeed"
           - "{{ services_configs_dir }}/netdata-config"
+          - "{{ services_data_dir }}/tailscale"
         containers_setup_touch_files: []
         containers_setup_config_templates:
           files/vps/server-wg0.conf.j2: "server-wg0.conf"  # TODO: fix permissions
@@ -155,3 +156,22 @@
           files/vps/pihole-custom.list.j2: "pihole/custom.list"
           files/vps/netdata.conf.j2: "netdata-config/netdata.conf"
           files/vps/netdata-stream.conf.j2: "netdata-config/stream.conf"
+
+    - name: Verify Tailscale connection
+      tags: [docker]
+      block:
+        - name: Wait for Tailscale to connect
+          ansible.builtin.command: docker exec tailscale tailscale status --json
+          register: tailscale_status
+          retries: 6
+          delay: 10
+          until: tailscale_status.rc == 0
+          changed_when: false
+          failed_when: false
+        - name: Fail if Tailscale auth key is expired or invalid
+          ansible.builtin.fail:
+            msg: >
+              Tailscale failed to connect — auth key may be expired (90-day limit).
+              Regenerate at https://login.tailscale.com/admin/settings/keys
+              and update tailscale_authkey in vars/all.yml
+          when: tailscale_status.rc != 0

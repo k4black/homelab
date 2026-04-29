@@ -42,6 +42,17 @@ services:
       LOG_FILE: true
     restart: unless-stopped
 
+  cloudflare-ddns:
+    image: favonia/cloudflare-ddns:1.16.2
+    container_name: cloudflare-ddns
+    environment:
+      CF_API_TOKEN: {{ cloudflare_api_token }}
+      DOMAINS: "vps.{{ domain }},*.vps.{{ domain }}"
+      PROXIED: "false"
+      IP4_PROVIDER: cloudflare.trace
+      IP6_PROVIDER: none
+    restart: unless-stopped
+
   wireguard:
     image: linuxserver/wireguard:1.0.20250521
     container_name: wireguard
@@ -79,7 +90,7 @@ services:
       PIHOLE_UID: 1000
       PIHOLE_GID: 1000
       TZ: {{ timezone }}
-      FTLCONF_webserver_api_password: password  # for http://<ip>:8053/admin
+      FTLCONF_webserver_api_password: ''  # no password
       FTLCONF_dns_upstreams: "1.1.1.1;8.8.8.8"
       FTLCONF_dns_listeningMode: "local"
       FTLCONF_LOCAL_IPV4: "{{ local_ipv4 }}"
@@ -254,4 +265,24 @@ req.end();"]
       - /etc/os-release:/host/etc/os-release:ro
       - /var/log:/host/var/log:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
+    restart: unless-stopped
+
+  tailscale:
+    image: tailscale/tailscale:v1.96
+    container_name: tailscale
+    hostname: vps
+    network_mode: host
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    environment:
+      TS_AUTHKEY: {{ tailscale_authkey }}
+      TS_STATE_DIR: /var/lib/tailscale
+      TS_EXTRA_ARGS: --accept-dns=false
+      TS_ENABLE_HEALTH_CHECK: true
+    volumes:
+      - {{ containers_setup_data_dir }}/tailscale:/var/lib/tailscale
+      - /dev/net/tun:/dev/net/tun
+    healthcheck:
+      test: [ "CMD", "wget", "--spider", "-q", "http://127.0.0.1:9002/healthz" ]
     restart: unless-stopped

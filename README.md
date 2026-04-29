@@ -131,14 +131,6 @@ ssh k4black@[PI5_DOMAIN].duckdns.org -p 4221
 ```
 This requires the SSH port forwarding (4221) configured above.
 
-**Alternative: Cloudflare Tunnel**
-Instead of exposing SSH via port forwarding, you can use a Cloudflare Tunnel (`cloudflared` container is included in the docker-compose stack). No router port forwarding needed for SSH.
-1. Install cloudflared locally: `brew install cloudflared`
-2. Create a tunnel: `cloudflared tunnel create pi5`
-3. Encrypt the tunnel token: `ansible-vault encrypt_string --stdin-name cloudflared_tunnel_token`
-4. Update `vars/pi5.yml` with the encrypted token
-5. Configure the tunnel in Cloudflare dashboard to proxy SSH
-   
 
 ## router setup
 

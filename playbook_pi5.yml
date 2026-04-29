@@ -271,6 +271,7 @@
           - "{{ services_data_dir }}/myspeed"
           - "{{ services_configs_dir }}/netdata-config"
           - "{{ services_configs_dir }}/netdata-config/go.d"
+          - "{{ services_data_dir }}/tailscale"
         containers_setup_touch_files:
           - "{{ services_configs_dir }}/traefik-acme.json"
         containers_setup_config_templates:
@@ -288,6 +289,25 @@
           files/pi5/netdata.conf.j2: "netdata-config/netdata.conf"
           files/pi5/netdata-stream.conf.j2: "netdata-config/stream.conf"
           files/pi5/netdata-pihole.conf: "netdata-config/go.d/pihole.conf"
+
+    - name: Verify Tailscale connection
+      tags: [docker]
+      block:
+        - name: Wait for Tailscale to connect
+          ansible.builtin.command: docker exec tailscale tailscale status --json
+          register: tailscale_status
+          retries: 6
+          delay: 10
+          until: tailscale_status.rc == 0
+          changed_when: false
+          failed_when: false
+        - name: Fail if Tailscale auth key is expired or invalid
+          ansible.builtin.fail:
+            msg: >
+              Tailscale failed to connect — auth key may be expired (90-day limit).
+              Regenerate at https://login.tailscale.com/admin/settings/keys
+              and update tailscale_authkey in vars/all.yml
+          when: tailscale_status.rc != 0
 
   # handlers:
 #    - name: Restart avahi service

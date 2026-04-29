@@ -91,20 +91,6 @@ services:
     restart: unless-stopped
 
   ## Networking ##
-  # Cloudflare Tunnel: secure remote access without port forwarding
-  # Setup: https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/
-  # Create tunnel and get token: cloudflared tunnel create pi5
-  cloudflared:
-    image: cloudflare/cloudflared:2026.3.0
-    container_name: cloudflared
-    command: tunnel --no-autoupdate run
-    environment:
-      TUNNEL_TOKEN: {{ cloudflared_tunnel_token }}
-    labels:
-      - homepage.group=Networking
-      - homepage.name=Cloudflare Tunnel
-      - homepage.icon=cloudflare
-    restart: unless-stopped
 
   duckdns:
     image: linuxserver/duckdns:latest
@@ -118,6 +104,21 @@ services:
       - homepage.group=Networking
       - homepage.name=DuckDNS
       - homepage.icon=duckdns
+    restart: unless-stopped
+
+  cloudflare-ddns:
+    image: favonia/cloudflare-ddns:1.16.2
+    container_name: cloudflare-ddns
+    environment:
+      CF_API_TOKEN: {{ cloudflare_api_token }}
+      DOMAINS: "pi5.{{ domain }},*.pi5.{{ domain }}"
+      PROXIED: "false"
+      IP4_PROVIDER: cloudflare.trace
+      IP6_PROVIDER: none
+    labels:
+      - homepage.group=Networking
+      - homepage.name=Cloudflare DDNS
+      - homepage.icon=cloudflare
     restart: unless-stopped
 
   wireguard:
@@ -161,7 +162,7 @@ services:
       PUID: 1000
       PGID: 1000
       TZ: {{ timezone }}
-      FTLCONF_webserver_api_password: password  # for http://<ip>:8053/admin
+      FTLCONF_webserver_api_password: ''  # no password
       FTLCONF_dns_listeningMode: 'ALL'
       FTLCONF_dns_upstreams: "1.1.1.1;8.8.8.8"
       DNSMASQ_LISTENING: "all"  # TODO: make local, but re-route from reserved-proxy
@@ -189,7 +190,7 @@ services:
       - homepage.widget.type=pihole
       - homepage.widget.url=http://pihole:80
       - homepage.widget.version=6
-      - homepage.widget.key=password
+      - homepage.widget.key=
     networks:
       default:
         ipv4_address: {{ pi5_docker_network_pihole_ip }}
@@ -387,4 +388,28 @@ services:
       - homepage.ping=http://{{ local_ipv4 }}:19999
       - homepage.widget.type=netdata
       - homepage.widget.url=http://{{ local_ipv4 }}:19999
+    restart: unless-stopped
+
+  tailscale:
+    image: tailscale/tailscale:v1.96
+    container_name: tailscale
+    hostname: pi5
+    network_mode: host
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    environment:
+      TS_AUTHKEY: {{ tailscale_authkey }}
+      TS_STATE_DIR: /var/lib/tailscale
+      TS_EXTRA_ARGS: --accept-dns=false
+      TS_ENABLE_HEALTH_CHECK: true
+    volumes:
+      - {{ containers_setup_data_dir }}/tailscale:/var/lib/tailscale
+      - /dev/net/tun:/dev/net/tun
+    labels:
+      - homepage.group=Networking
+      - homepage.name=Tailscale
+      - homepage.icon=tailscale
+    healthcheck:
+      test: [ "CMD", "wget", "--spider", "-q", "http://127.0.0.1:9002/healthz" ]
     restart: unless-stopped
