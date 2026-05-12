@@ -129,6 +129,21 @@
         mode: 0600
         owner: "{{ ansible_user_id }}"
 
+    # Tailscale exit-node requires IP forwarding on the host.
+    - name: Enable IP forwarding for Tailscale exit node
+      ansible.posix.sysctl:
+        name: "{{ item }}"
+        value: "1"
+        sysctl_set: true
+        state: present
+        reload: true
+        sysctl_file: /etc/sysctl.d/99-tailscale.conf
+      loop:
+        - net.ipv4.ip_forward
+        - net.ipv6.conf.all.forwarding
+      become: true
+      tags: [docker]
+
     - name: Copy docker configs and run containers
       ansible.builtin.include_role:
         name: containers_setup

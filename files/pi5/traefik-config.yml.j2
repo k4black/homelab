@@ -9,9 +9,15 @@ api:
   dashboard: true
   insecure: true
 
+# Lightweight health endpoint used by `traefik healthcheck --ping` (container healthcheck).
+ping: {}
+
 entryPoints:
   web:
     address: ":80"
+    http:
+      middlewares:
+        - internal-only@file
 {#    http:#}
 {#      redirections:#}
 {#        entryPoint:#}
@@ -35,3 +41,6 @@ entryPoints:
 providers:
   docker:
     exposedByDefault: false
+  file:
+    filename: /etc/traefik/dynamic.yml
+    watch: true

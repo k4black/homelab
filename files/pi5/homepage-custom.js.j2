@@ -1,0 +1,29 @@
+// {{ ansible_managed }}
+// Rewrite the "homepage_host" sentinel in every <a href> to whatever
+// hostname the browser actually used to load homepage. Lets the same
+// dashboard work over LAN IP, .local mDNS, Tailscale MagicDNS, and the
+// public Cloudflare-managed domain without per-context links.
+//
+// Set service hrefs in docker labels (or services.yaml) as:
+//   http://homepage_host:PORT/path
+(() => {
+  const SENTINEL = "homepage_host";
+  const here = window.location.hostname;
+
+  const rewrite = (root) => {
+    root.querySelectorAll(`a[href*="${SENTINEL}"]`).forEach((a) => {
+      a.href = a.href.replaceAll(SENTINEL, here);
+    });
+  };
+
+  rewrite(document);
+
+  // Homepage is a React app and re-renders tiles after initial paint.
+  new MutationObserver((mutations) => {
+    for (const m of mutations) {
+      m.addedNodes.forEach((node) => {
+        if (node.nodeType === 1) rewrite(node);
+      });
+    }
+  }).observe(document.body, { childList: true, subtree: true });
+})();

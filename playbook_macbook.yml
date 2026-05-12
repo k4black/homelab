@@ -122,13 +122,26 @@
               PasswordAuthentication no
         create: true
         mode: 0600
-    - name: Add pi5 SSH config (remote via DuckDNS)
+    - name: Add pi5-duckdns SSH config (remote via DuckDNS)
       ansible.builtin.blockinfile:
         path: ~/.ssh/config
-        marker: "# {mark} ANSIBLE MANAGED: pi5"
+        marker: "# {mark} ANSIBLE MANAGED: pi5-duckdns"
         block: |
-          Host pi5
+          Host pi5-duckdns
               HostName {{ pi5_duckdns_subdomain }}.duckdns.org
+              User {{ default_username }}
+              Port {{ pi5_ssh_port }}
+              IdentityFile ~/.ssh/id_ed25519
+              PasswordAuthentication no
+        create: true
+        mode: 0600
+    - name: Add pi5-tailscale SSH config (via Tailscale tailnet)
+      ansible.builtin.blockinfile:
+        path: ~/.ssh/config
+        marker: "# {mark} ANSIBLE MANAGED: pi5-tailscale"
+        block: |
+          Host pi5-tailscale
+              HostName {{ pi5_tailscale_ipv4 }}
               User {{ default_username }}
               Port {{ pi5_ssh_port }}
               IdentityFile ~/.ssh/id_ed25519

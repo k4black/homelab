@@ -1,0 +1,15 @@
+/* {{ ansible_managed }} */
+/* Outline whole service tiles (the .service-card div) that have a
+   clickable href anywhere inside, so it's obvious at a glance which
+   entries are navigable. Cards without a link stay plain. */
+.service-card:has(a[href]) {
+  outline: 1px solid rgba(99, 102, 241, 0.55);
+  outline-offset: 2px;
+  border-radius: 8px;
+  transition: outline-color 120ms ease, box-shadow 120ms ease;
+}
+
+.service-card:has(a[href]):hover {
+  outline-color: rgba(99, 102, 241, 1);
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.25);
+}

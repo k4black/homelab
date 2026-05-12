@@ -240,6 +240,21 @@
           loop_control:
             label: "{{ item.item }}"
 
+    # Tailscale exit-node requires IP forwarding on the host.
+    - name: Enable IP forwarding for Tailscale exit node
+      ansible.posix.sysctl:
+        name: "{{ item }}"
+        value: "1"
+        sysctl_set: true
+        state: present
+        reload: true
+        sysctl_file: /etc/sysctl.d/99-tailscale.conf
+      loop:
+        - net.ipv4.ip_forward
+        - net.ipv6.conf.all.forwarding
+      become: true
+      tags: [docker]
+
     - name: Get docker group GID for homepage
       ansible.builtin.command: getent group docker
       register: docker_group_info
@@ -281,11 +296,14 @@
           files/pi5/pihole-adlists.list: "pihole/adlists.list"
           files/pi5/pihole-custom.list.j2: "pihole/custom.list"
           files/pi5/traefik-config.yml.j2: "traefik-config.yml"
+          files/pi5/traefik-dynamic.yml.j2: "traefik-dynamic.yml"
           files/pi5/homepage-docker.yaml.j2: "homepage-config/docker.yaml"
           files/pi5/homepage-settings.yaml.j2: "homepage-config/settings.yaml"
           files/pi5/homepage-services.yaml.j2: "homepage-config/services.yaml"
           files/pi5/homepage-widgets.yaml.j2: "homepage-config/widgets.yaml"
           files/pi5/homepage-bookmarks.yaml.j2: "homepage-config/bookmarks.yaml"
+          files/pi5/homepage-custom.js.j2: "homepage-config/custom.js"
+          files/pi5/homepage-custom.css.j2: "homepage-config/custom.css"
           files/pi5/netdata.conf.j2: "netdata-config/netdata.conf"
           files/pi5/netdata-stream.conf.j2: "netdata-config/stream.conf"
           files/pi5/netdata-pihole.conf: "netdata-config/go.d/pihole.conf"
