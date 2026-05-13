@@ -319,6 +319,8 @@
           - "{{ services_data_dir }}/tailscale"
           - "{{ services_data_dir }}/filebrowser/config"
           - "{{ services_data_dir }}/filebrowser/database"
+          - "{{ services_data_dir }}/jellyfin/config"
+          - "{{ services_data_dir }}/jellyfin/cache"
         containers_setup_touch_files: []
         containers_setup_config_templates:
           files/pi5/server-wg0.conf.j2: "server-wg0.conf"  # TODO: fix permissions
@@ -357,6 +359,96 @@
               Regenerate at https://login.tailscale.com/admin/settings/keys
               and update tailscale_authkey in vars/all.yml
           when: tailscale_status.rc != 0
+
+    # Jellyfin's first-run wizard cannot be skipped via env vars; the /Startup/*
+    # endpoints are unauthenticated only until /Startup/Complete is called, so
+    # drive them once on fresh installs. Gated on StartupWizardCompleted so
+    # re-running the playbook is a no-op. Login cannot be fully disabled in
+    # Jellyfin 10.11; falls back to admin/admin if jellyfin_admin_password
+    # is not set in vault.
+    - name: Initialize Jellyfin (first-run wizard via API)
+      tags: [docker]
+      vars:
+        jf_url: "http://127.0.0.1:8096"
+        jf_admin_user: admin
+        jf_admin_password: "{{ jellyfin_admin_password | default('admin') }}"
+      block:
+        - name: Wait for Jellyfin to be reachable
+          ansible.builtin.uri:
+            url: "{{ jf_url }}/System/Info/Public"
+            return_content: true
+          register: jf_info
+          retries: 30
+          delay: 5
+          until: jf_info.status == 200
+
+        - name: Drive Jellyfin startup wizard (idempotent — skipped if already completed)
+          # StartupWizardCompleted is absent from /System/Info/Public until the
+          # wizard finishes, so default to false to fire the block on fresh installs.
+          when: not (jf_info.json.StartupWizardCompleted | default(false))
+          block:
+            - name: Set locale/language
+              ansible.builtin.uri:
+                url: "{{ jf_url }}/Startup/Configuration"
+                method: POST
+                body_format: json
+                body:
+                  UICulture: "en-US"
+                  MetadataCountryCode: "US"
+                  PreferredMetadataLanguage: "en"
+                status_code: [200, 204]
+
+            - name: Create admin user
+              ansible.builtin.uri:
+                url: "{{ jf_url }}/Startup/User"
+                method: POST
+                body_format: json
+                body:
+                  Name: "{{ jf_admin_user }}"
+                  Password: "{{ jf_admin_password }}"
+                status_code: [200, 204]
+
+            - name: Disable remote access (rely on LAN/Tailscale/VPN gating)
+              ansible.builtin.uri:
+                url: "{{ jf_url }}/Startup/RemoteAccess"
+                method: POST
+                body_format: json
+                body:
+                  EnableRemoteAccess: false
+                  EnableAutomaticPortMapping: false
+                status_code: [200, 204]
+
+            - name: Complete startup wizard
+              ansible.builtin.uri:
+                url: "{{ jf_url }}/Startup/Complete"
+                method: POST
+                status_code: [200, 204]
+
+            - name: Authenticate as admin (to get token for library setup)
+              ansible.builtin.uri:
+                url: "{{ jf_url }}/Users/AuthenticateByName"
+                method: POST
+                headers:
+                  X-Emby-Authorization: 'MediaBrowser Client="ansible", Device="ansible", DeviceId="ansible", Version="1"'
+                body_format: json
+                body:
+                  Username: "{{ jf_admin_user }}"
+                  Pw: "{{ jf_admin_password }}"
+                status_code: 200
+              register: jf_auth
+
+            - name: Add /media as Movies library
+              ansible.builtin.uri:
+                url: "{{ jf_url }}/Library/VirtualFolders?name=Movies&collectionType=movies&refreshLibrary=true"
+                method: POST
+                headers:
+                  X-Emby-Token: "{{ jf_auth.json.AccessToken }}"
+                body_format: json
+                body:
+                  LibraryOptions:
+                    PathInfos:
+                      - Path: /media
+                status_code: [200, 204]
 
   # handlers:
 #    - name: Restart avahi service

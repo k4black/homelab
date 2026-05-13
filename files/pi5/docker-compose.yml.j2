@@ -322,6 +322,46 @@ services:
       - homepage.icon=apple
     restart: unless-stopped
 
+  ### Media ###
+  # Direct-play media server for LAN clients (iOS/Apple TV/Mac). Mounts
+  # /mnt/backups/downloads (transmission target) as read-only so the UI can't
+  # delete source files. No HW transcoding configured — Pi 5's VideoCore VII
+  # V4L2 path is still maturing in 2025-2026, and modern clients direct-play
+  # H.264/HEVC fine. To enable HW transcode later: pass `--device /dev/dri`
+  # and configure Jellyfin > Playback > VAAPI in the admin UI.
+  jellyfin:
+    image: jellyfin/jellyfin:10.11.8
+    container_name: jellyfin
+    # Jellyfin reads the server name from the container hostname on first start —
+    # without this it shows a container-hash string in the UI.
+    hostname: {{ device_name }}
+    user: "1000:1000"
+    environment:
+      TZ: {{ timezone }}
+      # JELLYFIN_PublishedServerUrl intentionally unset — single value would only
+      # match one of LAN-IP / Tailscale / pi5.local; leave it unset for clients
+      # to use the request's own origin.
+    ports:
+      - "8096:8096"
+      - "7359:7359/udp"   # LAN auto-discovery (Swiftfin/Findroid find the server)
+    volumes:
+      - {{ containers_setup_data_dir }}/jellyfin/config:/config
+      - {{ containers_setup_data_dir }}/jellyfin/cache:/cache
+      - /mnt/backups/downloads:/media:ro
+    labels:
+      - homepage.group=Services
+      - homepage.name=Jellyfin
+      - homepage.icon=jellyfin
+      - homepage.href=http://homepage_host:8096
+      - homepage.statusStyle=basic
+      - homepage.ping=http://jellyfin:8096
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8096/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
   ### Files ###
   # Auth is disabled (`--noauth`) — relies on VPN/Tailscale/LAN restriction for
   # access control. `--noauth` only takes effect during quickSetup() on an empty
