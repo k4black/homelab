@@ -74,7 +74,7 @@ services:
       - homepage.group=Networking
       - homepage.name=Traefik
       - homepage.icon=traefik
-      - homepage.href=https://traefik.pi5.{{ domain }}
+      - homepage.href=http://homepage_host:8080
       - homepage.statusStyle=basic
       - homepage.ping=http://traefik:8080
       - homepage.widget.type=traefik
@@ -186,7 +186,7 @@ services:
       - homepage.group=Services
       - homepage.name=Pi-hole
       - homepage.icon=pi-hole
-      - homepage.href=https://pihole.pi5.{{ domain }}/admin
+      - homepage.href=http://homepage_host:8053/admin
       - homepage.statusStyle=basic
       - homepage.ping=http://pihole:80
       - homepage.widget.type=pihole
@@ -320,6 +320,40 @@ services:
       - homepage.group=Storage
       - homepage.name=Time Machine
       - homepage.icon=apple
+    restart: unless-stopped
+
+  ### Files ###
+  # Auth is disabled (`--noauth`) — relies on VPN/Tailscale/LAN restriction for
+  # access control. `--noauth` only takes effect during quickSetup() on an empty
+  # /database; to flip it later, wipe /database/filebrowser.db on the host and
+  # recreate the container.
+  filebrowser:
+    image: filebrowser/filebrowser:v2.63.3
+    container_name: filebrowser
+    user: "1000:1000"
+    command: ["--noauth"]
+    ports:
+      - "8181:80"
+    volumes:
+      - {{ containers_setup_data_dir }}/filebrowser/config:/config
+      - {{ containers_setup_data_dir }}/filebrowser/database:/database
+      - /mnt/backups:/srv/backups
+      - {{ containers_setup_data_dir }}:/srv/services-data
+    labels:
+      - homepage.group=Storage
+      - homepage.name=Filebrowser
+      - homepage.icon=filebrowser
+      - homepage.href=http://homepage_host:8181
+      - homepage.statusStyle=basic
+      - homepage.ping=http://filebrowser:80
+    healthcheck:
+      # /healthcheck.sh is shipped in the image — wraps `wget --spider /health`
+      # and reads port/address from /config/settings.json. Overriding only to
+      # widen the image's default 5s interval (which spams logs every 5s).
+      test: ["CMD", "/healthcheck.sh"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
     restart: unless-stopped
 
   ### Downloads ###

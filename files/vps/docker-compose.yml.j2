@@ -175,6 +175,34 @@ req.end();"]
       start_period: 120s
     restart: unless-stopped
 
+  ### Files ###
+  # Auth is disabled (`--noauth`) — relies on VPN/Tailscale for access control;
+  # UFW already blocks :8181 from the public internet (not in open_ports list).
+  # `--noauth` only takes effect during quickSetup() on an empty /database; to
+  # flip it later, wipe /database/filebrowser.db on the host and recreate the
+  # container.
+  filebrowser:
+    image: filebrowser/filebrowser:v2.63.3
+    container_name: filebrowser
+    user: "1000:1000"
+    command: ["--noauth"]
+    ports:
+      - "8181:80"
+    volumes:
+      - {{ containers_setup_data_dir }}/filebrowser/config:/config
+      - {{ containers_setup_data_dir }}/filebrowser/database:/database
+      - {{ containers_setup_data_dir }}/downloads:/srv/downloads
+      - {{ containers_setup_data_dir }}/foundryvtt:/srv/foundryvtt
+    healthcheck:
+      # /healthcheck.sh is shipped in the image — wraps `wget --spider /health`
+      # and reads port/address from /config/settings.json. Overriding only to
+      # widen the image's default 5s interval (which spams logs every 5s).
+      test: ["CMD", "/healthcheck.sh"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
   ### Downloads ###
   transmission:
     image: linuxserver/transmission:4.1.1

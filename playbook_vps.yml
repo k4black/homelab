@@ -164,6 +164,8 @@
           - "{{ services_data_dir }}/myspeed"
           - "{{ services_configs_dir }}/netdata-config"
           - "{{ services_data_dir }}/tailscale"
+          - "{{ services_data_dir }}/filebrowser/config"
+          - "{{ services_data_dir }}/filebrowser/database"
         containers_setup_touch_files: []
         containers_setup_config_templates:
           files/vps/server-wg0.conf.j2: "server-wg0.conf"  # TODO: fix permissions
