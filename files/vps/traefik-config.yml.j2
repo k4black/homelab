@@ -1,0 +1,68 @@
+global:
+  sendAnonymousUsage: false
+
+
+log:
+  level: INFO
+
+api:
+  dashboard: true
+  insecure: true
+
+# Lightweight health endpoint used by `traefik healthcheck` (container healthcheck).
+ping: {}
+
+entryPoints:
+  web:
+    address: ":80"
+    http:
+      # Public VPS — globally redirect HTTP to HTTPS. Traefik internally
+      # handles the /.well-known/acme-challenge bypass for HTTP-01.
+      redirections:
+        entryPoint:
+          to: websecure
+          scheme: https
+          priority: 1
+  websecure:
+    address: ":443"
+    http:
+      tls:
+        # Default cert from the cf resolver (wildcard *.vps.{{ domain }}). Routers
+        # can override per-host with their own certresolver= label.
+        certResolver: cf
+  ping:
+    address: ":8082"
+
+certificatesResolvers:
+  # Cloudflare DNS-01 — wildcard *.vps.{{ domain }} + apex without any HTTP
+  # challenge. Reuses the cloudflare_api_token vault entry (already used by
+  # cloudflare-ddns; has Zone:DNS:Edit on the zone).
+  cf:
+    acme:
+      email: {{ email }}
+      storage: /letsencrypt/acme.json
+      dnsChallenge:
+        provider: cloudflare
+        resolvers:
+          - "1.1.1.1:53"
+          - "9.9.9.9:53"
+  # Tailscale resolver — issues a publicly-trusted cert for vps.<tailnet>.ts.net.
+  # Requires MagicDNS + HTTPS certificates enabled in the tailnet admin console
+  # and the tailscaled.sock shared from the tailscale container.
+  ts:
+    tailscale: {}
+  # Let's Encrypt HTTP-01 — still used by foundryvtt on its DuckDNS hostname,
+  # which isn't in the chernyshev.work zone so DNS-01 wouldn't help there.
+  lehttp:
+    acme:
+      email: {{ email }}
+      storage: /letsencrypt/acme.json
+      httpChallenge:
+        entryPoint: web
+
+providers:
+  docker:
+    exposedByDefault: false
+  file:
+    filename: /etc/traefik/dynamic.yml
+    watch: true

@@ -28,7 +28,23 @@
     group: "{{ containers_setup_user if (testing is undefined or testing != 'true') else omit }}"
   become: true
 
-- name: Create ACME file with secure permissions
+# Docker auto-creates missing bind-mount targets as DIRECTORIES, which makes
+# Traefik refuse acme.json with "permissions 755 are too open". If that happened,
+# wipe the bogus directory so the next task re-creates it as a 0600 file.
+- name: Stat ACME path
+  ansible.builtin.stat:
+    path: "{{ containers_setup_data_dir }}/traefik-letsencrypt/acme.json"
+  register: _acme_stat
+  become: true
+
+- name: Remove ACME path if Docker auto-created it as a directory
+  ansible.builtin.file:
+    path: "{{ containers_setup_data_dir }}/traefik-letsencrypt/acme.json"
+    state: absent
+  when: _acme_stat.stat.exists and _acme_stat.stat.isdir
+  become: true
+
+- name: Create ACME file if missing (content preserved across runs)
   ansible.builtin.copy:
     content: ""
     dest: "{{ containers_setup_data_dir }}/traefik-letsencrypt/acme.json"
@@ -36,6 +52,18 @@
     owner: "{{ containers_setup_user if (testing is undefined or testing != 'true') else omit }}"
     group: "{{ containers_setup_user if (testing is undefined or testing != 'true') else omit }}"
     force: false
+  become: true
+
+# `copy` with `force: false` won't fix the mode if the file already exists with
+# wrong perms (e.g. an earlier run created it 0644, or Traefik wrote it through
+# a previous misconfigured mount). Enforce 0600 unconditionally.
+- name: Enforce 0600 permissions on ACME file
+  ansible.builtin.file:
+    path: "{{ containers_setup_data_dir }}/traefik-letsencrypt/acme.json"
+    state: file
+    mode: 0600
+    owner: "{{ containers_setup_user if (testing is undefined or testing != 'true') else omit }}"
+    group: "{{ containers_setup_user if (testing is undefined or testing != 'true') else omit }}"
   become: true
 
 - name: Create empty files if they don't exist

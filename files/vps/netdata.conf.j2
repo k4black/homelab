@@ -2,6 +2,15 @@
 
 [global]
     hostname = {{ device_name }}
+    # Collect every 2s instead of 1s — halves baseline CPU,
+    # widgets refresh much slower so loses no useful resolution.
+    update every = 2
+
+[plugin:apps]
+    update every = 5
+
+[plugin:cgroups]
+    update every = 5
 
 [db]
     mode = dbengine

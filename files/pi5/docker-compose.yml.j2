@@ -14,6 +14,9 @@ volumes:
   timemachine-run-samba:
   netdata-lib:
   netdata-cache:
+  # Shared between the tailscale daemon and traefik so traefik's `ts` cert
+  # resolver can talk to tailscaled.sock for the *.ts.net certificate.
+  tailscale-socket:
 
 services:
   ### Utils ###
@@ -39,7 +42,11 @@ services:
   traefik:
     image: traefik:v3.7
     container_name: traefik
-    hostname: traefik.pi5.local
+    hostname: traefik.pi5.{{ domain }}
+    environment:
+      # Used by the `cf` ACME resolver for DNS-01. Same token as cloudflare-ddns —
+      # already has Zone:DNS:Edit on the chernyshev.work zone.
+      CF_DNS_API_TOKEN: {{ cloudflare_api_token }}
     ports:
       - "80:80"
       - "443:443"
@@ -48,19 +55,26 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - {{ containers_setup_configs_dir }}/traefik-config.yml:/etc/traefik/traefik.yml:ro
       - {{ containers_setup_configs_dir }}/traefik-dynamic.yml:/etc/traefik/dynamic.yml:ro
-      - {{ containers_setup_configs_dir }}/traefik-acme.json:/acme.json
-      - {{ containers_setup_data_dir }}/traefik-certs:/certs
+      # /letsencrypt/acme.json is created with 0600 by the containers_setup role
+      # ("Create ACME file with secure permissions"). Traefik refuses to use it otherwise.
+      - {{ containers_setup_data_dir }}/traefik-letsencrypt:/letsencrypt
+      - tailscale-socket:/var/run/tailscale
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.traefik.rule=Host(`traefik.pi5.local`)"
+      # HTTPS router for the dashboard (cf wildcard cert).
+      - "traefik.http.routers.traefik.rule=Host(`traefik.pi5.{{ domain }}`)"
       - "traefik.http.routers.traefik.service=api@internal"
-      - "traefik.http.routers.traefik.entrypoints=web"
-      - "traefik.http.services.traefik.loadbalancer.server.port=8080"
-{#      - "traefik.http.routers.traefik.tls.certresolver=myresolver"#}
+      - "traefik.http.routers.traefik.entrypoints=websecure"
+      - "traefik.http.routers.traefik.tls=true"
+      - "traefik.http.routers.traefik.tls.certresolver=cf"
+      # HTTP counterpart redirects to HTTPS.
+      - "traefik.http.routers.traefik-http.rule=Host(`traefik.pi5.{{ domain }}`)"
+      - "traefik.http.routers.traefik-http.entrypoints=web"
+      - "traefik.http.routers.traefik-http.middlewares=https-redirect@file"
       - homepage.group=Networking
       - homepage.name=Traefik
       - homepage.icon=traefik
-      - homepage.href=http://homepage_host:8080
+      - homepage.href=https://traefik.pi5.{{ domain }}
       - homepage.statusStyle=basic
       - homepage.ping=http://traefik:8080
       - homepage.widget.type=traefik
@@ -158,15 +172,21 @@ services:
       - {{ containers_setup_configs_dir }}/pihole-dnsmasq.d:/etc/dnsmasq.d/:rw
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.pihole.rule=Host(`pihole.pi5.local`)"
-      - "traefik.http.routers.pihole.service=api@internal"
-      - "traefik.http.routers.pihole.entrypoints=web"
+      # HTTPS router (cf wildcard cert).
+      - "traefik.http.routers.pihole.rule=Host(`pihole.pi5.{{ domain }}`)"
+      - "traefik.http.routers.pihole.entrypoints=websecure"
+      - "traefik.http.routers.pihole.tls=true"
+      - "traefik.http.routers.pihole.tls.certresolver=cf"
+      - "traefik.http.routers.pihole.service=pihole"
       - "traefik.http.services.pihole.loadbalancer.server.port=80"
-{#      - "traefik.http.routers.pihole.tls.certresolver=myresolver"#}
+      # HTTP counterpart redirects to HTTPS.
+      - "traefik.http.routers.pihole-http.rule=Host(`pihole.pi5.{{ domain }}`)"
+      - "traefik.http.routers.pihole-http.entrypoints=web"
+      - "traefik.http.routers.pihole-http.middlewares=https-redirect@file"
       - homepage.group=Services
       - homepage.name=Pi-hole
       - homepage.icon=pi-hole
-      - homepage.href=http://homepage_host:8053/admin
+      - homepage.href=https://pihole.pi5.{{ domain }}/admin
       - homepage.statusStyle=basic
       - homepage.ping=http://pihole:80
       - homepage.widget.type=pihole
@@ -204,11 +224,29 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     labels:
       - "traefik.enable=true"
-      # Catch-all on :80 — any host that doesn't match a more specific router (traefik.pi5.local, pihole.pi5.local, ...) lands on homepage.
-      - "traefik.http.routers.homepage.rule=PathPrefix(`/`)"
-      - "traefik.http.routers.homepage.priority=1"
-      - "traefik.http.routers.homepage.entrypoints=web"
       - "traefik.http.services.homepage.loadbalancer.server.port=3000"
+      # HTTPS via the Cloudflare wildcard cert.
+      - "traefik.http.routers.homepage.rule=Host(`pi5.{{ domain }}`)"
+      - "traefik.http.routers.homepage.entrypoints=websecure"
+      - "traefik.http.routers.homepage.tls=true"
+      - "traefik.http.routers.homepage.tls.certresolver=cf"
+      - "traefik.http.routers.homepage.service=homepage"
+      # HTTP -> HTTPS for the canonical host.
+      - "traefik.http.routers.homepage-http.rule=Host(`pi5.{{ domain }}`)"
+      - "traefik.http.routers.homepage-http.entrypoints=web"
+      - "traefik.http.routers.homepage-http.middlewares=https-redirect@file"
+      # HTTPS via the Tailscale resolver for the MagicDNS hostname (no wildcards on .ts.net).
+      - "traefik.http.routers.homepage-ts.rule=Host(`{{ device_name }}.gorgon-elver.ts.net`)"
+      - "traefik.http.routers.homepage-ts.entrypoints=websecure"
+      - "traefik.http.routers.homepage-ts.tls=true"
+      - "traefik.http.routers.homepage-ts.tls.certresolver=ts"
+      - "traefik.http.routers.homepage-ts.service=homepage"
+      # Catch-all on :80 (low priority) so bare hostnames like http://pi5/ and
+      # http://pi5.local/ still land on the dashboard without a cert warning.
+      - "traefik.http.routers.homepage-fallback.rule=PathPrefix(`/`)"
+      - "traefik.http.routers.homepage-fallback.priority=1"
+      - "traefik.http.routers.homepage-fallback.entrypoints=web"
+      - "traefik.http.routers.homepage-fallback.service=homepage"
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000"]
       interval: 30s
@@ -322,7 +360,9 @@ services:
     pid: host
     environment:
       TZ: {{ timezone }}
-      GLANCES_OPT: "-w"
+      # -w web/API mode; -t 10 = refresh every 10s instead of default 3s (homepage polls ~15s anyway);
+      # disable plugins we never query (cuts per-tick work substantially on a Pi 5).
+      GLANCES_OPT: "-w -t 10 --disable-plugin sensors,smart,raid,hddtemp,wifi,gpu,ports,irq,folders,amps"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /:/rootfs:ro
@@ -393,11 +433,17 @@ services:
     environment:
       TS_AUTHKEY: {{ tailscale_authkey }}
       TS_STATE_DIR: /var/lib/tailscale
+      # Default is /tmp/tailscaled.sock symlinked into /var/run/tailscale — the
+      # symlink target isn't shareable across containers, so put the real socket
+      # in the shared volume directly. Traefik's `ts` resolver expects this path.
+      TS_SOCKET: /var/run/tailscale/tailscaled.sock
       TS_EXTRA_ARGS: --accept-dns=false --advertise-exit-node
       TS_ENABLE_HEALTH_CHECK: true
     volumes:
       - {{ containers_setup_data_dir }}/tailscale:/var/lib/tailscale
       - /dev/net/tun:/dev/net/tun
+      # Expose tailscaled.sock to traefik (which uses it for the `ts` cert resolver).
+      - tailscale-socket:/var/run/tailscale
     labels:
       - homepage.group=Networking
       - homepage.name=Tailscale

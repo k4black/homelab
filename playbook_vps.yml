@@ -154,6 +154,7 @@
         containers_setup_data_dir: "{{ services_data_dir }}"
         containers_setup_docker_compose_template: "files/vps/docker-compose.yml.j2"
         containers_setup_make_dirs:
+          - "{{ services_data_dir }}/traefik-letsencrypt"
           - "{{ services_configs_dir }}/pihole"
           - "{{ services_configs_dir }}/pihole-dnsmasq.d"
           - "{{ services_data_dir }}/foundryvtt"
@@ -169,6 +170,8 @@
           files/vps/pihole-02-custom-dns.conf.j2: "pihole-dnsmasq.d/02-custom-dns.conf"
           files/vps/pihole-adlists.list: "pihole/adlists.list"
           files/vps/pihole-custom.list.j2: "pihole/custom.list"
+          files/vps/traefik-config.yml.j2: "traefik-config.yml"
+          files/vps/traefik-dynamic.yml.j2: "traefik-dynamic.yml"
           files/vps/netdata.conf.j2: "netdata-config/netdata.conf"
           files/vps/netdata-stream.conf.j2: "netdata-config/stream.conf"
 

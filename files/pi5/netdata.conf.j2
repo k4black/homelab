@@ -2,6 +2,17 @@
 
 [global]
     hostname = {{ device_name }}
+    # Collect every 2s instead of 1s — halves baseline CPU on a Pi 5;
+    # homepage/glances widgets refresh much slower so loses no useful resolution.
+    update every = 2
+
+# apps.plugin walks the full process tree every tick — by far the heaviest collector.
+[plugin:apps]
+    update every = 5
+
+# Per-cgroup metrics for every container; we don't need 1s resolution either.
+[plugin:cgroups]
+    update every = 5
 
 [db]
     mode = dbengine

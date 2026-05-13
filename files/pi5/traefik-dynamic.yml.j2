@@ -1,8 +1,8 @@
 http:
   middlewares:
-    # Allow only trusted networks. Applied as the default middleware on the `web`
-    # entrypoint (see traefik-config.yml.j2), so any router without an explicit
-    # opt-out inherits the restriction.
+    # Allow only trusted networks. Applied as the default middleware on both the
+    # `web` and `websecure` entrypoints (see traefik-config.yml.j2), so any router
+    # without an explicit opt-out inherits the restriction.
     internal-only:
       ipAllowList:
         sourceRange:
@@ -12,3 +12,25 @@ http:
           - 100.64.0.0/10                        # Tailscale CGNAT
           - {{ pi5_docker_network_subnet }}      # pi5 docker bridge
           - 172.16.0.0/12                        # default docker bridges
+
+    # Permanent HTTP -> HTTPS redirect. Attached per-router to the `*-http`
+    # variants below so bare-hostname HTTP access (e.g. http://pi5/) still falls
+    # through to the homepage catch-all instead of redirecting to an unservable
+    # https://pi5/.
+    https-redirect:
+      redirectScheme:
+        scheme: https
+        permanent: true
+
+tls:
+  stores:
+    default:
+      # Default cert presented for any TLS handshake that doesn't match a more
+      # specific certificate — the cf resolver fetches one wildcard covering all
+      # internal services in one go (and keeps subdomain names out of CT logs).
+      defaultGeneratedCert:
+        resolver: cf
+        domain:
+          main: "pi5.{{ domain }}"
+          sans:
+            - "*.pi5.{{ domain }}"

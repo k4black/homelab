@@ -18,25 +18,37 @@ entryPoints:
     http:
       middlewares:
         - internal-only@file
-{#    http:#}
-{#      redirections:#}
-{#        entryPoint:#}
-{#          to: websecure#}
-{#          scheme: https#}
+  websecure:
+    address: ":443"
+    http:
+      middlewares:
+        - internal-only@file
+      tls:
+        # Wildcard cert from the cf resolver is the default for any TLS connection
+        # (see tls.stores.default.defaultGeneratedCert in dynamic.yml).
+        certResolver: cf
 
-{#  websecure:#}
-{#    address: ":443"#}
-{#    http:#}
-{#      tls:#}
-{#        certResolver: myresolver#}
-
-{#certificatesResolvers:#}
-{#  myresolver:#}
-{#    acme:#}
-{#      email: {{ email }}#}
-{#      storage: acme.json#}
-{#      httpChallenge:#}
-{#        entryPoint: web#}
+certificatesResolvers:
+  # Cloudflare DNS-01 — issues a wildcard *.pi5.{{ domain }} + apex cert without
+  # any inbound port exposure. Reuses the existing cloudflare_api_token vault entry;
+  # for stricter isolation, mint a separate token scoped to Zone:DNS:Edit only.
+  cf:
+    acme:
+      email: {{ email }}
+      storage: /letsencrypt/acme.json
+      dnsChallenge:
+        provider: cloudflare
+        # Resolve _acme-challenge against public DNS so Pi-hole's local overrides
+        # don't intercept the propagation check.
+        resolvers:
+          - "1.1.1.1:53"
+          - "9.9.9.9:53"
+  # Tailscale resolver — issues a publicly-trusted cert for pi5.<tailnet>.ts.net
+  # by talking to the local tailscaled over its unix socket (mounted into this
+  # container from the tailscale service via a shared volume). MagicDNS + HTTPS
+  # certs must be enabled in the tailnet admin console.
+  ts:
+    tailscale: {}
 
 providers:
   docker:

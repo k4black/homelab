@@ -240,6 +240,36 @@
           loop_control:
             label: "{{ item.item }}"
 
+    # Pi 5 ships with memory cgroup disabled; docker can't report container memory
+    # until it's enabled. Appends args to /boot/firmware/cmdline.txt (single-line file)
+    # only when missing — requires a reboot to take effect.
+    - name: Enable memory cgroup in kernel cmdline
+      # /boot/firmware is FAT32 which rejects ':' / '@' in filenames, so Ansible's
+      # timestamped backup file cannot be created — keep a copy on the ext4 root instead.
+      block:
+        - name: Snapshot current cmdline to /root before editing
+          ansible.builtin.copy:
+            src: /boot/firmware/cmdline.txt
+            dest: /root/cmdline.txt.bak
+            remote_src: true
+            force: false
+            mode: '0600'
+          become: true
+        - name: Append memory cgroup args if missing
+          ansible.builtin.replace:
+            path: /boot/firmware/cmdline.txt
+            regexp: '^(?!.*cgroup_enable=memory)(.*)$'
+            replace: '\1 cgroup_enable=memory cgroup_memory=1'
+          become: true
+          register: cmdline_change
+      tags: [docker]
+
+    - name: Notify if reboot required for memory cgroup
+      ansible.builtin.debug:
+        msg: "memory cgroup args appended to /boot/firmware/cmdline.txt — reboot pi5 to take effect ('docker stats' will report memory after reboot)."
+      when: cmdline_change is defined and cmdline_change.changed
+      tags: [docker]
+
     # Tailscale exit-node requires IP forwarding on the host.
     - name: Enable IP forwarding for Tailscale exit node
       ansible.posix.sysctl:
@@ -276,7 +306,7 @@
         containers_setup_data_dir: "{{ services_data_dir }}"
         containers_setup_docker_compose_template: "files/pi5/docker-compose.yml.j2"
         containers_setup_make_dirs:
-          - "{{ services_data_dir }}/traefik-certs"
+          - "{{ services_data_dir }}/traefik-letsencrypt"
           - "{{ services_configs_dir }}/home-assistant-config"
           - "{{ services_configs_dir }}/homepage-config"
           - "{{ services_data_dir }}/homepage-logs"
@@ -287,8 +317,7 @@
           - "{{ services_configs_dir }}/netdata-config"
           - "{{ services_configs_dir }}/netdata-config/go.d"
           - "{{ services_data_dir }}/tailscale"
-        containers_setup_touch_files:
-          - "{{ services_configs_dir }}/traefik-acme.json"
+        containers_setup_touch_files: []
         containers_setup_config_templates:
           files/pi5/server-wg0.conf.j2: "server-wg0.conf"  # TODO: fix permissions
           files/pi5/home-assistant-config.yml.j2: "home-assistant-config/configuration.yaml"

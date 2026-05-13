@@ -1,0 +1,12 @@
+tls:
+  stores:
+    default:
+      # Pre-fetched wildcard cert presented for any TLS handshake that doesn't
+      # match a more specific certificate (e.g. routers pinned to the `lehttp`
+      # or `ts` resolvers).
+      defaultGeneratedCert:
+        resolver: cf
+        domain:
+          main: "vps.{{ domain }}"
+          sans:
+            - "*.vps.{{ domain }}"

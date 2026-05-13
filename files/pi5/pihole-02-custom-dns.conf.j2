@@ -1,3 +1,5 @@
-cname=pihole.home.lab,home.lab
-cname=traefik.home.lab,home.lab
-cname=assistant.home.lab,home.lab
+# Split-horizon DNS: from inside the LAN, *.pi5.{{ domain }} resolves to the Pi's
+# LAN IP so traefik terminates TLS locally without round-tripping to the WAN.
+# From outside, the public Cloudflare A record (managed by cloudflare-ddns) wins.
+# dnsmasq matches both apex and subdomains for an `address=/.../...` entry.
+address=/pi5.{{ domain }}/{{ pi5_local_ipv4 }}

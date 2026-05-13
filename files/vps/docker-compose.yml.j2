@@ -11,6 +11,9 @@ networks:
 volumes:
   netdata-lib:
   netdata-cache:
+  # Shared between the tailscale daemon and traefik so traefik's `ts` cert
+  # resolver can reach tailscaled.sock for the *.ts.net certificate.
+  tailscale-socket:
 
 
 services:
@@ -107,35 +110,20 @@ services:
   traefik:
     image: traefik:v3.7
     container_name: traefik
-    command:
-      - --providers.docker=true
-      - --providers.docker.endpoint=unix:///var/run/docker.sock
-      - --providers.docker.exposedbydefault=false
-      - --providers.docker.watch=true
-{#      - --providers.docker.network={{ vps_docker_network_name }}#}
-      # entrypoints
-      - --entrypoints.web.address=:80
-      - --entrypoints.websecure.address=:443
-      - --entrypoints.ping.address=:8082
-      # HTTP to HTTPS redirect (but allow ACME challenges)
-      - --entrypoints.web.http.redirections.entrypoint.to=websecure
-      - --entrypoints.web.http.redirections.entrypoint.scheme=https
-      - --entrypoints.web.http.redirections.entrypoint.priority=1
-      # ACME (Let's Encrypt) - HTTP-01 (no email set; optional)
-      - --certificatesresolvers.lehttp.acme.storage=/letsencrypt/acme.json
-      - --certificatesresolvers.lehttp.acme.httpchallenge.entrypoint=web
-      # ping
-      - --ping=true
-      - --ping.entrypoint=ping
-      # (optional) dashboard (secure behind your VPN if you expose 8080)
-      - --api.dashboard=true
+    environment:
+      # Used by the `cf` ACME resolver for DNS-01. Same token as cloudflare-ddns —
+      # already has Zone:DNS:Edit on the chernyshev.work zone.
+      CF_DNS_API_TOKEN: {{ cloudflare_api_token }}
     ports:
       - "80:80"
       - "443:443"
       - "8080:8080"  # optional dashboard
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
+      - {{ containers_setup_configs_dir }}/traefik-config.yml:/etc/traefik/traefik.yml:ro
+      - {{ containers_setup_configs_dir }}/traefik-dynamic.yml:/etc/traefik/dynamic.yml:ro
       - {{ containers_setup_data_dir }}/traefik-letsencrypt:/letsencrypt
+      - tailscale-socket:/var/run/tailscale
     healthcheck:
       test: ["CMD", "traefik", "healthcheck", "--ping=true", "--ping.entrypoint=ping"]
       interval: 30s
@@ -216,7 +204,9 @@ req.end();"]
     pid: host
     environment:
       TZ: {{ timezone }}
-      GLANCES_OPT: "-w"
+      # -w web/API mode; -t 10 = refresh every 10s instead of default 3s (homepage polls ~15s anyway);
+      # disable plugins we never query.
+      GLANCES_OPT: "-w -t 10 --disable-plugin sensors,smart,raid,hddtemp,wifi,gpu,ports,irq,folders,amps"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /:/rootfs:ro
@@ -270,11 +260,17 @@ req.end();"]
     environment:
       TS_AUTHKEY: {{ tailscale_authkey }}
       TS_STATE_DIR: /var/lib/tailscale
+      # Default is /tmp/tailscaled.sock symlinked into /var/run/tailscale — the
+      # symlink target isn't shareable across containers, so put the real socket
+      # in the shared volume directly. Traefik's `ts` resolver expects this path.
+      TS_SOCKET: /var/run/tailscale/tailscaled.sock
       TS_EXTRA_ARGS: --accept-dns=false --advertise-exit-node
       TS_ENABLE_HEALTH_CHECK: true
     volumes:
       - {{ containers_setup_data_dir }}/tailscale:/var/lib/tailscale
       - /dev/net/tun:/dev/net/tun
+      # Expose tailscaled.sock to traefik (which uses it for the `ts` cert resolver).
+      - tailscale-socket:/var/run/tailscale
     healthcheck:
       test: [ "CMD", "wget", "--spider", "-q", "http://127.0.0.1:9002/healthz" ]
     restart: unless-stopped
