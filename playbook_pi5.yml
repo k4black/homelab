@@ -207,38 +207,46 @@
         mode: 0600
         owner: "{{ ansible_user_id }}"
 
-    - name: Setup disk auto-mount
+    - name: Setup external storage auto-mount
       when: testing is undefined or testing != 'true'
       block:
-        - name: Add fstab entries for backup disks (auto-mount when connected)
+        - name: Add fstab entry for /mnt/storage (auto-mount when disk attached)
           ansible.posix.mount:
-            path: "{{ item.path }}"
-            src: "UUID={{ item.uuid }}"
+            path: /mnt/storage
+            src: "UUID={{ storage_disk_uuid }}"
             fstype: ext4
             opts: defaults,nofail
             state: present
             dump: 0
             passno: 2
-          loop:
-            - {path: /mnt/backups, uuid: "{{ backup_general_uuid }}"}
-            - {path: /mnt/timemachine, uuid: "{{ backup_timemachine_uuid }}"}
           become: true
-        - name: Try mounting disks (warn if not attached)
-          ansible.builtin.command: mount {{ item }}
-          loop:
-            - /mnt/backups
-            - /mnt/timemachine
+
+        # Check current mount state BEFORE attempting `mount` — re-running
+        # `mount /mnt/storage` when it's already mounted stacks a duplicate
+        # bind mount on top (we hit this with the old /mnt/backups +
+        # /mnt/timemachine entries; lsblk showed the partition mounted 3x
+        # and umount had to be called per layer to drain).
+        - name: Check if /mnt/storage is already mounted
+          ansible.builtin.command: mountpoint -q /mnt/storage
           become: true
+          register: storage_mountpoint
+          failed_when: false
+          changed_when: false
+
+        - name: Mount /mnt/storage (only when not already mounted)
+          ansible.builtin.command: mount /mnt/storage
+          become: true
+          when: storage_mountpoint.rc != 0
           register: mount_result
           changed_when: mount_result.rc == 0
           failed_when: false
-        - name: Warn about unmounted disks
+
+        - name: Warn if /mnt/storage could not be mounted (disk not attached?)
           ansible.builtin.debug:
-            msg: "WARNING: {{ item.item }} could not be mounted — disk not attached?"
-          loop: "{{ mount_result.results }}"
-          when: item.rc != 0
-          loop_control:
-            label: "{{ item.item }}"
+            msg: "WARNING: /mnt/storage is not mounted — external disk attached?"
+          when:
+            - storage_mountpoint.rc != 0
+            - mount_result.rc | default(1) != 0
 
     # Pi 5 ships with memory cgroup disabled; docker can't report container memory
     # until it's enabled. Appends args to /boot/firmware/cmdline.txt (single-line file)
@@ -321,8 +329,26 @@
           - "{{ services_data_dir }}/filebrowser/database"
           - "{{ services_data_dir }}/jellyfin/config"
           - "{{ services_data_dir }}/jellyfin/cache"
+          - "{{ services_data_dir }}/prowlarr/config"
+          - "{{ services_data_dir }}/radarr/config"
+          - "{{ services_data_dir }}/sonarr/config"
+          # Canonical TRaSH layout on the external storage disk. Mounted at
+          # /mnt/storage and bind-mounted into Radarr/Sonarr/Transmission as
+          # /data; into Jellyfin as /media (read-only). Subdirs created here so
+          # containers_setup_user owns them (1000:1000). /backups is a sibling
+          # for general personal backups (not bind-mounted into *arr containers).
+          - "/mnt/storage/backups"
+          - "/mnt/storage/torrents"
+          - "/mnt/storage/torrents/movies"
+          - "/mnt/storage/torrents/tv"
+          - "/mnt/storage/torrents/.incomplete"
+          - "/mnt/storage/media"
+          - "/mnt/storage/media/books"
+          - "/mnt/storage/media/movies"
+          - "/mnt/storage/media/tv"
         containers_setup_touch_files: []
         containers_setup_config_templates:
+          files/pi5/transmission-settings.json.j2: "transmission-config/settings.json"
           files/pi5/server-wg0.conf.j2: "server-wg0.conf"  # TODO: fix permissions
           files/pi5/home-assistant-config.yml.j2: "home-assistant-config/configuration.yaml"
           files/pi5/pihole-02-custom-dns.conf.j2: "pihole-dnsmasq.d/02-custom-dns.conf"
@@ -387,7 +413,10 @@
           # wizard finishes, so default to false to fire the block on fresh installs.
           when: not (jf_info.json.StartupWizardCompleted | default(false))
           block:
-            - name: Set locale/language
+            - name: Set locale/language (retry until Startup endpoint is ready)
+              # /System/Info/Public answers before Jellyfin's Startup/* routes
+              # finish initialising, so the first call here can hit 503 with a
+              # Retry-After header — retry until we get a 2xx.
               ansible.builtin.uri:
                 url: "{{ jf_url }}/Startup/Configuration"
                 method: POST
@@ -396,7 +425,22 @@
                   UICulture: "en-US"
                   MetadataCountryCode: "US"
                   PreferredMetadataLanguage: "en"
-                status_code: [200, 204]
+                status_code: [200, 204, 503]
+              register: jf_locale
+              retries: 30
+              delay: 5
+              until: jf_locale.status in [200, 204]
+
+            - name: Trigger Jellyfin default-user lazy-creation
+              # Jellyfin doesn't create the default admin user until something
+              # queries /Startup/User — POSTing without this GET hits .First()
+              # on an empty collection and throws 500 "Sequence contains no
+              # elements" (logged in 10.11.8). The GET response is discarded;
+              # only the side effect (user "MyJellyfinUser" created) matters.
+              ansible.builtin.uri:
+                url: "{{ jf_url }}/Startup/User"
+                method: GET
+                status_code: 200
 
             - name: Create admin user
               ansible.builtin.uri:
@@ -424,31 +468,119 @@
                 method: POST
                 status_code: [200, 204]
 
-            - name: Authenticate as admin (to get token for library setup)
-              ansible.builtin.uri:
-                url: "{{ jf_url }}/Users/AuthenticateByName"
-                method: POST
-                headers:
-                  X-Emby-Authorization: 'MediaBrowser Client="ansible", Device="ansible", DeviceId="ansible", Version="1"'
-                body_format: json
-                body:
-                  Username: "{{ jf_admin_user }}"
-                  Pw: "{{ jf_admin_password }}"
-                status_code: 200
-              register: jf_auth
+        # Library registration runs on EVERY playbook execution — gated per-library
+        # by GET /Library/VirtualFolders so existing libraries are skipped silently.
+        # Pulled out of the wizard block so existing installs (where StartupWizard-
+        # Completed is true) also get any new libraries added — e.g. when the
+        # canonical /media/{movies,tv} layout replaces an earlier single /media.
+        - name: Authenticate as admin (token for library management)
+          ansible.builtin.uri:
+            url: "{{ jf_url }}/Users/AuthenticateByName"
+            method: POST
+            headers:
+              X-Emby-Authorization: 'MediaBrowser Client="ansible", Device="ansible", DeviceId="ansible", Version="1"'
+            body_format: json
+            body:
+              Username: "{{ jf_admin_user }}"
+              Pw: "{{ jf_admin_password }}"
+            status_code: 200
+          register: jf_auth
 
-            - name: Add /media as Movies library
-              ansible.builtin.uri:
-                url: "{{ jf_url }}/Library/VirtualFolders?name=Movies&collectionType=movies&refreshLibrary=true"
-                method: POST
-                headers:
-                  X-Emby-Token: "{{ jf_auth.json.AccessToken }}"
-                body_format: json
-                body:
-                  LibraryOptions:
-                    PathInfos:
-                      - Path: /media
-                status_code: [200, 204]
+        - name: List existing Jellyfin libraries
+          ansible.builtin.uri:
+            url: "{{ jf_url }}/Library/VirtualFolders"
+            headers:
+              X-Emby-Token: "{{ jf_auth.json.AccessToken }}"
+          register: jf_libs
+
+        - name: Add missing Jellyfin libraries (Movies, TV Shows, Books)
+          ansible.builtin.uri:
+            url: "{{ jf_url }}/Library/VirtualFolders?name={{ item.name | urlencode }}&collectionType={{ item.collection }}&refreshLibrary=true"
+            method: POST
+            headers:
+              X-Emby-Token: "{{ jf_auth.json.AccessToken }}"
+            body_format: json
+            body:
+              LibraryOptions:
+                PathInfos:
+                  - Path: "{{ item.path }}"
+            status_code: [200, 204]
+          loop:
+            - {name: "Movies",    collection: "movies",     path: "/media/movies"}
+            - {name: "TV Shows",  collection: "tvshows",    path: "/media/tv"}
+            - {name: "Books",     collection: "books",      path: "/media/books"}
+          when: (jf_libs.json | selectattr('Name', 'equalto', item.name) | list | length) == 0
+
+    # Prowlarr/Radarr/Sonarr don't accept auth via env vars — auth lives in
+    # /config/config.xml. Patch in-place after the apps create their initial
+    # config, then restart so the change takes effect. DisabledForLocalAddresses
+    # lets RFC1918/Docker-bridge clients in without a login; external clients
+    # (Tailscale/VPN-only here anyway) get the Forms login screen.
+    - name: Configure *arr auth (no auth for local addresses)
+      tags: [docker]
+      become: true
+      block:
+        - name: Wait for {{ item }} config.xml to be created
+          ansible.builtin.wait_for:
+            path: "{{ services_data_dir }}/{{ item }}/config/config.xml"
+            timeout: 120
+          loop:
+            - prowlarr
+            - radarr
+            - sonarr
+
+        # Using ansible.builtin.replace (regex) instead of community.general.xml
+        # to avoid the python3-lxml dependency on the remote. *arr config.xml is
+        # a flat one-element-per-line format, so a tight regex is reliable.
+        - name: Set {{ item }} AuthenticationMethod = Forms
+          ansible.builtin.replace:
+            path: "{{ services_data_dir }}/{{ item }}/config/config.xml"
+            regexp: '<AuthenticationMethod>[^<]*</AuthenticationMethod>'
+            replace: '<AuthenticationMethod>Forms</AuthenticationMethod>'
+          loop:
+            - prowlarr
+            - radarr
+            - sonarr
+          register: arr_auth_method
+
+        - name: Set {{ item }} AuthenticationRequired = DisabledForLocalAddresses
+          ansible.builtin.replace:
+            path: "{{ services_data_dir }}/{{ item }}/config/config.xml"
+            regexp: '<AuthenticationRequired>[^<]*</AuthenticationRequired>'
+            replace: '<AuthenticationRequired>DisabledForLocalAddresses</AuthenticationRequired>'
+          loop:
+            - prowlarr
+            - radarr
+            - sonarr
+          register: arr_auth_required
+
+        - name: Restart *arr containers if auth config changed
+          ansible.builtin.command: docker restart {{ item }}
+          loop:
+            - prowlarr
+            - radarr
+            - sonarr
+          loop_control:
+            index_var: arr_idx
+          when: arr_auth_method.results[arr_idx].changed or arr_auth_required.results[arr_idx].changed
+          changed_when: true
+
+    # Wire up Transmission as Radarr/Sonarr download client (+ root folders) and
+    # register Radarr/Sonarr as Prowlarr Applications so indexers auto-sync.
+    # Indexers themselves are NOT seeded — see comments in the included tasks.
+    # include_tasks (not import_tasks) so the included tasks see vars; apply:
+    # propagates the `docker` tag so `--tags docker` runs included tasks too.
+    - name: Auto-configure *arr stack (download client + root folders + Prowlarr apps)
+      tags: [docker]
+      vars:
+        prowlarr_url: "http://127.0.0.1:9696"
+        radarr_url: "http://127.0.0.1:7878"
+        sonarr_url: "http://127.0.0.1:8989"
+        flaresolverr_url: "http://127.0.0.1:8191"
+      ansible.builtin.include_tasks:
+        file: tasks/configure_arr_stack.yml
+        apply:
+          tags: [docker]
 
   # handlers:
 #    - name: Restart avahi service

@@ -323,12 +323,13 @@ services:
     restart: unless-stopped
 
   ### Media ###
-  # Direct-play media server for LAN clients (iOS/Apple TV/Mac). Mounts
-  # /mnt/backups/downloads (transmission target) as read-only so the UI can't
-  # delete source files. No HW transcoding configured — Pi 5's VideoCore VII
-  # V4L2 path is still maturing in 2025-2026, and modern clients direct-play
-  # H.264/HEVC fine. To enable HW transcode later: pass `--device /dev/dri`
-  # and configure Jellyfin > Playback > VAAPI in the admin UI.
+  # Direct-play media server for LAN clients (iOS/Apple TV/Mac). Mounts the
+  # media subset of the storage pool read-only so the UI can't delete source files.
+  # Library is split into /media/movies (Radarr) and /media/tv (Sonarr). No HW
+  # transcoding configured — Pi 5's VideoCore VII V4L2 path is still maturing in
+  # 2025-2026, and modern clients direct-play H.264/HEVC fine. To enable HW
+  # transcode later: pass `--device /dev/dri` and configure Jellyfin > Playback >
+  # VAAPI in the admin UI.
   jellyfin:
     image: jellyfin/jellyfin:10.11.8
     container_name: jellyfin
@@ -347,9 +348,9 @@ services:
     volumes:
       - {{ containers_setup_data_dir }}/jellyfin/config:/config
       - {{ containers_setup_data_dir }}/jellyfin/cache:/cache
-      - /mnt/backups/downloads:/media:ro
+      - /mnt/storage/media:/media:ro
     labels:
-      - homepage.group=Services
+      - homepage.group=Media
       - homepage.name=Jellyfin
       - homepage.icon=jellyfin
       - homepage.href=http://homepage_host:8096
@@ -357,6 +358,121 @@ services:
       - homepage.ping=http://jellyfin:8096
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8096/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # Indexer aggregator. Replaces Jackett; Radarr/Sonarr pull indexers from here.
+  # No auth by default — relies on LAN/VPN gating. To set a password later,
+  # visit Settings > General in the UI.
+  prowlarr:
+    image: linuxserver/prowlarr:2.3.5
+    container_name: prowlarr
+    environment:
+      PUID: 1000
+      PGID: 1000
+      TZ: {{ timezone }}
+    ports:
+      - "9696:9696"
+    volumes:
+      - {{ containers_setup_data_dir }}/prowlarr/config:/config
+    labels:
+      - homepage.group=Media
+      - homepage.name=Prowlarr
+      - homepage.icon=prowlarr
+      - homepage.href=http://homepage_host:9696
+      - homepage.statusStyle=basic
+      - homepage.ping=http://prowlarr:9696
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:9696/ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # Movie automation. TRaSH-canonical single /data mount — both /data/torrents
+  # (download dir, populated by Transmission) and /data/media (library) live
+  # under one bind mount so hardlinks (atomic, no copy) stay within one mounted
+  # filesystem from the container's perspective. Path translation against
+  # Transmission's /downloads view happens via Radarr's Remote Path Mapping
+  # configured in tasks/configure_arr_stack.yml.
+  radarr:
+    image: linuxserver/radarr:6.1.1
+    container_name: radarr
+    environment:
+      PUID: 1000
+      PGID: 1000
+      TZ: {{ timezone }}
+    ports:
+      - "7878:7878"
+    volumes:
+      - {{ containers_setup_data_dir }}/radarr/config:/config
+      - /mnt/storage:/data
+    labels:
+      - homepage.group=Media
+      - homepage.name=Radarr
+      - homepage.icon=radarr
+      - homepage.href=http://homepage_host:7878
+      - homepage.statusStyle=basic
+      - homepage.ping=http://radarr:7878
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:7878/ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # CloudFlare-challenge solver for Prowlarr. Many public trackers (1337x,
+  # KickAssTorrents, sometimes LimeTorrents/EZTV) sit behind CloudFlare —
+  # they fail Prowlarr's connectivity test otherwise. Wired into Prowlarr's
+  # "Indexer Proxy" with a tag; indexers tagged the same way route their
+  # requests through this container. Note: FS runs a headless Chromium
+  # (200-400 MB RAM) — pay the cost only when CF-protected indexers are wanted.
+  flaresolverr:
+    image: ghcr.io/flaresolverr/flaresolverr:v3.3.21
+    container_name: flaresolverr
+    environment:
+      LOG_LEVEL: info
+      TZ: {{ timezone }}
+    ports:
+      - "8191:8191"
+    labels:
+      - homepage.group=Media
+      - homepage.name=FlareSolverr
+      - homepage.icon=flaresolverr
+      - homepage.href=http://homepage_host:8191
+      - homepage.statusStyle=basic
+      - homepage.ping=http://flaresolverr:8191
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8191/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # TV automation. Same canonical /data mount as Radarr — see comment above.
+  sonarr:
+    image: linuxserver/sonarr:4.0.17
+    container_name: sonarr
+    environment:
+      PUID: 1000
+      PGID: 1000
+      TZ: {{ timezone }}
+    ports:
+      - "8989:8989"
+    volumes:
+      - {{ containers_setup_data_dir }}/sonarr/config:/config
+      - /mnt/storage:/data
+    labels:
+      - homepage.group=Media
+      - homepage.name=Sonarr
+      - homepage.icon=sonarr
+      - homepage.href=http://homepage_host:8989
+      - homepage.statusStyle=basic
+      - homepage.ping=http://sonarr:8989
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8989/ping"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -377,7 +493,7 @@ services:
     volumes:
       - {{ containers_setup_data_dir }}/filebrowser/config:/config
       - {{ containers_setup_data_dir }}/filebrowser/database:/database
-      - /mnt/backups:/srv/backups
+      - /mnt/storage:/srv/storage
       - {{ containers_setup_data_dir }}:/srv/services-data
     labels:
       - homepage.group=Storage
@@ -397,6 +513,12 @@ services:
     restart: unless-stopped
 
   ### Downloads ###
+  # TRaSH-canonical single /data mount, identical to Radarr/Sonarr. Transmission
+  # writes completed torrents into /data/torrents/{movies,tv} (the per-torrent
+  # download-dir is set by Radarr/Sonarr when they add the torrent). Incomplete-
+  # dir is disabled in settings.json — partial files get .part suffix in place.
+  # Hardlinks from /data/torrents/* into /data/media/* are atomic because every
+  # container sees them as a single mount.
   transmission:
     image: linuxserver/transmission:4.1.1
     container_name: transmission
@@ -404,15 +526,27 @@ services:
       PUID: 1000
       PGID: 1000
       TZ: {{ timezone }}
+      # LSIO clobbers settings.json's umask from this on every start. 002 →
+      # group-writable files, required for Radarr/Sonarr (same PGID 1000) to
+      # hardlink/delete Transmission's downloads.
+      UMASK: "002"
+      # Transmission 4.x still IP-filters even when rpc-whitelist-enabled is
+      # false (undocumented anti-DNS-rebinding behaviour, log line "IP not
+      # whitelisted"). Explicitly allow loopback + docker bridges + LAN here so
+      # Radarr/Sonarr (sibling containers on the bridge) can reach the RPC.
+      WHITELIST: "127.0.0.1,10.*.*.*,172.16.*.*,172.17.*.*,172.18.*.*,192.168.*.*"
+      # Disable the Host-header rebinding check too — RPC is LAN/VPN-gated and
+      # UFW blocks :9091 from the public internet, so this is acceptable.
+      HOST_WHITELIST: "*"
     ports:
       - "9091:9091"
       - "51413:51413"
       - "51413:51413/udp"
     volumes:
       - {{ containers_setup_configs_dir }}/transmission-config:/config
-      - /mnt/backups/downloads:/downloads
+      - /mnt/storage:/data
     labels:
-      - homepage.group=Storage
+      - homepage.group=Media
       - homepage.name=Transmission
       - homepage.icon=transmission
       - homepage.href=http://homepage_host:9091

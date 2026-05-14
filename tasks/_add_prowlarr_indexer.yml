@@ -1,0 +1,79 @@
+---
+# Adds a single indexer to Prowlarr via POST(enable=false) + PUT(enable=true&forceSave=true).
+#
+# Why this dance: POST /api/v1/indexer ALWAYS runs Test() when the body has
+# enable=true. forceSave only downgrades the test on POST (errors stay errors).
+# PUT /api/v1/indexer/{id}?forceSave=true is the only branch in Prowlarr's
+# ProviderControllerBase.cs that genuinely skips Test(). So we POST disabled
+# (Test gated on Enable so it doesn't run), get an id, then PUT enabled.
+# Result: indexer is saved+enabled regardless of current site availability.
+#
+# Inputs (via vars on the include):
+#   indexer_name         - must match Prowlarr schema entry exactly (case-sensitive)
+#   indexer_fields       - dict {field_name: value} to override schema defaults
+#                          (e.g. {username: "...", password: "..."})
+#   indexer_cf_protected - bool; if true, tag with flaresolverr_tag_id
+
+- name: "[{{ indexer_name }}] Locate schema"
+  ansible.builtin.set_fact:
+    arr_schema: "{{ (prowlarr_schemas.json | selectattr('name', 'equalto', indexer_name) | list | first) | default({}) }}"
+
+# Initialise arr_fields unconditionally — Ansible may evaluate the body of
+# downstream `set_fact` tasks even when their `when:` says skip, so an
+# undefined arr_fields will fault before the skip kicks in.
+- name: "[{{ indexer_name }}] Initialise merged fields accumulator"
+  ansible.builtin.set_fact:
+    arr_fields: []
+
+- name: "[{{ indexer_name }}] Skip (already exists or schema missing)"
+  ansible.builtin.debug:
+    msg: >-
+      {{ 'Already present in Prowlarr — skipping'
+         if (prowlarr_idxs.json | selectattr('name', 'equalto', indexer_name) | list | length) > 0
+         else 'Not found in Prowlarr schema catalog — skipping (renamed/dropped upstream?)' }}
+  when: >-
+    (prowlarr_idxs.json | selectattr('name', 'equalto', indexer_name) | list | length) > 0
+    or not arr_schema
+
+- name: "[{{ indexer_name }}] Add to Prowlarr"
+  when:
+    - (prowlarr_idxs.json | selectattr('name', 'equalto', indexer_name) | list | length) == 0
+    - arr_schema != {}
+  block:
+    # Build the fields list one element at a time so we can apply per-field
+    # overrides (Jinja's `combine` filter is dict-only, can't deep-merge a
+    # list-of-dicts keyed on `name`). Rename loop var from `item` to `f` to
+    # avoid shadowing the outer include_tasks loop's `item` (the indexer).
+    - name: "[{{ indexer_name }}] Merge each schema field with user overrides"
+      ansible.builtin.set_fact:
+        arr_fields: "{{ arr_fields + [f | combine({'value': indexer_fields[f.name]}) if f.name in indexer_fields else f] }}"
+      loop: "{{ arr_schema.fields }}"
+      loop_control:
+        loop_var: f
+        label: "{{ f.name }}"
+
+    - name: "[{{ indexer_name }}] POST with enable=false (no Test runs)"
+      ansible.builtin.uri:
+        url: "{{ prowlarr_url }}/api/v1/indexer"
+        method: POST
+        headers:
+          X-Api-Key: "{{ prowlarr_apikey }}"
+        body_format: json
+        body: "{{ arr_schema | combine({
+                  'enable': false,
+                  'appProfileId': 1,
+                  'tags': (indexer_cf_protected | bool) | ternary([flaresolverr_tag_id | int], []),
+                  'fields': arr_fields
+                }) }}"
+        status_code: [201]
+      register: arr_post
+
+    - name: "[{{ indexer_name }}] PUT enable=true&forceSave=true (skips Test)"
+      ansible.builtin.uri:
+        url: "{{ prowlarr_url }}/api/v1/indexer/{{ arr_post.json.id }}?forceSave=true"
+        method: PUT
+        headers:
+          X-Api-Key: "{{ prowlarr_apikey }}"
+        body_format: json
+        body: "{{ arr_post.json | combine({'enable': true}) }}"
+        status_code: [200, 202]

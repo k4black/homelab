@@ -15,12 +15,49 @@ ssh_public_key_file: "~/.ssh/id_ed25519.pub"
 # pi5_local_ipv4 is defined in vars/all.yml
 
 
-backup_general_uuid: "5670da9f-23f5-4711-80a6-e3b7d1745b6a"
-backup_timemachine_uuid: "cbb7da7f-4b37-4dc8-8cf5-381a0d9b7d10"
+storage_disk_uuid: "9c4a1efe-c4e5-47cc-a4da-8edc199c410a"
 
 
 services_configs_dir: /srv/configs
 services_data_dir: /srv/data
+
+
+# Prowlarr indexer wishlist. `name` must match the exact entry in Prowlarr's
+# /api/v1/indexer/schema response (the playbook task does case-sensitive match
+# and silently skips on mismatch). Mechanically each entry is cloned from the
+# schema, has overrides applied, POSTed with enable=false (skips Test), then
+# PUT with enable=true&forceSave=true (PUT genuinely bypasses Test — POST does
+# not, even with forceSave). cf_protected: true tags the indexer with the
+# flaresolverr tag so Prowlarr routes its requests through FlareSolverr.
+prowlarr_indexers:
+  # Public, no auth
+  - {name: "The Pirate Bay"}
+  - {name: "YTS"}
+  - {name: "Internet Archive"}
+  # Public but CloudFlare-protected — route through FlareSolverr
+  - {name: "1337x",              cf_protected: true}
+  - {name: "kickasstorrents.to", cf_protected: true}
+  # Private — credentials from vault below
+  - name: "RuTracker.org"
+    fields:
+      username: "{{ vault_rutracker_username }}"
+      password: "{{ vault_rutracker_password }}"
+
+
+vault_rutracker_username: !vault |
+          $ANSIBLE_VAULT;1.1;AES256
+          30303764383635333833386162353834626531666663616631633232333962346637666331333861
+          3330613761343764353333363164646238643635363563350a303961303461303231346436313166
+          38386434363638633464336162623036393563333535656134393138653232303966306235376536
+          6361636632646631390a393831336632306261383636346234316635303161373233653338656238
+          3966
+vault_rutracker_password: !vault |
+          $ANSIBLE_VAULT;1.1;AES256
+          62383364646638376137626566333131663565646234343261303637316131323966363639656561
+          3932653866353231623062366661636630326262303064340a626566393366303037346466663633
+          62383832343934386638613963336135343765643337303339616464613830306364316164313136
+          6266373261313530350a343630373236666266343332343936626631643437623930306166346635
+          3837
 
 
 packages_install_list:

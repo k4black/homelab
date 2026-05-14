@@ -1,0 +1,338 @@
+---
+# Auto-wire the Prowlarr/Radarr/Sonarr stack:
+#   - extract API keys from each app's /config/config.xml
+#   - add Transmission as a download client to Radarr + Sonarr (+ root folders)
+#   - register Radarr + Sonarr as Applications in Prowlarr so indexers added
+#     in the Prowlarr UI auto-sync to both apps
+#
+# Indexers themselves are added manually in the Prowlarr UI — see the long
+# comment at the bottom for the rationale (TL;DR: POST always Test()s, CF
+# bypass requires headless-Chromium-based FlareSolverr, not worth the RAM
+# on a Pi 5).
+#
+# Each POST is gated on a prior GET so re-runs are no-ops.
+
+- name: Read *arr config.xml files for API keys
+  ansible.builtin.slurp:
+    src: "{{ services_data_dir }}/{{ item }}/config/config.xml"
+  loop: [prowlarr, radarr, sonarr]
+  register: arr_cfgs
+
+- name: Set *arr API key facts
+  ansible.builtin.set_fact:
+    prowlarr_apikey: "{{ (arr_cfgs.results[0].content | b64decode | regex_findall('<ApiKey>([^<]+)</ApiKey>')) | first }}"
+    radarr_apikey: "{{ (arr_cfgs.results[1].content | b64decode | regex_findall('<ApiKey>([^<]+)</ApiKey>')) | first }}"
+    sonarr_apikey: "{{ (arr_cfgs.results[2].content | b64decode | regex_findall('<ApiKey>([^<]+)</ApiKey>')) | first }}"
+
+- name: Wait for *arr APIs to be ready
+  ansible.builtin.uri:
+    url: "{{ item.url }}/api/{{ item.ver }}/system/status"
+    headers:
+      X-Api-Key: "{{ item.key }}"
+  loop:
+    - {name: prowlarr, url: "{{ prowlarr_url }}", ver: v1, key: "{{ prowlarr_apikey }}"}
+    - {name: radarr,   url: "{{ radarr_url }}",   ver: v3, key: "{{ radarr_apikey }}"}
+    - {name: sonarr,   url: "{{ sonarr_url }}",   ver: v3, key: "{{ sonarr_apikey }}"}
+  loop_control:
+    label: "{{ item.name }}"
+  register: arr_ping
+  retries: 30
+  delay: 5
+  until: arr_ping.status == 200
+
+## Radarr <- Transmission ##
+- name: List Radarr download clients
+  ansible.builtin.uri:
+    url: "{{ radarr_url }}/api/v3/downloadclient"
+    headers:
+      X-Api-Key: "{{ radarr_apikey }}"
+  register: radarr_dcs
+
+- name: Add Transmission as Radarr download client
+  ansible.builtin.uri:
+    url: "{{ radarr_url }}/api/v3/downloadclient?forceSave=true"
+    method: POST
+    headers:
+      X-Api-Key: "{{ radarr_apikey }}"
+    body_format: json
+    body:
+      enable: true
+      protocol: torrent
+      priority: 1
+      name: Transmission
+      implementation: Transmission
+      implementationName: Transmission
+      configContract: TransmissionSettings
+      tags: []
+      fields:
+        - {name: host, value: transmission}
+        - {name: port, value: 9091}
+        - {name: useSsl, value: false}
+        - {name: urlBase, value: "/transmission/"}
+        - {name: username, value: ""}
+        - {name: password, value: ""}
+        - {name: movieCategory, value: ""}
+        # Per-torrent download-dir passed to Transmission; lands at
+        # /mnt/storage/torrents/movies on host == /data/torrents/movies in every container.
+        - {name: movieDirectory, value: "/data/torrents/movies"}
+        - {name: recentMoviePriority, value: 0}
+        - {name: olderMoviePriority, value: 0}
+        - {name: initialState, value: 0}
+        - {name: addPaused, value: false}
+    status_code: [201]
+  when: (radarr_dcs.json | selectattr('name', 'equalto', 'Transmission') | list | length) == 0
+
+## Sonarr <- Transmission ##
+- name: List Sonarr download clients
+  ansible.builtin.uri:
+    url: "{{ sonarr_url }}/api/v3/downloadclient"
+    headers:
+      X-Api-Key: "{{ sonarr_apikey }}"
+  register: sonarr_dcs
+
+- name: Add Transmission as Sonarr download client
+  ansible.builtin.uri:
+    url: "{{ sonarr_url }}/api/v3/downloadclient?forceSave=true"
+    method: POST
+    headers:
+      X-Api-Key: "{{ sonarr_apikey }}"
+    body_format: json
+    body:
+      enable: true
+      protocol: torrent
+      priority: 1
+      name: Transmission
+      implementation: Transmission
+      implementationName: Transmission
+      configContract: TransmissionSettings
+      tags: []
+      fields:
+        - {name: host, value: transmission}
+        - {name: port, value: 9091}
+        - {name: useSsl, value: false}
+        - {name: urlBase, value: "/transmission/"}
+        - {name: username, value: ""}
+        - {name: password, value: ""}
+        - {name: tvCategory, value: ""}
+        - {name: tvDirectory, value: "/data/torrents/tv"}
+        - {name: recentTvPriority, value: 0}
+        - {name: olderTvPriority, value: 0}
+        - {name: initialState, value: 0}
+        - {name: addPaused, value: false}
+    status_code: [201]
+  when: (sonarr_dcs.json | selectattr('name', 'equalto', 'Transmission') | list | length) == 0
+
+## Radarr root folder ##
+- name: List Radarr root folders
+  ansible.builtin.uri:
+    url: "{{ radarr_url }}/api/v3/rootfolder"
+    headers:
+      X-Api-Key: "{{ radarr_apikey }}"
+  register: radarr_roots
+
+- name: Add /data/media/movies as Radarr root folder
+  ansible.builtin.uri:
+    url: "{{ radarr_url }}/api/v3/rootfolder"
+    method: POST
+    headers:
+      X-Api-Key: "{{ radarr_apikey }}"
+    body_format: json
+    body:
+      path: /data/media/movies
+    status_code: [201]
+  when: (radarr_roots.json | selectattr('path', 'equalto', '/data/media/movies') | list | length) == 0
+
+## Sonarr root folder ##
+- name: List Sonarr root folders
+  ansible.builtin.uri:
+    url: "{{ sonarr_url }}/api/v3/rootfolder"
+    headers:
+      X-Api-Key: "{{ sonarr_apikey }}"
+  register: sonarr_roots
+
+- name: Add /data/media/tv as Sonarr root folder
+  ansible.builtin.uri:
+    url: "{{ sonarr_url }}/api/v3/rootfolder"
+    method: POST
+    headers:
+      X-Api-Key: "{{ sonarr_apikey }}"
+    body_format: json
+    body:
+      path: /data/media/tv
+    status_code: [201]
+  when: (sonarr_roots.json | selectattr('path', 'equalto', '/data/media/tv') | list | length) == 0
+
+## Prowlarr <- Radarr/Sonarr as Apps (enables indexer sync) ##
+## Idempotent re: API-key rotation: if the Radarr/Sonarr config volume gets
+## wiped, the new API key is PUT-updated on the existing Prowlarr App entry —
+## otherwise Prowlarr keeps the old key, fails 401 on sync, and Radarr/Sonarr
+## end up with zero indexers (the "No indexers available" warnings).
+- name: List Prowlarr applications
+  ansible.builtin.uri:
+    url: "{{ prowlarr_url }}/api/v1/applications"
+    headers:
+      X-Api-Key: "{{ prowlarr_apikey }}"
+  register: prowlarr_apps
+
+- name: Capture existing Radarr/Sonarr Prowlarr-app ids (none if missing)
+  ansible.builtin.set_fact:
+    radarr_app_id: "{{ (prowlarr_apps.json | selectattr('name', 'equalto', 'Radarr') | map(attribute='id') | list | first) | default(None) }}"
+    sonarr_app_id: "{{ (prowlarr_apps.json | selectattr('name', 'equalto', 'Sonarr') | map(attribute='id') | list | first) | default(None) }}"
+
+- name: Create or update Radarr as Prowlarr application
+  ansible.builtin.uri:
+    # POST /applications (new) or PUT /applications/{id} (existing).
+    url: "{{ prowlarr_url }}/api/v1/applications{{ ('/' ~ radarr_app_id) if radarr_app_id else '' }}?forceSave=true"
+    method: "{{ 'PUT' if radarr_app_id else 'POST' }}"
+    headers:
+      X-Api-Key: "{{ prowlarr_apikey }}"
+    body_format: json
+    body:
+      id: "{{ radarr_app_id | default(omit) }}"
+      syncLevel: fullSync
+      name: Radarr
+      implementation: Radarr
+      implementationName: Radarr
+      configContract: RadarrSettings
+      tags: []
+      fields:
+        - {name: prowlarrUrl, value: "http://prowlarr:9696"}
+        - {name: baseUrl, value: "http://radarr:7878"}
+        - {name: apiKey, value: "{{ radarr_apikey }}"}
+        - {name: syncCategories, value: [2000, 2010, 2020, 2030, 2035, 2040, 2045, 2050, 2060, 2070, 2080, 2090]}
+    status_code: [200, 201, 202]
+
+- name: Create or update Sonarr as Prowlarr application
+  ansible.builtin.uri:
+    url: "{{ prowlarr_url }}/api/v1/applications{{ ('/' ~ sonarr_app_id) if sonarr_app_id else '' }}?forceSave=true"
+    method: "{{ 'PUT' if sonarr_app_id else 'POST' }}"
+    headers:
+      X-Api-Key: "{{ prowlarr_apikey }}"
+    body_format: json
+    body:
+      id: "{{ sonarr_app_id | default(omit) }}"
+      syncLevel: fullSync
+      name: Sonarr
+      implementation: Sonarr
+      implementationName: Sonarr
+      configContract: SonarrSettings
+      tags: []
+      fields:
+        - {name: prowlarrUrl, value: "http://prowlarr:9696"}
+        - {name: baseUrl, value: "http://sonarr:8989"}
+        - {name: apiKey, value: "{{ sonarr_apikey }}"}
+        - {name: syncCategories, value: [5000, 5010, 5020, 5030, 5040, 5045, 5050, 5060, 5070, 5080]}
+        - {name: animeSyncCategories, value: [5070]}
+    status_code: [200, 201, 202]
+
+## FlareSolverr proxy + tag in Prowlarr ##
+## Required for CloudFlare-protected indexers (1337x, KAT, sometimes Lime/EZTV).
+## Indexers in `prowlarr_indexers` with `cf_protected: true` get tagged with
+## the `flaresolverr` tag — Prowlarr then routes their requests through FS.
+- name: Wait for FlareSolverr to be ready
+  ansible.builtin.uri:
+    url: "{{ flaresolverr_url }}/health"
+  register: fs_ping
+  retries: 30
+  delay: 5
+  until: fs_ping.status == 200
+
+- name: List Prowlarr tags
+  ansible.builtin.uri:
+    url: "{{ prowlarr_url }}/api/v1/tag"
+    headers:
+      X-Api-Key: "{{ prowlarr_apikey }}"
+  register: prowlarr_tags_initial
+
+- name: Create flaresolverr tag in Prowlarr
+  ansible.builtin.uri:
+    url: "{{ prowlarr_url }}/api/v1/tag"
+    method: POST
+    headers:
+      X-Api-Key: "{{ prowlarr_apikey }}"
+    body_format: json
+    body: {label: flaresolverr}
+    status_code: [201]
+  when: (prowlarr_tags_initial.json | selectattr('label', 'equalto', 'flaresolverr') | list | length) == 0
+
+- name: Refresh Prowlarr tag list
+  ansible.builtin.uri:
+    url: "{{ prowlarr_url }}/api/v1/tag"
+    headers:
+      X-Api-Key: "{{ prowlarr_apikey }}"
+  register: prowlarr_tags
+
+- name: Capture flaresolverr tag id
+  ansible.builtin.set_fact:
+    flaresolverr_tag_id: "{{ (prowlarr_tags.json | selectattr('label', 'equalto', 'flaresolverr') | first).id }}"
+
+- name: List Prowlarr indexer proxies
+  ansible.builtin.uri:
+    url: "{{ prowlarr_url }}/api/v1/indexerproxy"
+    headers:
+      X-Api-Key: "{{ prowlarr_apikey }}"
+  register: prowlarr_proxies
+
+- name: Add FlareSolverr as Prowlarr indexer proxy
+  ansible.builtin.uri:
+    url: "{{ prowlarr_url }}/api/v1/indexerproxy?forceSave=true"
+    method: POST
+    headers:
+      X-Api-Key: "{{ prowlarr_apikey }}"
+    body_format: json
+    body:
+      name: FlareSolverr
+      implementation: FlareSolverr
+      implementationName: FlareSolverr
+      configContract: FlareSolverrSettings
+      onHealthIssue: false
+      supportsOnHealthIssue: false
+      includeHealthWarnings: false
+      tags: "{{ [flaresolverr_tag_id | int] }}"
+      fields:
+        - {name: host, value: "http://flaresolverr:8191/"}
+        - {name: requestTimeout, value: 120}
+    status_code: [201]
+  when: (prowlarr_proxies.json | selectattr('name', 'equalto', 'FlareSolverr') | list | length) == 0
+
+## Prowlarr indexers — POST(disable) + PUT(enable&forceSave) ##
+## Bypasses POST's mandatory Test() (which fails on CF-blocked or down sites
+## even with forceSave=true). PUT with forceSave=true is the only branch in
+## ProviderControllerBase that genuinely skips Test. Result: indexers get
+## saved-and-enabled regardless of current site availability; broken ones
+## just won't return results until they recover.
+- name: List existing Prowlarr indexers (idempotency check)
+  ansible.builtin.uri:
+    url: "{{ prowlarr_url }}/api/v1/indexer"
+    headers:
+      X-Api-Key: "{{ prowlarr_apikey }}"
+  register: prowlarr_idxs
+
+- name: Fetch Prowlarr indexer schemas
+  ansible.builtin.uri:
+    url: "{{ prowlarr_url }}/api/v1/indexer/schema"
+    headers:
+      X-Api-Key: "{{ prowlarr_apikey }}"
+  register: prowlarr_schemas
+
+- name: Add each Prowlarr indexer from prowlarr_indexers
+  ansible.builtin.include_tasks: _add_prowlarr_indexer.yml
+  vars:
+    indexer_name: "{{ item.name }}"
+    indexer_fields: "{{ item.fields | default({}) }}"
+    indexer_cf_protected: "{{ item.cf_protected | default(false) }}"
+  loop: "{{ prowlarr_indexers | default([]) }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Trigger Prowlarr → Apps indexer sync (push newly-added indexers)
+  ansible.builtin.uri:
+    url: "{{ prowlarr_url }}/api/v1/command"
+    method: POST
+    headers:
+      X-Api-Key: "{{ prowlarr_apikey }}"
+    body_format: json
+    body:
+      name: ApplicationIndexerSync
+      forceSync: true
+    status_code: [201]
