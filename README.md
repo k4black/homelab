@@ -123,6 +123,34 @@ update vars/pi5.yml
     Port: 4221
     ```
 
+### Hermes Agent
+
+Self-hosted [Hermes Agent](https://github.com/NousResearch/hermes-agent) gateway
+(stock `nousresearch/hermes-agent` image, arm64). One container runs both the
+agent gateway and the web dashboard. LLM calls go through OpenRouter.
+
+Config lives in the shared `vars/all.yml` (not pi5-specific) so the gateway can
+move to / be added on another node later:
+1. OpenRouter key — create at https://openrouter.ai/keys, then
+   `ansible-vault encrypt_string --stdin-name hermes_openrouter_api_key` and paste
+   the result over `hermes_openrouter_api_key`.
+2. Telegram bot — `/newbot` via [@BotFather](https://t.me/BotFather), then
+   `ansible-vault encrypt_string --stdin-name hermes_telegram_bot_token`.
+3. Your Telegram user ID — message [@userinfobot](https://t.me/userinfobot) and
+   put the number in `hermes_telegram_allowed_users` (comma-separated for several).
+
+Access after deploy (host:port, like the other services — no DNS route):
+* Telegram — message your bot (only `hermes_telegram_allowed_users` may talk to it).
+* Dashboard — `http://[PI5_IP]:9119` or `http://pi5.[tailnet].ts.net:9119`, no login
+  (runs `--insecure`), reachable on LAN/Tailscale/VPN only.
+
+Change the model by editing `default:` in `files/pi5/hermes-config.yaml.j2` (any
+OpenRouter model id); the image tag is pinned inline in `docker-compose.yml.j2`.
+The agent's shell tools run inside the container (`terminal.backend: local`); the
+docker socket is intentionally not mounted. iCloud (`icloud-cli-tools`) is not
+wired up yet — it would be a thin `FROM nousresearch/hermes-agent` + `pip install`
+layer.
+
 ### Remote access (without VPN)
 
 After setup, you can SSH into the pi5 via DuckDNS hostname:

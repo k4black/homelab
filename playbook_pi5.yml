@@ -332,6 +332,8 @@
           - "{{ services_data_dir }}/prowlarr/config"
           - "{{ services_data_dir }}/radarr/config"
           - "{{ services_data_dir }}/sonarr/config"
+          # Hermes HERMES_HOME (/opt/data) — config.yaml + agent state/memory.
+          - "{{ services_data_dir }}/hermes"
           # Canonical TRaSH layout on the external storage disk. Mounted at
           # /mnt/storage and bind-mounted into Radarr/Sonarr/Transmission as
           # /data; into Jellyfin as /media (read-only). Subdirs created here so
@@ -366,6 +368,9 @@
           files/pi5/netdata.conf.j2: "netdata-config/netdata.conf"
           files/pi5/netdata-stream.conf.j2: "netdata-config/stream.conf"
           files/pi5/netdata-pihole.conf: "netdata-config/go.d/pihole.conf"
+          # Rendered into Hermes' HERMES_HOME (data dir, not configs dir) so it
+          # sits at /opt/data/config.yaml inside the container. Non-secret only.
+          files/pi5/hermes-config.yaml.j2: "../data/hermes/config.yaml"
 
     - name: Verify Tailscale connection
       tags: [docker]

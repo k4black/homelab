@@ -478,6 +478,52 @@ services:
       retries: 3
     restart: unless-stopped
 
+  ### AI ###
+  hermes:
+    image: nousresearch/hermes-agent:v2026.6.19
+    container_name: hermes
+    environment:
+      TZ: {{ timezone }}
+      # Remap the image's internal uid/gid 10000 -> 1000 so files written to the
+      # /opt/data bind mount stay owned by {{ username }} (1000) on the host.
+      HERMES_UID: "1000"
+      HERMES_GID: "1000"
+      # Run the web dashboard inside this container; the port is published on the
+      # host (below) and reached directly by host:port like the other services
+      # here (no Traefik route). --insecure: no-auth, acceptable behind the
+      # VPN/LAN gating. Bind to all interfaces so the published port works.
+      HERMES_DASHBOARD: "true"
+      HERMES_DASHBOARD_HOST: 0.0.0.0
+      HERMES_DASHBOARD_PORT: "9119"
+      HERMES_DASHBOARD_INSECURE: "true"
+      # LLM provider (model/provider/base_url are in config.yaml).
+      OPENROUTER_API_KEY: {{ hermes_openrouter_api_key }}
+      # Telegram gateway — token present => the gateway enables the bot. The
+      # allowlist restricts who may talk to it (numeric Telegram user IDs).
+      TELEGRAM_BOT_TOKEN: {{ hermes_telegram_bot_token }}
+      TELEGRAM_ALLOWED_USERS: "{{ hermes_telegram_allowed_users }}"
+    ports:
+      - "9119:9119"
+    volumes:
+      # HERMES_HOME — holds config.yaml, session history, vector memory, learned
+      # skills, and logs. config.yaml is rendered here before first start.
+      - {{ containers_setup_data_dir }}/hermes:/opt/data
+    command: ["gateway", "run"]
+    labels:
+      - homepage.group=Services
+      - homepage.name=Hermes
+      - homepage.icon=mdi-robot-happy
+      - homepage.href=http://homepage_host:9119
+      - homepage.statusStyle=basic
+      - homepage.ping=http://hermes:9119
+    healthcheck:
+      # /api/status is the dashboard's public status endpoint (no auth).
+      test: ["CMD", "curl", "-fsS", "http://localhost:9119/api/status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
   ### Files ###
   # Auth is disabled (`--noauth`) — relies on VPN/Tailscale/LAN restriction for
   # access control. `--noauth` only takes effect during quickSetup() on an empty

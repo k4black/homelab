@@ -1,0 +1,81 @@
+# {{ ansible_managed }}
+# Hermes Agent config. HERMES_HOME=/opt/data in the image, so this lands at
+# /opt/data/config.yaml inside the container (host: /srv/data/hermes/config.yaml).
+# Secrets (OpenRouter key, Telegram token, dashboard auth) are NOT here — they
+# are passed as container env in docker-compose.yml.j2, matching the repo's
+# convention for cloudflare_api_token / tailscale_authkey. LLM_MODEL is no
+# longer read from .env upstream, so the model lives here.
+
+model:
+  # OpenRouter — one key, any model. Auth via OPENROUTER_API_KEY (container env).
+  # Change `default` to any OpenRouter model id to switch models.
+  provider: openrouter
+  base_url: "https://openrouter.ai/api/v1"
+  default: "z-ai/glm-5.2"
+
+terminal:
+  # The agent runs its shell tools inside this container (the sandbox itself).
+  # We intentionally do NOT mount the docker socket into Hermes.
+  backend: local
+
+skills:
+  # Trim the 66 bundled skills to a personal-assistant set — no dev/coding,
+  # no mlops (running/training/serving models), no heavy creative, no niche.
+  # Names match the `hermes skills list` "Name" column; the agent stops seeing
+  # a skill once it's here. Re-enable by removing the line. Kept (not listed):
+  # hermes-agent, dogfood, himalaya, obsidian, notion, google-workspace,
+  # airtable, maps, nano-pdf, ocr-and-documents, powerpoint, arxiv, blogwatcher,
+  # llm-wiki, research-paper-writing, youtube-content, songsee, humanizer.
+  disabled:
+    # dev / coding (no dev sessions on this agent)
+    - claude-code
+    - codex
+    - opencode
+    - codebase-inspection
+    - github-auth
+    - github-code-review
+    - github-issues
+    - github-pr-workflow
+    - github-repo-management
+    - hermes-agent-skill-authoring
+    - node-inspect-debugger
+    - plan
+    - python-debugpy
+    - requesting-code-review
+    - simplify-code
+    - spike
+    - systematic-debugging
+    - test-driven-development
+    - jupyter-live-kernel
+    # mlops (run/train/serve models)
+    - audiocraft-audio-generation
+    - evaluating-llms-harness
+    - huggingface-hub
+    - llama-cpp
+    - segment-anything-model
+    - serving-llms-vllm
+    - weights-and-biases
+    # heavy / niche creative (kept: humanizer)
+    - architecture-diagram
+    - ascii-art
+    - ascii-video
+    - baoyu-infographic
+    - claude-design
+    - comfyui
+    - design-md
+    - excalidraw
+    - manim-video
+    - p5js
+    - popular-web-designs
+    - pretext
+    - sketch
+    - songwriting-and-ai-music
+    - touchdesigner-mcp
+    # niche / regional
+    - gif-search
+    - heartmula
+    - openhue
+    - polymarket
+    - teams-meeting-pipeline
+    - xurl
+    - yuanbao

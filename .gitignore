@@ -170,3 +170,6 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 /.vault_pass.txt
+
+# plaintext secret key drops (e.g. or.key, tg.key) — never commit
+*.key
