@@ -17,6 +17,11 @@ storage_disk_uuid: "9c4a1efe-c4e5-47cc-a4da-8edc199c410a"
 services_configs_dir: /srv/configs
 services_data_dir: /srv/data
 
+# Build context for the locally-built headless-anki image (see anki service in
+# files/pi5/docker-compose.yml.j2). Upstream repo is cloned here and our patched
+# Dockerfile.pi5 is dropped in.
+anki_build_dir: /srv/build/headless-anki
+
 # Prowlarr indexer wishlist. `name` must match the exact entry in Prowlarr's
 # /api/v1/indexer/schema response (the playbook task does case-sensitive match
 # and silently skips on mismatch). Mechanically each entry is cloned from the

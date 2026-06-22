@@ -304,6 +304,60 @@
         docker_gid: "{{ docker_group_info.stdout.split(':')[2] if docker_group_info.rc == 0 else '999' }}"
       tags: [docker]
 
+    # Hermes' personal skills repo. Cloned as a writable working copy that the
+    # agent reads (skills.external_dirs) AND git-commits/pushes back to (PAT in
+    # the container env + ~/.gitconfig credential helper). Clone-if-missing only
+    # (update: false) so Hermes' own local commits are never reset by a redeploy.
+    # Public repo — no creds needed to clone; the PAT is only used for push.
+    - name: Ensure Hermes data dir exists (parent of skills-repo)
+      ansible.builtin.file:
+        path: "{{ services_data_dir }}/hermes"
+        state: directory
+        owner: "{{ username }}"
+        group: "{{ username }}"
+        mode: "0755"
+      become: true
+      tags: [docker]
+    - name: Clone k4black/dotfiles skills repo (clone-if-missing)
+      ansible.builtin.git:
+        repo: https://github.com/k4black/dotfiles.git
+        dest: "{{ services_data_dir }}/hermes/skills-repo"
+        version: main
+        clone: true
+        update: false
+      become: true
+      tags: [docker]
+    - name: Own skills-repo by the Hermes container user (uid/gid 1000)
+      ansible.builtin.file:
+        path: "{{ services_data_dir }}/hermes/skills-repo"
+        state: directory
+        owner: "{{ username }}"
+        group: "{{ username }}"
+        recurse: true
+      become: true
+      tags: [docker]
+
+    # headless-anki: the published arm64 image is glibc-broken, so build our own
+    # from the upstream clone (for its data/ profile + startup.sh) with a patched,
+    # arch-aware Dockerfile. `docker compose up --build` (in containers_setup)
+    # builds it; layers cache so only the first deploy is slow.
+    - name: Clone ThisIsntTheWay/headless-anki build context
+      ansible.builtin.git:
+        repo: https://github.com/ThisIsntTheWay/headless-anki.git
+        dest: "{{ anki_build_dir }}"
+        version: main
+        clone: true
+        update: true
+      become: true
+      tags: [docker]
+    - name: Drop in the patched arm64 Dockerfile (Dockerfile.pi5)
+      ansible.builtin.copy:
+        src: files/pi5/anki.Dockerfile
+        dest: "{{ anki_build_dir }}/Dockerfile.pi5"
+        mode: "0644"
+      become: true
+      tags: [docker]
+
     - name: Copy docker configs and run containers
       ansible.builtin.include_role:
         name: containers_setup
@@ -371,6 +425,8 @@
           # Rendered into Hermes' HERMES_HOME (data dir, not configs dir) so it
           # sits at /opt/data/config.yaml inside the container. Non-secret only.
           files/pi5/hermes-config.yaml.j2: "../data/hermes/config.yaml"
+          # Git identity + PAT credential helper for the dotfiles skills repo.
+          files/pi5/hermes-gitconfig.j2: "../data/hermes/.gitconfig"
 
     - name: Verify Tailscale connection
       tags: [docker]

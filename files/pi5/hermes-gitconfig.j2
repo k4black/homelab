@@ -1,0 +1,14 @@
+# {{ ansible_managed }}
+# Rendered to /opt/data/.gitconfig (HERMES_HOME=/opt/data => this is the
+# container user's ~/.gitconfig). Gives Hermes a commit identity and a
+# credential helper that feeds the PAT from $GITHUB_TOKEN at RUNTIME, so the
+# token is never written to disk. Lets the agent push the dotfiles skills repo.
+[user]
+	name = {{ hermes_git_user_name }}
+	email = {{ hermes_git_user_email }}
+[credential "https://github.com"]
+	helper = "!f() { echo username=x-access-token; echo \"password=$GITHUB_TOKEN\"; }; f"
+[safe]
+	directory = /opt/data/skills-repo
+[init]
+	defaultBranch = main

@@ -151,6 +151,34 @@ docker socket is intentionally not mounted. iCloud (`icloud-cli-tools`) is not
 wired up yet — it would be a thin `FROM nousresearch/hermes-agent` + `pip install`
 layer.
 
+**Skills.** The 66 bundled skills are trimmed to a personal-assistant set via
+`skills.disabled` in `hermes-config.yaml.j2` (no dev/mlops/heavy-creative). On top
+of that, the personal skills repo [k4black/dotfiles](https://github.com/k4black/dotfiles)
+is cloned to `/srv/data/hermes/skills-repo` (clone-if-missing) and loaded via
+`skills.external_dirs` (`plugins/personal/skills`). Hermes can read, edit/author,
+and **git-push** those skills: a fine-grained PAT (`hermes_github_pat`, scoped to
+`k4black/dotfiles`, Contents R/W) is exposed as `GITHUB_TOKEN` and wired into the
+container's `~/.gitconfig` credential helper. Set it once:
+`ansible-vault encrypt_string --stdin-name hermes_github_pat`. The `github-auth`,
+`github-repo-management`, `github-pr-workflow`, and `hermes-agent-skill-authoring`
+skills are kept enabled for this. Note: `apple-notes`/`apple-reminders` are
+macOS-only (won't run in the Linux container) and `anki-connect` needs a reachable
+AnkiConnect — see below.
+
+**Anki.** Headless Anki + AnkiConnect API on `:8765`, **built locally** for arm64:
+the playbook clones [ThisIsntTheWay/headless-anki](https://github.com/ThisIsntTheWay/headless-anki)
+to `/srv/build/headless-anki` and builds it with a patched, arch-aware Dockerfile
+(`files/pi5/anki.Dockerfile` → `Dockerfile.pi5`: official `anki-26.05-linux-aarch64`
+on debian:13/glibc 2.41). The published `kaiimehra/headless-anki` arm64 image can't
+run here — it's built on glibc 2.35, below Anki's 2.36 requirement. A named volume
+seeds `/data` from the image's baked profile. Hermes reaches it at `http://anki:8765`
+(set as `ANKI_CONNECT_URL` on the hermes service).
+Two follow-ups: (1) the `anki-connect` skill hardcodes `http://localhost:8765` — it
+needs a one-line change to read `ANKI_CONNECT_URL` (Hermes can edit + push it). (2)
+It starts as a fresh local collection; to sync your AnkiWeb cards, switch
+`QT_QPA_PLATFORM` to `vnc`, publish `5900`, and log in once via a VNC viewer (or use
+AnkiConnect's `sync` action).
+
 ### Remote access (without VPN)
 
 After setup, you can SSH into the pi5 via DuckDNS hostname:

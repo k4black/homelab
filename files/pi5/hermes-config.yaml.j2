@@ -19,25 +19,31 @@ terminal:
   backend: local
 
 skills:
+  # Personal skills repo (k4black/dotfiles) cloned as a writable working copy by
+  # the playbook. Hermes indexes these and edits them IN PLACE here, so skill
+  # authoring lands in the repo clone — then the agent git-commits/pushes it
+  # (GITHUB_TOKEN + ~/.gitconfig credential helper). Non-existent paths are
+  # silently skipped, so this is harmless before the clone exists.
+  external_dirs:
+    - /opt/data/skills-repo/plugins/personal/skills
   # Trim the 66 bundled skills to a personal-assistant set — no dev/coding,
   # no mlops (running/training/serving models), no heavy creative, no niche.
   # Names match the `hermes skills list` "Name" column; the agent stops seeing
   # a skill once it's here. Re-enable by removing the line. Kept (not listed):
   # hermes-agent, dogfood, himalaya, obsidian, notion, google-workspace,
   # airtable, maps, nano-pdf, ocr-and-documents, powerpoint, arxiv, blogwatcher,
-  # llm-wiki, research-paper-writing, youtube-content, songsee, humanizer.
+  # llm-wiki, research-paper-writing, youtube-content, songsee, humanizer, plus
+  # the github/skill-authoring skills kept on for managing the dotfiles repo.
   disabled:
-    # dev / coding (no dev sessions on this agent)
+    # dev / coding (no dev sessions on this agent). github-auth,
+    # github-repo-management, github-pr-workflow, and hermes-agent-skill-authoring
+    # are intentionally NOT listed — Hermes needs them to manage the dotfiles repo.
     - claude-code
     - codex
     - opencode
     - codebase-inspection
-    - github-auth
     - github-code-review
     - github-issues
-    - github-pr-workflow
-    - github-repo-management
-    - hermes-agent-skill-authoring
     - node-inspect-debugger
     - plan
     - python-debugpy

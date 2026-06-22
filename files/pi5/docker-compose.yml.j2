@@ -17,6 +17,12 @@ volumes:
   # Shared between the tailscale daemon and traefik so traefik's `ts` cert
   # resolver can talk to tailscaled.sock for the *.ts.net certificate.
   tailscale-socket:
+  # Anki profile + AnkiConnect addon. A NAMED volume (not a bind mount) so Docker
+  # seeds it from the image's baked /data on first run — the addon symlink and
+  # webBindAddress=0.0.0.0 come from the image; a bind mount would shadow them
+  # and AnkiConnect wouldn't bind/listen.
+  anki-data:
+  anki-export:
 
 services:
   ### Utils ###
@@ -502,6 +508,14 @@ services:
       # allowlist restricts who may talk to it (numeric Telegram user IDs).
       TELEGRAM_BOT_TOKEN: {{ hermes_telegram_bot_token }}
       TELEGRAM_ALLOWED_USERS: "{{ hermes_telegram_allowed_users }}"
+      # GitHub PAT (fine-grained, k4black/dotfiles, Contents R/W) for the
+      # github-* skills + git credential helper in ~/.gitconfig (lets Hermes
+      # pull/commit/push the dotfiles skills repo cloned at /opt/data/skills-repo).
+      GITHUB_TOKEN: {{ hermes_github_pat }}
+      # The anki-connect skill talks to the sibling `anki` container over the
+      # bridge. NOTE: the skill currently hardcodes http://localhost:8765 — it
+      # must read this env (a one-line edit Hermes can make + push to dotfiles).
+      ANKI_CONNECT_URL: http://anki:8765
     ports:
       - "9119:9119"
     volumes:
@@ -519,6 +533,48 @@ services:
     healthcheck:
       # /api/status is the dashboard's public status endpoint (no auth).
       test: ["CMD", "curl", "-fsS", "http://localhost:9119/api/status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # Headless Anki + AnkiConnect (no GUI). Built locally from the upstream
+  # ThisIsntTheWay/headless-anki clone with a patched, arch-aware Dockerfile
+  # (files/pi5/anki.Dockerfile -> Dockerfile.pi5 in the clone): official
+  # anki-26.05-linux-aarch64 on debian:13-slim (glibc 2.41). The published
+  # kaiimehra arm64 image can't run here (built on glibc 2.35 < Anki's 2.36).
+  # Exposes AnkiConnect on :8765 for the agent's anki-connect skill (Hermes
+  # reaches it at http://anki:8765 — see ANKI_CONNECT_URL on the hermes service).
+  # Named volume seeds /data from the image's baked profile; QT_QPA_PLATFORM=
+  # offscreen keeps it headless (set "vnc" + publish 5900 for a one-time GUI
+  # AnkiWeb login).
+  anki:
+    build:
+      context: {{ anki_build_dir }}
+      dockerfile: Dockerfile.pi5
+    image: headless-anki-pi5:local
+    container_name: anki
+    environment:
+      TZ: {{ timezone }}
+      # Set AnkiConnect's webCorsOriginList to ["*"] so cross-origin callers work.
+      ANKICONNECT_WILDCARD_ORIGIN: "1"
+      # Headless — no VNC/X server needed for API-only use.
+      QT_QPA_PLATFORM: offscreen
+    ports:
+      - "8765:8765"
+    volumes:
+      - anki-data:/data
+      - anki-export:/export
+    labels:
+      - homepage.group=Services
+      - homepage.name=Anki
+      - homepage.icon=anki
+      - homepage.href=http://homepage_host:8765
+      - homepage.statusStyle=basic
+      - homepage.ping=http://anki:8765
+    healthcheck:
+      # AnkiConnect is POST-only — a bare GET returns non-2xx. Probe the real API.
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8765 -X POST -d '{\"action\":\"version\",\"version\":6}' | grep -q result"]
       interval: 30s
       timeout: 10s
       retries: 3
