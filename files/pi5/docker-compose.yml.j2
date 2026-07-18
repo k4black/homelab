@@ -558,14 +558,13 @@ services:
       TZ: {{ timezone }}
       # Set AnkiConnect's webCorsOriginList to ["*"] so cross-origin callers work.
       ANKICONNECT_WILDCARD_ORIGIN: "1"
-      # Qt's built-in VNC backend serves just the Anki window on :5900 (no X
-      # server / desktop / web layer — only renders while a viewer is connected),
-      # for a one-time AnkiWeb login. Far lighter than a KasmVNC desktop. Switch
-      # back to "offscreen" (and drop the 5900 publish) once logged in.
-      QT_QPA_PLATFORM: vnc
+      # Headless. AnkiWeb auth + collection were seeded from the Mac's profile
+      # (syncKey injected into prefs21.db + collection.anki2 copied into the
+      # anki-data volume), so no GUI login is needed — it auto-syncs on start.
+      # For a future GUI session set this to "vnc" and re-publish 5900.
+      QT_QPA_PLATFORM: offscreen
     ports:
       - "8765:8765"
-      - "5900:5900"   # Qt VNC — connect a VNC *client* (not a browser) to log into AnkiWeb
     volumes:
       - anki-data:/data
       - anki-export:/export
