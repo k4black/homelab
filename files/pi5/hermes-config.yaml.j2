@@ -85,3 +85,13 @@ skills:
     - teams-meeting-pipeline
     - xurl
     - yuanbao
+
+mcp_servers:
+  # Official Doist Todoist MCP (npm @doist/todoist-mcp), run as a local stdio
+  # subprocess via the image's npx. Full task/project/label capability, auth by
+  # the personal API token (rendered from the vaulted todoist_api_token).
+  todoist:
+    command: "npx"
+    args: ["-y", "@doist/todoist-mcp"]
+    env:
+      TODOIST_API_KEY: "{{ todoist_api_token }}"

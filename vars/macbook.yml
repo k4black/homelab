@@ -48,7 +48,7 @@ homebrew_cask_apps_common:
   # 3d printing
   - prusaslicer  # Original Prusa Drivers must be installed manually
   # mix
-  # - todoist-app  # migrated to Reminders
+  - todoist-app
   - obsidian
   - zotero
   - chatgpt
@@ -127,8 +127,8 @@ dockitems_persist:
   - name: "Calendar"
     path: "/Applications/Calendar.app"
     pos: 3
-  - name: "Reminders"
-    path: "/System/Applications/Reminders.app"
+  - name: "Todoist"
+    path: "/Applications/Todoist.app"
     pos: 4
   - name: "Notes"
     path: "/System/Applications/Notes.app"

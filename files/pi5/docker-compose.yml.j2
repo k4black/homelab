@@ -558,10 +558,14 @@ services:
       TZ: {{ timezone }}
       # Set AnkiConnect's webCorsOriginList to ["*"] so cross-origin callers work.
       ANKICONNECT_WILDCARD_ORIGIN: "1"
-      # Headless — no VNC/X server needed for API-only use.
-      QT_QPA_PLATFORM: offscreen
+      # Qt's built-in VNC backend serves just the Anki window on :5900 (no X
+      # server / desktop / web layer — only renders while a viewer is connected),
+      # for a one-time AnkiWeb login. Far lighter than a KasmVNC desktop. Switch
+      # back to "offscreen" (and drop the 5900 publish) once logged in.
+      QT_QPA_PLATFORM: vnc
     ports:
       - "8765:8765"
+      - "5900:5900"   # Qt VNC — connect a VNC *client* (not a browser) to log into AnkiWeb
     volumes:
       - anki-data:/data
       - anki-export:/export
@@ -622,7 +626,7 @@ services:
   # Hardlinks from /data/torrents/* into /data/media/* are atomic because every
   # container sees them as a single mount.
   transmission:
-    image: linuxserver/transmission:4.1.1
+    image: linuxserver/transmission:4.1.3
     container_name: transmission
     environment:
       PUID: 1000

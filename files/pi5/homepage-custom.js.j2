@@ -10,20 +10,32 @@
   const SENTINEL = "homepage_host";
   const here = window.location.hostname;
 
+  // Idempotent: only touches an anchor that still carries the sentinel, so
+  // re-setting href never re-introduces it -> no observer feedback loop.
+  const fix = (a) => {
+    if (a.href && a.href.includes(SENTINEL)) a.href = a.href.replaceAll(SENTINEL, here);
+  };
   const rewrite = (root) => {
-    root.querySelectorAll(`a[href*="${SENTINEL}"]`).forEach((a) => {
-      a.href = a.href.replaceAll(SENTINEL, here);
-    });
+    if (root.nodeType === 1 && root.matches && root.matches(`a[href*="${SENTINEL}"]`)) fix(root);
+    if (root.querySelectorAll) root.querySelectorAll(`a[href*="${SENTINEL}"]`).forEach(fix);
   };
 
   rewrite(document);
 
-  // Homepage is a React app and re-renders tiles after initial paint.
+  // Homepage is a React app: it both inserts tiles after initial paint AND
+  // re-applies the original href (an *attribute* mutation) on later re-renders,
+  // so watch childList (added nodes, incl. the anchor itself) and href attrs.
   new MutationObserver((mutations) => {
     for (const m of mutations) {
+      if (m.type === "attributes" && m.target) fix(m.target);
       m.addedNodes.forEach((node) => {
         if (node.nodeType === 1) rewrite(node);
       });
     }
-  }).observe(document.body, { childList: true, subtree: true });
+  }).observe(document.body, {
+    childList: true,
+    subtree: true,
+    attributes: true,
+    attributeFilter: ["href"],
+  });
 })();
