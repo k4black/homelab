@@ -17,3 +17,4 @@ agents_setup_brew_casks:
 agents_setup_brew_formulae:
   - rtk                 # Rust Token Killer — token-saving CLI proxy (rtk init hook)
   - ralph-orchestrator  # multi-agent orchestration framework (ralph/ templates)
+  - opencode            # terminal AI coding agent (install.sh wires skills + AGENTS.md)
