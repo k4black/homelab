@@ -508,13 +508,12 @@ services:
       # allowlist restricts who may talk to it (numeric Telegram user IDs).
       TELEGRAM_BOT_TOKEN: {{ hermes_telegram_bot_token }}
       TELEGRAM_ALLOWED_USERS: "{{ hermes_telegram_allowed_users }}"
-      # GitHub PAT (fine-grained, k4black/dotfiles, Contents R/W) for the
+      # GitHub PAT (fine-grained, k4black/agentic-tools, Contents R/W) for the
       # github-* skills + git credential helper in ~/.gitconfig (lets Hermes
-      # pull/commit/push the dotfiles skills repo cloned at /opt/data/skills-repo).
+      # pull/commit/push the skills repo cloned at /opt/data/agentic-tools).
       GITHUB_TOKEN: {{ hermes_github_pat }}
-      # The anki-connect skill talks to the sibling `anki` container over the
-      # bridge. NOTE: the skill currently hardcodes http://localhost:8765 — it
-      # must read this env (a one-line edit Hermes can make + push to dotfiles).
+      # The anki-connect skill reads this to reach the sibling `anki` container
+      # over the bridge (the skill defaults to localhost, falls back to anki).
       ANKI_CONNECT_URL: http://anki:8765
     ports:
       - "9119:9119"

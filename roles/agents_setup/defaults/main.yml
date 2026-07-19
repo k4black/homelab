@@ -1,0 +1,19 @@
+---
+# k4black/agentic-tools is the single source of truth for AI-agent content
+# (skills, global rules, harness wiring). This role installs the agent CLIs and
+# runs the repo's idempotent install.sh, which does all the wiring itself
+# (symlinks skills into ~/.claude|.codex|.agents/skills, GLOBAL-AGENTS.md into the
+# per-harness rules files, `rtk init` hook, claude marketplaces/plugins, MCP).
+
+# SSH so the user's key auto-authenticates pulls (re-runs) and manual pushes.
+agents_setup_repo: "git@github.com:k4black/agentic-tools.git"
+agents_setup_dest: "{{ ansible_env.HOME }}/Projects/personal/agentic-tools"
+agents_setup_version: "main"
+
+# Agent CLIs install.sh wires up. claude/claude-code are casks in
+# vars/macbook.yml (installed by the geerlingguy.mac.homebrew role).
+agents_setup_brew_casks:
+  - codex  # OpenAI Codex CLI (installs a `codex` binary, not a .app)
+agents_setup_brew_formulae:
+  - rtk                 # Rust Token Killer — token-saving CLI proxy (rtk init hook)
+  - ralph-orchestrator  # multi-agent orchestration framework (ralph/ templates)

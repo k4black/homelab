@@ -19,13 +19,13 @@ terminal:
   backend: local
 
 skills:
-  # Personal skills repo (k4black/dotfiles) cloned as a writable working copy by
-  # the playbook. Hermes indexes these and edits them IN PLACE here, so skill
+  # Personal skills repo (k4black/agentic-tools) cloned as a writable working copy
+  # by the playbook. Hermes indexes these and edits them IN PLACE here, so skill
   # authoring lands in the repo clone — then the agent git-commits/pushes it
   # (GITHUB_TOKEN + ~/.gitconfig credential helper). Non-existent paths are
   # silently skipped, so this is harmless before the clone exists.
   external_dirs:
-    - /opt/data/skills-repo/plugins/personal/skills
+    - /opt/data/agentic-tools/skills
   # Trim the 66 bundled skills to a personal-assistant set — no dev/coding,
   # no mlops (running/training/serving models), no heavy creative, no niche.
   # Names match the `hermes skills list` "Name" column; the agent stops seeing

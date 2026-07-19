@@ -304,12 +304,13 @@
         docker_gid: "{{ docker_group_info.stdout.split(':')[2] if docker_group_info.rc == 0 else '999' }}"
       tags: [docker]
 
-    # Hermes' personal skills repo. Cloned as a writable working copy that the
-    # agent reads (skills.external_dirs) AND git-commits/pushes back to (PAT in
-    # the container env + ~/.gitconfig credential helper). Clone-if-missing only
-    # (update: false) so Hermes' own local commits are never reset by a redeploy.
-    # Public repo — no creds needed to clone; the PAT is only used for push.
-    - name: Ensure Hermes data dir exists (parent of skills-repo)
+    # Hermes' skills repo: k4black/agentic-tools (single source of truth for agent
+    # skills). Cloned as a writable working copy that the agent reads
+    # (skills.external_dirs -> agentic-tools/skills) AND git-commits/pushes back to
+    # (PAT in the container env + ~/.gitconfig credential helper). Clone-if-missing
+    # only (update: false) so Hermes' own local commits are never reset by a
+    # redeploy. Public repo — no creds to clone; the PAT is only used for push.
+    - name: Ensure Hermes data dir exists (parent of the skills clone)
       ansible.builtin.file:
         path: "{{ services_data_dir }}/hermes"
         state: directory
@@ -318,18 +319,18 @@
         mode: "0755"
       become: true
       tags: [docker]
-    - name: Clone k4black/dotfiles skills repo (clone-if-missing)
+    - name: Clone k4black/agentic-tools skills repo (clone-if-missing)
       ansible.builtin.git:
-        repo: https://github.com/k4black/dotfiles.git
-        dest: "{{ services_data_dir }}/hermes/skills-repo"
+        repo: https://github.com/k4black/agentic-tools.git
+        dest: "{{ services_data_dir }}/hermes/agentic-tools"
         version: main
         clone: true
         update: false
       become: true
       tags: [docker]
-    - name: Own skills-repo by the Hermes container user (uid/gid 1000)
+    - name: Own agentic-tools clone by the Hermes container user (uid/gid 1000)
       ansible.builtin.file:
-        path: "{{ services_data_dir }}/hermes/skills-repo"
+        path: "{{ services_data_dir }}/hermes/agentic-tools"
         state: directory
         owner: "{{ username }}"
         group: "{{ username }}"

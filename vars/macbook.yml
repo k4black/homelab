@@ -8,6 +8,12 @@ macbook_profile: "personal"
 macbook_setup_admin_juggling: "{{ macbook_profile == 'personal' }}"
 macbook_setup_vpn: "{{ macbook_profile == 'personal' }}"
 
+# ~/Projects working-tree layout (mirrors the local Mac structure).
+macbook_projects_subdirs:
+  - opensource
+  - personal
+  - work
+
 admin_username: !vault |
           $ANSIBLE_VAULT;1.1;AES256
           64663964666431656238323535373566393231343366366637316136373966326530383161653530

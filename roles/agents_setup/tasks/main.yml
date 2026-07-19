@@ -1,0 +1,46 @@
+---
+# Runs as the login user (macOS localhost, connection: local) — brew, the git
+# clone, and install.sh all need the user's context (Homebrew perms, SSH key,
+# logged-in `claude` for `claude plugin install`). Never run under become.
+
+- name: Install agent CLI casks (codex)
+  community.general.homebrew_cask:
+    name: "{{ agents_setup_brew_casks }}"
+    state: present
+  when: agents_setup_brew_casks | length > 0
+
+- name: Install agent CLI formulae (rtk, ralph-orchestrator)
+  community.general.homebrew:
+    name: "{{ agents_setup_brew_formulae }}"
+    state: present
+  when: agents_setup_brew_formulae | length > 0
+
+- name: Ensure the clone's parent directory exists
+  ansible.builtin.file:
+    path: "{{ agents_setup_dest | dirname }}"
+    state: directory
+    mode: "0755"
+
+- name: Checkout k4black/agentic-tools (SSH — auto-authed pulls + pushes)
+  ansible.builtin.git:
+    repo: "{{ agents_setup_repo }}"
+    dest: "{{ agents_setup_dest }}"
+    version: "{{ agents_setup_version }}"
+    accept_hostkey: true
+    # force stays false (default): never discard local edits — fail loudly if the
+    # working tree is dirty rather than clobbering in-progress skill work.
+
+- name: Wire agent harnesses via install.sh (idempotent — safe to re-run)
+  ansible.builtin.command: ./install.sh
+  args:
+    chdir: "{{ agents_setup_dest }}"
+  register: agents_setup_install
+  changed_when: >-
+    ('backed up' in agents_setup_install.stdout) or
+    ('added' in agents_setup_install.stdout) or
+    ('installed' in agents_setup_install.stdout) or
+    ('removed' in agents_setup_install.stdout)
+
+- name: Show install.sh summary
+  ansible.builtin.debug:
+    var: agents_setup_install.stdout_lines

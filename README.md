@@ -153,11 +153,11 @@ layer.
 
 **Skills.** The 66 bundled skills are trimmed to a personal-assistant set via
 `skills.disabled` in `hermes-config.yaml.j2` (no dev/mlops/heavy-creative). On top
-of that, the personal skills repo [k4black/dotfiles](https://github.com/k4black/dotfiles)
-is cloned to `/srv/data/hermes/skills-repo` (clone-if-missing) and loaded via
-`skills.external_dirs` (`plugins/personal/skills`). Hermes can read, edit/author,
+of that, the personal skills repo [k4black/agentic-tools](https://github.com/k4black/agentic-tools)
+is cloned to `/srv/data/hermes/agentic-tools` (clone-if-missing) and loaded via
+`skills.external_dirs` (`skills/`). Hermes can read, edit/author,
 and **git-push** those skills: a fine-grained PAT (`hermes_github_pat`, scoped to
-`k4black/dotfiles`, Contents R/W) is exposed as `GITHUB_TOKEN` and wired into the
+`k4black/agentic-tools`, Contents R/W) is exposed as `GITHUB_TOKEN` and wired into the
 container's `~/.gitconfig` credential helper. Set it once:
 `ansible-vault encrypt_string --stdin-name hermes_github_pat`. The `github-auth`,
 `github-repo-management`, `github-pr-workflow`, and `hermes-agent-skill-authoring`
