@@ -1,13 +1,10 @@
 ---
-# Tailscale nodes join with a one-off auth key minted here from the OAuth client
-# (scope: auth_keys only, tag: {{ tailscale_tag }}). The OAuth secret stays in the
-# vault and never reaches a host — a host only ever holds a key that is already
-# spent, because it is consumed on first login. Tagged nodes have key expiry
-# disabled by default, and TS_AUTH_ONCE + the persisted state volume mean later
-# starts need no credential at all.
+# Mints a one-off, tagged Tailscale key with tasks/tailscale_create_key.yml and
+# exposes it to the compose template as `tailscale_node_authkey` (empty when the
+# node is already authenticated and tagged). The OAuth client secret stays in the
+# vault and never reaches a host.
 #
-# Runs before the containers_setup role, which renders the compose file with
-# `tailscale_node_authkey` (empty when the node is already tagged).
+# Runs before the containers_setup role.
 
 - name: Read the current Tailscale node state
   ansible.builtin.command: docker exec tailscale tailscale status --json
@@ -16,51 +13,28 @@
   changed_when: false
   failed_when: false
 
-- name: Read the tags of the authenticated node
+- name: Read the node state and tags
   when: tailscale_node_status.rc == 0
   ansible.builtin.set_fact:
+    tailscale_backend_state: >-
+      {{ ((tailscale_node_status.stdout | from_json) or {}).get('BackendState') or 'unknown' }}
     tailscale_current_tags: >-
       {{ ((tailscale_node_status.stdout | from_json).Self or {}).get('Tags') or [] }}
 
+# rc 0 alone does not prove the node is logged in — a container that is up but logged
+# out still answers with JSON — so the backend state is part of the decision.
 - name: Decide whether a key is needed
   ansible.builtin.set_fact:
-    tailscale_needs_key: "{{ tailscale_node_status.rc != 0 or tailscale_tag not in (tailscale_current_tags | default([])) }}"
+    tailscale_needs_key: >-
+      {{ tailscale_node_status.rc != 0
+         or (tailscale_backend_state | default('unknown')) != 'Running'
+         or tailscale_tag not in (tailscale_current_tags | default([])) }}
 
-- name: Mint a one-off tagged auth key
+- name: Mint and adopt a tagged node key
   when: tailscale_needs_key | bool
-  no_log: true
   block:
-    - name: Get an OAuth access token
-      ansible.builtin.uri:
-        url: https://api.tailscale.com/api/v2/oauth/token
-        method: POST
-        body_format: form-urlencoded
-        body:
-          grant_type: client_credentials
-          scope: auth_keys
-        url_username: "{{ tailscale_oauth_client_id }}"
-        url_password: "{{ tailscale_oauth_client_secret }}"
-        force_basic_auth: true
-      register: tailscale_oauth_token
-
-    - name: Create a one-off, preauthorized key for {{ tailscale_tag }}
-      ansible.builtin.uri:
-        url: https://api.tailscale.com/api/v2/tailnet/-/keys
-        method: POST
-        headers:
-          Authorization: "Bearer {{ tailscale_oauth_token.json.access_token }}"
-        body_format: json
-        body:
-          capabilities:
-            devices:
-              create:
-                reusable: false
-                ephemeral: false
-                preauthorized: true
-                tags: ["{{ tailscale_tag }}"]
-          expirySeconds: 3600
-          description: "{{ inventory_hostname }} ansible deploy"
-      register: tailscale_key
+    - name: Mint the key
+      ansible.builtin.include_tasks: tasks/tailscale_create_key.yml
 
     # A node that is already authenticated keeps its user-owned identity: with
     # TS_AUTH_ONCE the container will not log in again by itself, so an existing
@@ -69,12 +43,15 @@
       when: tailscale_node_status.rc == 0
       ansible.builtin.command: >-
         docker exec tailscale tailscale up
-        --auth-key={{ tailscale_key.json.key }}
+        --auth-key={{ tailscale_minted_key }}
         --advertise-tags={{ tailscale_tag }}
         {{ tailscale_extra_args }}
         --force-reauth
+      become: true
+      no_log: true
       changed_when: true
 
     - name: Hand the key to the compose template for a fresh node
       ansible.builtin.set_fact:
-        tailscale_node_authkey: "{{ tailscale_key.json.key if tailscale_node_status.rc != 0 else '' }}"
+        tailscale_node_authkey: "{{ tailscale_minted_key if tailscale_node_status.rc != 0 else '' }}"
+      no_log: true

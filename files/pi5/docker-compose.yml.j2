@@ -123,39 +123,6 @@ services:
       - homepage.icon=cloudflare
     restart: unless-stopped
 
-  wireguard:
-    image: linuxserver/wireguard:1.0.20260223
-    container_name: wireguard
-    cap_add:
-      - NET_ADMIN
-      - SYS_MODULE
-    environment:
-      PUID: 1000
-      PGID: 1000
-      TZ: {{ timezone }}
-      SERVERURL: {{ pi5_duckdns_subdomain }}.duckdns.org
-      SERVERPORT: 51820
-      INTERNAL_SUBNET: {{ vpn_network_subnet }}
-    volumes:
-      - {{ containers_setup_configs_dir }}/server-wg0.conf:/config/wg_confs/server_wg0.conf:ro
-      - /lib/modules:/lib/modules
-    ports:
-      - "51820:51820/udp"
-      # - "5000:5000"  # for wireguard-ui, set here as network_mode: service:wireguard
-    sysctls:
-      - net.ipv4.conf.all.src_valid_mark=1
-      - net.ipv4.ip_forward=1
-    labels:
-      - homepage.group=Networking
-      - homepage.name=WireGuard
-      - homepage.icon=wireguard
-    healthcheck:
-      test: ["CMD", "wg", "show", "server_wg0"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    restart: unless-stopped
-
   # TODO: thing about unbound to resolve DNS and not send it to the google etc
   pihole:
     image: pihole/pihole:2026.09.0
@@ -742,7 +709,7 @@ services:
     restart: unless-stopped
 
   tailscale:
-    image: tailscale/tailscale:v1.102.5
+    image: {{ tailscale_image }}
     container_name: tailscale
     hostname: pi5
     network_mode: host
@@ -757,6 +724,11 @@ services:
       # only when the container is not authenticated yet — the default (false) forces
       # a fresh login on every start.
       TS_AUTH_ONCE: "true"
+      # Kernel networking: userspace mode (the image default) gives the host no
+      # tailscale0 interface, so nothing outside the tailnet can reach host
+      # services and host-to-host tailnet traffic is impossible. Needs
+      # /dev/net/tun + NET_ADMIN, both already set below/above.
+      TS_USERSPACE: "false"
       TS_STATE_DIR: /var/lib/tailscale
       # Default is /tmp/tailscaled.sock symlinked into /var/run/tailscale — the
       # symlink target isn't shareable across containers, so put the real socket

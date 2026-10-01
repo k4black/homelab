@@ -1,0 +1,48 @@
+---
+# Mints a one-off auth key from the OAuth client (scope: auth_keys only) and
+# exports it as `tailscale_minted_key`. The OAuth secret itself never leaves the
+# vault. Every key created here is consumed on first login.
+#
+# Vars:
+#   tailscale_tag             tag to create the key for (must be assigned to the client)
+#   tailscale_key_ephemeral   true for throwaway nodes, e.g. the CI check (default false)
+#   tailscale_key_description free-form description shown in the admin console
+
+- name: Get an OAuth access token
+  ansible.builtin.uri:
+    url: https://api.tailscale.com/api/v2/oauth/token
+    method: POST
+    body_format: form-urlencoded
+    body:
+      grant_type: client_credentials
+      scope: auth_keys
+    url_username: "{{ tailscale_oauth_client_id }}"
+    url_password: "{{ tailscale_oauth_client_secret }}"
+    force_basic_auth: true
+  register: tailscale_oauth_token
+  no_log: true
+
+- name: Create a one-off key for {{ tailscale_tag }}
+  ansible.builtin.uri:
+    url: https://api.tailscale.com/api/v2/tailnet/-/keys
+    method: POST
+    headers:
+      Authorization: "Bearer {{ tailscale_oauth_token.json.access_token }}"
+    body_format: json
+    body:
+      capabilities:
+        devices:
+          create:
+            reusable: false
+            ephemeral: "{{ tailscale_key_ephemeral | default(false) }}"
+            preauthorized: true
+            tags: ["{{ tailscale_tag }}"]
+      expirySeconds: 3600
+      description: "{{ tailscale_key_description | default('ansible deploy') }}"
+  register: tailscale_key
+  no_log: true
+
+- name: Export the minted key
+  ansible.builtin.set_fact:
+    tailscale_minted_key: "{{ tailscale_key.json.key }}"
+  no_log: true

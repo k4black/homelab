@@ -1,0 +1,35 @@
+---
+# Cheap replacement for the second macOS CI job: asserts the profile-dependent
+# lists without launching a runner per profile. Run once per profile:
+#   ansible-playbook playbook_macbook_profile_check.yml -e macbook_profile=work
+- name: Check the profile-specific package and dock lists
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars_files:
+    - vars/all.yml
+    - vars/macbook.yml
+  tasks:
+    - name: Select the dock items for profile {{ macbook_profile }}
+      ansible.builtin.set_fact:
+        macbook_dock_items: >-
+          {{ dockitems_persist_layout | selectattr('profile', 'in', ['all', macbook_profile]) | list }}
+
+    - name: Assert the work profile adds Slack and azure-cli
+      ansible.builtin.assert:
+        that:
+          - (macbook_profile == 'work') == ('slack' in homebrew_cask_apps)
+          - (macbook_profile == 'work') == ('azure-cli' in homebrew_installed_packages)
+        fail_msg: "Profile extras do not line up for {{ macbook_profile }}."
+
+    - name: Assert the personal profile adds tunnelblick and no Slack in the dock
+      ansible.builtin.assert:
+        that:
+          - (macbook_profile == 'personal') == ('tunnelblick' in homebrew_cask_apps)
+          - (macbook_profile == 'work') == ('Slack' in macbook_dock_items | map(attribute='name') | list)
+          - macbook_dock_items | length == (11 if macbook_profile == 'work' else 10)
+        fail_msg: "Dock selection does not line up for {{ macbook_profile }}."
+
+    - name: Show the result
+      ansible.builtin.debug:
+        msg: "{{ macbook_profile }}: {{ macbook_dock_items | map(attribute='name') | list }}"

@@ -1,0 +1,60 @@
+---
+# CI check: proves the OAuth client, the tag and the ACL work end to end without
+# touching a deployment. It mints an EPHEMERAL tagged key, joins a throwaway
+# userspace node, asserts the node carries the tag, then removes the container —
+# the node removes itself from the tailnet when it disconnects.
+#
+# Run from CI with `-i localhost,`; can be run on a host with `-i <host>,`.
+- name: Verify the Tailscale OAuth credential
+  hosts: all
+  gather_facts: false
+  vars_files:
+    - vars/all.yml
+  tasks:
+    - name: Mint an ephemeral key
+      ansible.builtin.include_tasks: tasks/tailscale_create_key.yml
+      vars:
+        tailscale_key_ephemeral: true
+        tailscale_key_description: "ci tailscale credential check"
+
+    - name: Join a throwaway node
+      block:
+        - name: Start the test container
+          ansible.builtin.command: >-
+            docker run -d --name ts-ci-check
+            -e TS_AUTHKEY={{ tailscale_minted_key }}
+            -e TS_USERSPACE=true
+            -e TS_STATE_DIR=/tmp/ts-ci-state
+            -e TS_SOCKET=/tmp/ts-ci.sock
+            -e TS_EXTRA_ARGS="--hostname=ts-ci-check --advertise-tags={{ tailscale_tag }}"
+            {{ tailscale_image }}
+          changed_when: true
+          no_log: true
+
+        - name: Wait for the node to reach Running
+          ansible.builtin.command: docker exec ts-ci-check tailscale --socket=/tmp/ts-ci.sock status --json
+          register: ts_ci_status
+          until: >-
+            ((ts_ci_status.stdout | default('{}', true)) | from_json).get('BackendState') == 'Running'
+          retries: 20
+          delay: 3
+          changed_when: false
+          failed_when: false
+
+        - name: Fail when the node never connected
+          ansible.builtin.fail:
+            msg: "Tailscale node did not reach Running — check the OAuth client scopes and tag."
+          when: >-
+            ((ts_ci_status.stdout | default('{}', true)) | from_json).get('BackendState') != 'Running'
+
+        - name: Assert the node carries the tag
+          ansible.builtin.assert:
+            that:
+              - tailscale_tag in (((ts_ci_status.stdout | from_json).Self or {}).get('Tags') or [])
+            fail_msg: "Node joined without {{ tailscale_tag }} — check the tag on the OAuth client and the ACL tagOwners."
+            success_msg: "Node joined as {{ tailscale_tag }}."
+      always:
+        - name: Remove the test container
+          ansible.builtin.command: docker rm -f ts-ci-check
+          changed_when: true
+          failed_when: false

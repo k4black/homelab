@@ -27,27 +27,32 @@
           url: http://glances:61208
           version: 4
           metric: containers
+{% if vps_tailscale_ipv4 %}
     - VPS Info:
         widget:
           type: glances
-          url: http://{{ vpn_network_vps_ip }}:61208
+          url: http://{{ vps_tailscale_ipv4 }}:61208
           version: 4
           metric: info
     - VPS CPU:
         widget:
           type: glances
-          url: http://{{ vpn_network_vps_ip }}:61208
+          url: http://{{ vps_tailscale_ipv4 }}:61208
           version: 4
           metric: cpu
     - VPS Memory:
         widget:
           type: glances
-          url: http://{{ vpn_network_vps_ip }}:61208
+          url: http://{{ vps_tailscale_ipv4 }}:61208
           version: 4
           metric: memory
     - VPS Containers:
         widget:
           type: glances
-          url: http://{{ vpn_network_vps_ip }}:61208
+          url: http://{{ vps_tailscale_ipv4 }}:61208
           version: 4
           metric: containers
+{% else %}
+    # vps_tailscale_ipv4 is not set in vars/all.yml, so the vps widgets are
+    # omitted instead of rendering an empty host.
+{% endif %}

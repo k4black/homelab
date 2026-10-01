@@ -42,11 +42,11 @@ jobs:
           yamllint .
           ansible-lint
 
+  # One macOS runner instead of a per-profile matrix: the profile-specific
+  # differences are asserted on a cheap ubuntu runner (check-macbook-profiles),
+  # and the shared install path is exercised here once.
   test-macbook-playbook:
     runs-on: macos-latest
-    strategy:
-      matrix:
-        profile: [personal, work]
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
@@ -72,18 +72,65 @@ jobs:
           echo "${{ secrets.VAULT_PASS }}" > .vault_pass.txt
 
       - name: Test the playbook's syntax
-        run: ansible-playbook playbook_macbook.yml -i inventory-test.ini -e "device_name=test-mac" -e "macbook_profile=${{ matrix.profile }}" --syntax-check
+        run: ansible-playbook playbook_macbook.yml -i inventory-test.ini -e "device_name=test-mac" -e "macbook_profile=personal" --syntax-check
 
-      - name: Test the playbook (${{ matrix.profile }})
-        run: ansible-playbook playbook_macbook.yml -i inventory-test.ini -e "testing=true" -e "device_name=test-mac" -e "macbook_profile=${{ matrix.profile }}" -e "admin_password=admin_password user_account_password=" -e "dotfiles_repo_url=https://github.com/k4black/.dotfiles.git" -e "agents_setup_repo=https://github.com/k4black/.agents.git" --skip-tags "mas"
+      - name: Test the playbook (personal)
+        run: ansible-playbook playbook_macbook.yml -i inventory-test.ini -e "testing=true" -e "device_name=test-mac" -e "macbook_profile=personal" -e "admin_password=admin_password user_account_password=" -e "dotfiles_repo_url=https://github.com/k4black/.dotfiles.git" -e "agents_setup_repo=https://github.com/k4black/.agents.git" --skip-tags "mas"
         env:
           ANSIBLE_FORCE_COLOR: '1'
 
-      - name: Idempotence check (${{ matrix.profile }})
+      - name: Idempotence check (personal)
         run: |
           idempotence=$(mktemp)
-          ansible-playbook playbook_macbook.yml -i inventory-test.ini -e "testing=true" -e "device_name=test-mac" -e "macbook_profile=${{ matrix.profile }}" -e "admin_password=admin_password user_account_password=" -e "dotfiles_repo_url=https://github.com/k4black/.dotfiles.git" -e "agents_setup_repo=https://github.com/k4black/.agents.git" --skip-tags "mas,dock" | tee -a ${idempotence}
+          ansible-playbook playbook_macbook.yml -i inventory-test.ini -e "testing=true" -e "device_name=test-mac" -e "macbook_profile=personal" -e "admin_password=admin_password user_account_password=" -e "dotfiles_repo_url=https://github.com/k4black/.dotfiles.git" -e "agents_setup_repo=https://github.com/k4black/.agents.git" --skip-tags "mas,dock" | tee -a ${idempotence}
           tail ${idempotence} | grep -q 'changed=0.*failed=0' && (echo 'Idempotence test: pass' && exit 0) || (echo 'Idempotence test: fail' && exit 1)
+        env:
+          ANSIBLE_FORCE_COLOR: '1'
+
+  check-macbook-profiles:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Install python and ansible requirements
+        run: |
+          python -m pip install -r requirements.txt
+          ansible-galaxy install -r requirements.yml
+
+      - name: Create dummy .vault_pass.txt
+        run: |
+          echo "test" > .vault_pass.txt
+
+      - name: Syntax check both profiles
+        run: |
+          for profile in personal work; do
+            ansible-playbook playbook_macbook.yml -i inventory-test.ini -e "device_name=test-mac" -e "macbook_profile=$profile" --syntax-check
+          done
+
+      - name: Assert the profile-specific lists
+        run: |
+          for profile in personal work; do
+            ansible-playbook playbook_macbook_profile_check.yml -i inventory-test.ini -e "macbook_profile=$profile"
+          done
+
+  check-tailscale-credential:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Install python and ansible requirements
+        run: |
+          python -m pip install -r requirements.txt
+          ansible-galaxy install -r requirements.yml
+
+      - name: Create .vault_pass.txt
+        run: |
+          echo "${{ secrets.VAULT_PASS }}" > .vault_pass.txt
+
+      - name: Mint an ephemeral key and join a throwaway node
+        run: ansible-playbook playbook_tailscale_check.yml -i localhost, -c local
         env:
           ANSIBLE_FORCE_COLOR: '1'
 

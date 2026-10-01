@@ -66,13 +66,6 @@
     - vars/pi5.yml
 
   pre_tasks:
-    - name: Disable VPN if it is enabled
-      ansible.builtin.shell: |
-        sudo systemctl stop wg-quick@wg0
-      become: true
-      changed_when: false
-      failed_when: false
-      when: testing is undefined or testing != 'true'
     - name: Check if pi user exists
       ansible.builtin.command: id -u pi
       register: pi_user_check
@@ -136,11 +129,10 @@
         linux_server_setup_block_ports: true
         linux_server_setup_allow_subnets:
           - {subnet: "192.168.1.0/24", comment: "LAN full access"}
-          - {subnet: "{{ vpn_network_subnet }}", comment: "VPN full access"}
+          - {subnet: "100.64.0.0/10", comment: "Tailscale full access"}
         linux_server_setup_open_ports:
           - {port: 22, protocol: "tcp", comment: "default ssh"}
           - {port: "{{ ssh_port }}", protocol: "tcp", comment: "custom ssh"}
-          - {port: 51820, protocol: "udp", comment: "wireguard"}
           - {port: 53, protocol: "udp", comment: "pihole dns"}
           - {port: 53, protocol: "tcp", comment: "pihole dns"}
           - {port: 80, protocol: "tcp", comment: "http"}
@@ -418,7 +410,6 @@
         containers_setup_touch_files: []
         containers_setup_config_templates:
           files/pi5/transmission-settings.json.j2: "transmission-config/settings.json"
-          files/pi5/server-wg0.conf.j2: "server-wg0.conf"  # TODO: fix permissions
           files/pi5/home-assistant-config.yml.j2: "home-assistant-config/configuration.yaml"
           files/pi5/pihole-02-custom-dns.conf.j2: "pihole-dnsmasq.d/02-custom-dns.conf"
           files/pi5/pihole-adlists.list: "pihole/adlists.list"

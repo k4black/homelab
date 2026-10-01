@@ -8,7 +8,6 @@ http:
         sourceRange:
           - 127.0.0.0/8                          # loopback
           - 192.168.1.0/24                       # home LAN
-          - {{ vpn_network_subnet }}             # WireGuard clients
           - 100.64.0.0/10                        # Tailscale CGNAT
           - {{ pi5_docker_network_subnet }}      # pi5 docker bridge
           - 172.16.0.0/12                        # default docker bridges

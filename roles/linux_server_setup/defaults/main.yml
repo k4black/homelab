@@ -13,6 +13,5 @@ linux_server_setup_login_ssh_public_key: "{{ ssh_public_key }}"
 linux_server_setup_block_ports: true
 linux_server_setup_open_ports:
   - {port: 22, protocol: "tcp", comment: "default ssh"}
-  - {port: 51820, protocol: "udp", comment: "wireguard"}
   - {port: 80, protocol: "tcp", comment: "http"}
   - {port: 443, protocol: "tcp", comment: "https"}

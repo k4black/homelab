@@ -1,16 +1,21 @@
 # {{ ansible_managed }}
 
+{% if vps_tailscale_ipv4 %}
 # Stream to VPS (active-active parent)
 [stream]
     enabled = yes
-    destination = {{ vpn_network_vps_ip }}:19999
+    destination = {{ vps_tailscale_ipv4 }}:19999
     api key = {{ netdata_stream_api_key }}
     send charts matching = *
 
 # Accept streams from VPS
 [{{ netdata_stream_api_key }}]
     enabled = yes
-    allow from = {{ vpn_network_vps_ip }}
+    allow from = {{ vps_tailscale_ipv4 }}
     db = dbengine
     enable replication = yes
     replication period = 14d
+{% else %}
+# vps_tailscale_ipv4 is not set in vars/all.yml, so the vps side of the
+# active-active pair is disabled until the vps rejoins the tailnet.
+{% endif %}

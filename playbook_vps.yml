@@ -77,10 +77,13 @@
         linux_server_setup_login_user_uid: 1000
         linux_server_setup_login_user_gid: 1000
         linux_server_setup_login_ssh_public_key: "{{ lookup('file', '{{ ssh_public_key_path }}') }}"
+        # The vps netdata child/parent pair talks to pi5 over the tailnet, and the
+        # tailnet is also how a Mac/phone reaches the vps, so allow it explicitly.
+        linux_server_setup_allow_subnets:
+          - {subnet: "100.64.0.0/10", comment: "Tailscale full access"}
         linux_server_setup_open_ports:  # IMPORTANT: DO NOT open no-auth endpoints
           - {port: 22, protocol: "tcp", comment: "default ssh"}
           - {port: "{{ ssh_port }}", protocol: "tcp", comment: "custom ssh"}
-          - {port: 51820, protocol: "udp", comment: "wireguard"}
           - {port: 80, protocol: "tcp", comment: "http"}
           - {port: 443, protocol: "tcp", comment: "https"}
           - {port: 30000, protocol: "tcp", comment: "foundryvtt"}
@@ -175,7 +178,6 @@
           - "{{ services_data_dir }}/filebrowser/database"
         containers_setup_touch_files: []
         containers_setup_config_templates:
-          files/vps/server-wg0.conf.j2: "server-wg0.conf"  # TODO: fix permissions
           files/vps/pihole-02-custom-dns.conf.j2: "pihole-dnsmasq.d/02-custom-dns.conf"
           files/vps/pihole-adlists.list: "pihole/adlists.list"
           files/vps/pihole-custom.list.j2: "pihole/custom.list"

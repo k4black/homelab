@@ -78,7 +78,7 @@ lints exactly the same files as CI.
 | extra cask | tunnelblick | slack |
 | extra formula | — | azure-cli |
 | dock | Slack absent | Slack at position 6 |
-| admin juggling + VPN config | yes | no |
+| admin juggling | no (disabled) | no |
 
 Run the work laptop with `-e macbook_profile=work`.
 
@@ -107,10 +107,22 @@ upgrades them (`homebrew_upgrade_all_packages` stays commented out). Run
 
 ### CI
 
-`.github/workflows/test.yml` lints, then runs the MacBook playbook for both profiles
-plus the vps and pi5 playbooks, each with an idempotence check. CI has no SSH key,
-so the MacBook jobs override the clone URLs with the public HTTPS endpoints
-(`-e dotfiles_repo_url=… -e agents_setup_repo=…`); local runs keep the SSH URLs.
+`.github/workflows/test.yml` runs:
+
+- `lint` — `yamllint .` and `ansible-lint`.
+- `test-macbook-playbook` — one macOS runner, personal profile, followed by an
+  idempotence check. CI has no SSH key, so it overrides the clone URLs with the public
+  HTTPS endpoints (`-e dotfiles_repo_url=… -e agents_setup_repo=…`); local runs keep the
+  SSH URLs.
+- `check-macbook-profiles` — a cheap ubuntu job that syntax-checks both profiles and
+  asserts the profile-dependent cask/formula/dock lists (`playbook_macbook_profile_check.yml`,
+  run once per profile).
+- `check-tailscale-credential` — mints an ephemeral `tag:node` key and joins a throwaway
+  node (`playbook_tailscale_check.yml`), so a broken OAuth client, tag or ACL fails CI
+  instead of a deploy.
+- `test-pi5-playbook` and `test-vps-playbook` — each with an idempotence check. Both run
+  with `testing=true --skip-tags run_docker`, so container-dependent verification (tagged
+  `run_docker`) is skipped; the Tailscale check above covers the credential instead.
 
 
 
@@ -146,25 +158,10 @@ update vars/pi5.yml
     Internet -> Account Information -> DNS Server -> Use other DNSv4/DNSv6 Servers  
     * Fill both fields with raspberry pi ip address
     * Checkbox fallback to public dns 
-4. Forward vpn subnet through pi5
-    Home Network -> Network -> Network Settings -> IPv4 Addresses -> Network Settings -> IPv4 Routes -> New IPv4 Route  
-   (same as in vars/all.yml)
-    ```
-    IPv4 Network: 10.1.0.0
-    Subnet Mask: 255.255.255.0  (/24)
-    Gateway: [pi5 fixed ip]
-    Ipv4 route active: checked
-    ```
-5. Forward ports to pi5
+4. Forward ports to pi5
     Internet -> Permit Access -> Port Sharing -> New Port Sharing Rule
     Device: pi5
     New Sharing -> Port Sharing
-    ```
-    Application: Custom
-    Service Name: Wireguard
-    Protocol: UPD
-    Port: 51820
-    ```
     ```
     Application: Custom
     Service Name: SSH
@@ -191,7 +188,7 @@ move to / be added on another node later:
 Access after deploy (host:port, like the other services — no DNS route):
 * Telegram — message your bot (only `hermes_telegram_allowed_users` may talk to it).
 * Dashboard — `http://[PI5_IP]:9119` or `http://pi5.[tailnet].ts.net:9119`, reachable on
-  LAN/Tailscale/VPN only. HTTP basic auth is required: since hermes-agent
+  LAN/Tailscale only. HTTP basic auth is required: since hermes-agent
   v2026.9.24 a non-loopback dashboard bind always needs an auth provider
   (`--insecure` is a warned no-op and the dashboard fails closed). User name is
   `hermes_dashboard_username`; the password and signing secret are vaulted
@@ -256,14 +253,22 @@ time** (`tasks/tailscale_mint_key.yml`) from an OAuth client that holds only the
   needed for the first login only. The playbook mints a key only when the node is not
   authenticated, or when it does not carry the tag yet — in the latter case it
   re-authenticates the existing node in place, so the device keeps its identity.
-- Nothing in CI touches the tailnet: the mint task is skipped when `testing=true`, and
-  the connection-verification blocks are tagged `run_docker`, which CI skips.
+- Kernel networking is enabled explicitly (`TS_USERSPACE: "false"`). The image defaults
+  to userspace mode, which gives the host no `tailscale0` interface — nothing outside the
+  tailnet could reach host services and host-to-host tailnet traffic was impossible.
+  Kernel mode needs `/dev/net/tun` and `NET_ADMIN`; both are already in the compose blocks.
+- Because the hosts now have a real tailnet address, the firewall allows `100.64.0.0/10`
+  and the inter-host wiring uses tailnet IPs: netdata streaming (`vps_tailscale_ipv4` /
+  `pi5_tailscale_ipv4`) and the pi5 homepage widgets that point at the vps glances.
+- CI never authenticates to the tailnet from the deploy playbooks: the mint task skips
+  under `testing=true` and the verification blocks carry the `run_docker` tag. A separate
+  `tailscale-check` job mints an ephemeral key and joins a throwaway node instead.
 
 In the admin console, confirm the `tag:node` device shows **key expiry disabled**.
 Re-authenticating with a tagged key disables it automatically; applying a tag by hand
 in the console does not.
 
-### Remote access (without VPN)
+### Remote access (SSH via DuckDNS)
 
 After setup, you can SSH into the pi5 via DuckDNS hostname:
 ```bash
@@ -278,11 +283,7 @@ This requires the SSH port forwarding (4221) configured above.
 
 Create duckdns [DOMAIN] and [TOKEN]
 
-### Generate config files
-
-`ansible-playbook -i inventory.ini playbook_router.yml --tags=generate`
-
-### VPN setup:
+### DynDNS
 
 1. Setup DynDNS to update on the router
     Internet -> Permit Access -> DynDNS  
@@ -292,11 +293,3 @@ Create duckdns [DOMAIN] and [TOKEN]
     Username: none
     Password: [TOKEN]
     ```
-2. Enable Wireguard on the router  
-    Internet -> Permit Access -> VPN (WireGuard) -> Enable WireGuard -> Add connection  
-    ```
-    Connect networks or establish special connections
-    already been set up: yes
-    Name: wg0
-    ```
-    Load config from `.tmp/router-wg0.conf`

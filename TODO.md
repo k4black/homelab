@@ -28,6 +28,13 @@ Verified on pi5 (2026-10-01):
 
 Open:
 
+- **Kernel networking is unverified in production.** `TS_USERSPACE: "false"` was added to
+  both compose templates on 2026-10-01 but nothing was deployed, so no host has a real
+  `tailscale0` yet. On the next deploy check `ip addr show tailscale0` and that the
+  tailnet subnet rule (`100.64.0.0/10`) actually carries SSH.
+- **`vps_tailscale_ipv4` is an empty placeholder** in `vars/all.yml`. Fill it once the vps
+  rejoins the tailnet, otherwise the pi5 netdata stream (destination) and the four vps
+  glances widgets on the homepage point nowhere. `pi5_tailscale_ipv4` is filled in.
 - **Confirm in the admin console that the pi5 device shows "Key expiry: Disabled".**
   Re-authenticating with a tagged key disables expiry automatically; applying the tag
   by hand in the console does not.
@@ -38,6 +45,19 @@ Open:
   itself still exists in the Tailscale admin console.
 - `--advertise-exit-node` is still advertised by both nodes. Without ACL `autoApprovers`
   the first exit-node approval is manual.
+
+## WireGuard removal (2026-10-01)
+
+WireGuard is gone from the repo: macbook client configs, both server containers and their
+`server-wg0.conf` templates, `files/router/`, the `vpn_network_*` vars, the `wireguard`
+package entry, the 51820/udp open port and the firewall's VPN-subnet rule. Tailscale is
+the replacement, which is why the tailnet subnet rule and kernel networking were added —
+without them nothing outside the LAN could reach pi5/vps. Everything is in git history if
+it has to come back. The router port-forwarding docs for WireGuard were removed too; the
+pi5 SSH port forward (4221) stays.
+
+Sources of the old wiring, for reference: the VPN subnet also carried netdata streaming
+and the homepage vps widgets, now moved to `pi5_tailscale_ipv4` / `vps_tailscale_ipv4`.
 
 ## Verify after the next pi5 deploy
 
@@ -51,9 +71,9 @@ Open:
   (`wget` is absent from the image); it should leave "unhealthy" behind.
 - **Image bumps**: jellyfin 10.11.11, homepage v2.4.0, prowlarr 2.6.5, radarr 6.4.4,
   sonarr 4.0.20, glances 4.5.7, netdata v2.12.0, tailscale v1.102.5, traefik v3.7.13,
-  pihole 2026.09.0, wireguard 1.0.20260223, cloudflare-ddns 1.17.1, filebrowser
-  v2.63.23, hermes v2026.9.24. The *arr apps show a new cosmetic "Allowed Hosts is not
-  configured" warning; accept-any-host remains the behaviour.
+  pihole 2026.09.0, cloudflare-ddns 1.17.1, filebrowser v2.63.23, hermes v2026.9.24.
+  The *arr apps show a new cosmetic "Allowed Hosts is not configured" warning;
+  accept-any-host remains the behaviour.
 - **`homepage-logs` is no longer created or mounted**; logs go to
   `/app/config/logs/homepage.log`. Delete the old `/srv/data/homepage-logs` directory.
 
