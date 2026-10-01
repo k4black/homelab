@@ -241,6 +241,28 @@ the `5900` publish for zero VNC overhead. Also: the `anki-connect` skill hardcod
 `http://localhost:8765` — it needs a one-line change to read `ANKI_CONNECT_URL` (Hermes
 can edit + push it).
 
+### Tailscale auth
+
+Nodes join with a **one-off, preauthorized auth key that the playbook mints at deploy
+time** (`tasks/tailscale_mint_key.yml`) from an OAuth client that holds only the
+`auth_keys` write scope and the `tag:node` tag.
+
+- The OAuth client secret (`tailscale_oauth_client_id` / `tailscale_oauth_client_secret`
+  in `vars/all.yml`) never reaches a host. A host only ever holds a key that is
+  already spent, because the key is consumed on first login.
+- Nodes are tag-owned (`--advertise-tags={{ tailscale_tag }}`). Tagged devices get key
+  expiry disabled by default, so there is nothing to rotate every 90 days.
+- `TS_AUTH_ONCE=true` plus the persisted `TS_STATE_DIR` volume means the credential is
+  needed for the first login only. The playbook mints a key only when the node is not
+  authenticated, or when it does not carry the tag yet — in the latter case it
+  re-authenticates the existing node in place, so the device keeps its identity.
+- Nothing in CI touches the tailnet: the mint task is skipped when `testing=true`, and
+  the connection-verification blocks are tagged `run_docker`, which CI skips.
+
+In the admin console, confirm the `tag:node` device shows **key expiry disabled**.
+Re-authenticating with a tagged key disables it automatically; applying a tag by hand
+in the console does not.
+
 ### Remote access (without VPN)
 
 After setup, you can SSH into the pi5 via DuckDNS hostname:

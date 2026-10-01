@@ -144,6 +144,13 @@
       become: true
       tags: [docker]
 
+    # Mint the one-off, tagged Tailscale key before the compose file is rendered.
+    # Skipped in CI (testing=true): it needs the real OAuth client and a host.
+    - name: Mint the Tailscale node auth key
+      ansible.builtin.include_tasks: tasks/tailscale_mint_key.yml
+      tags: [docker]
+      when: testing is undefined or testing != 'true'
+
     - name: Copy docker configs and run containers
       ansible.builtin.include_role:
         name: containers_setup
@@ -178,7 +185,8 @@
           files/vps/netdata-stream.conf.j2: "netdata-config/stream.conf"
 
     - name: Verify Tailscale connection
-      tags: [docker]
+      # run_docker too: this needs the container up, and CI runs --skip-tags run_docker.
+      tags: [docker, run_docker]
       block:
         - name: Wait for Tailscale to connect
           ansible.builtin.command: docker exec tailscale tailscale status --json
@@ -191,7 +199,8 @@
         - name: Fail if Tailscale auth key is expired or invalid
           ansible.builtin.fail:
             msg: >
-              Tailscale failed to connect — auth key may be expired (90-day limit).
-              Regenerate at https://login.tailscale.com/admin/settings/keys
-              and update tailscale_authkey in vars/all.yml
+              Tailscale is not connected: the container is not running, or the node
+              has no valid credential. Run the playbook — it mints a one-off tagged
+              key when the node is not authenticated — and check the device in the
+              Tailscale admin console.
           when: tailscale_status.rc != 0

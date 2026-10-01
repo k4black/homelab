@@ -293,13 +293,20 @@ req.end();"]
       - NET_ADMIN
       - NET_RAW
     environment:
-      TS_AUTHKEY: {{ tailscale_authkey }}
+      # Key is minted per deploy by tasks/tailscale_mint_key.yml (one-off, tagged)
+      # and consumed on first login; empty once the node is authenticated.
+      TS_AUTHKEY: "{{ tailscale_node_authkey | default('') }}"
+      # TS_AUTH_ONCE: state is persisted in TS_STATE_DIR (mounted volume), so log in
+      # only when the container is not authenticated yet — the default (false) forces
+      # a fresh login on every start.
+      TS_AUTH_ONCE: "true"
       TS_STATE_DIR: /var/lib/tailscale
       # Default is /tmp/tailscaled.sock symlinked into /var/run/tailscale — the
       # symlink target isn't shareable across containers, so put the real socket
       # in the shared volume directly. Traefik's `ts` resolver expects this path.
       TS_SOCKET: /var/run/tailscale/tailscaled.sock
-      TS_EXTRA_ARGS: --accept-dns=false --advertise-exit-node
+      # --advertise-tags makes the node tag-owned (ACL tag {{ tailscale_tag }}).
+      TS_EXTRA_ARGS: "{{ tailscale_extra_args }} --advertise-tags={{ tailscale_tag }}"
       TS_ENABLE_HEALTH_CHECK: true
     volumes:
       - {{ containers_setup_data_dir }}/tailscale:/var/lib/tailscale

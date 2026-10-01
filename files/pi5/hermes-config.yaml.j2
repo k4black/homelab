@@ -3,7 +3,7 @@
 # /opt/data/config.yaml inside the container (host: /srv/data/hermes/config.yaml).
 # Secrets (OpenRouter key, Telegram token, dashboard auth) are NOT here — they
 # are passed as container env in docker-compose.yml.j2, matching the repo's
-# convention for cloudflare_api_token / tailscale_authkey. LLM_MODEL is no
+# convention for cloudflare_api_token / tailscale_oauth_client_secret. LLM_MODEL is no
 # longer read from .env upstream, so the model lives here.
 
 model:
