@@ -162,7 +162,7 @@
     - role: dotfiles
       tags: ["dotfiles"]
       vars:
-        dotfiles_repo_url: "https://github.com/k4black/dotfiles.git"
+        dotfiles_repo_url: "https://github.com/k4black/.dotfiles.git"
         dotfiles_dest: "~/.dotfiles"
         dotfiles_symlinks:
           .zshrc: "~/.zshrc"
@@ -302,9 +302,9 @@
         docker_gid: "{{ docker_group_info.stdout.split(':')[2] if docker_group_info.rc == 0 else '999' }}"
       tags: [docker]
 
-    # Hermes' skills repo: k4black/agentic-tools (single source of truth for agent
+    # Hermes' skills repo: k4black/.agents (single source of truth for agent
     # skills). Cloned as a writable working copy that the agent reads
-    # (skills.external_dirs -> agentic-tools/skills) AND git-commits/pushes back to
+    # (skills.external_dirs -> .agents/skills) AND git-commits/pushes back to
     # (PAT in the container env + ~/.gitconfig credential helper). Clone-if-missing
     # only (update: false) so Hermes' own local commits are never reset by a
     # redeploy. Public repo — no creds to clone; the PAT is only used for push.
@@ -317,18 +317,18 @@
         mode: "0755"
       become: true
       tags: [docker]
-    - name: Clone k4black/agentic-tools skills repo (clone-if-missing)
+    - name: Clone k4black/.agents skills repo (clone-if-missing)
       ansible.builtin.git:
-        repo: https://github.com/k4black/agentic-tools.git
-        dest: "{{ services_data_dir }}/hermes/agentic-tools"
+        repo: https://github.com/k4black/.agents.git
+        dest: "{{ services_data_dir }}/hermes/.agents"
         version: main
         clone: true
         update: false
       become: true
       tags: [docker]
-    - name: Own agentic-tools clone by the Hermes container user (uid/gid 1000)
+    - name: Own .agents clone by the Hermes container user (uid/gid 1000)
       ansible.builtin.file:
-        path: "{{ services_data_dir }}/hermes/agentic-tools"
+        path: "{{ services_data_dir }}/hermes/.agents"
         state: directory
         owner: "{{ username }}"
         group: "{{ username }}"
@@ -429,7 +429,7 @@
           # Rendered into Hermes' HERMES_HOME (data dir, not configs dir) so it
           # sits at /opt/data/config.yaml inside the container. Non-secret only.
           files/pi5/hermes-config.yaml.j2: "../data/hermes/config.yaml"
-          # Git identity + PAT credential helper for the dotfiles skills repo.
+          # Git identity + PAT credential helper for the .agents skills repo.
           files/pi5/hermes-gitconfig.j2: "../data/hermes/.gitconfig"
 
     - name: Verify Tailscale connection
@@ -466,14 +466,22 @@
         jf_admin_user: admin
         jf_admin_password: "{{ jellyfin_admin_password | default('admin') }}"
       block:
+        # During DB migrations a setup server answers /System/Info/Public with a
+        # hard-coded StartupWizardCompleted=false and 503s everything else, so wait
+        # on /health (real server only) before reading the wizard state.
         - name: Wait for Jellyfin to be reachable
+          ansible.builtin.uri:
+            url: "{{ jf_url }}/health"
+          register: jf_health
+          retries: 30
+          delay: 5
+          until: jf_health.status == 200
+
+        - name: Read Jellyfin startup state
           ansible.builtin.uri:
             url: "{{ jf_url }}/System/Info/Public"
             return_content: true
           register: jf_info
-          retries: 30
-          delay: 5
-          until: jf_info.status == 200
 
         - name: Drive Jellyfin startup wizard (idempotent — skipped if already completed)
           # StartupWizardCompleted is absent from /System/Info/Public until the

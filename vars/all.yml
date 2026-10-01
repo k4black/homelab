@@ -160,8 +160,8 @@ hermes_telegram_bot_token: !vault |
           31616232346166306236663037643630313231633261663039316335613435356339373632336431
           6563333337353330636636353235376531666633376665643231
 
-# GitHub access for the dotfiles skills repo: fine-grained PAT scoped to
-# k4black/dotfiles (Contents R/W). Exposed as GITHUB_TOKEN in the container —
+# GitHub access for the .agents skills repo: fine-grained PAT scoped to
+# k4black/.agents (Contents R/W). Exposed as GITHUB_TOKEN in the container —
 # used by the github-* skills, gh, and the git credential helper (rendered into
 # the container's ~/.gitconfig). The agent can read its own env, so this token
 # is effectively available to it; the single-repo fine-grained scope bounds the

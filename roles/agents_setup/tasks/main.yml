@@ -3,13 +3,13 @@
 # clone, and install.sh all need the user's context (Homebrew perms, SSH key,
 # logged-in `claude` for `claude plugin install`). Never run under become.
 
-- name: Install agent CLI casks (codex)
+- name: Install agent CLI casks
   community.general.homebrew_cask:
     name: "{{ agents_setup_brew_casks }}"
     state: present
   when: agents_setup_brew_casks | length > 0
 
-- name: Install agent CLI formulae (rtk, ralph-orchestrator)
+- name: Install agent CLI formulae
   community.general.homebrew:
     name: "{{ agents_setup_brew_formulae }}"
     state: present
@@ -21,7 +21,7 @@
     state: directory
     mode: "0755"
 
-- name: Checkout k4black/agentic-tools (SSH — auto-authed pulls + pushes)
+- name: Checkout k4black/.agents (SSH — auto-authed pulls + pushes)
   # CI overrides agents_setup_repo with the public HTTPS URL (see test.yml).
   ansible.builtin.git:
     repo: "{{ agents_setup_repo }}"

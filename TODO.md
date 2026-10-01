@@ -28,16 +28,12 @@ Verified on pi5 (2026-10-01):
 
 Open:
 
-- **Kernel networking is unverified in production.** `TS_USERSPACE: "false"` was added to
-  both compose templates on 2026-10-01 but nothing was deployed, so no host has a real
-  `tailscale0` yet. On the next deploy check `ip addr show tailscale0` and that the
-  tailnet subnet rule (`100.64.0.0/10`) actually carries SSH.
+- **Kernel networking is live on pi5** (deployed 2026-10-01): `tailscale0` carries
+  `100.72.254.6` and UFW allows `100.64.0.0/10`. SSH over the tailnet is still untested:
+  no other tailnet peer is online (the Mac has no Tailscale, the vps is down).
 - **`vps_tailscale_ipv4` is an empty placeholder** in `vars/all.yml`. Fill it once the vps
   rejoins the tailnet, otherwise the pi5 netdata stream (destination) and the four vps
   glances widgets on the homepage point nowhere. `pi5_tailscale_ipv4` is filled in.
-- **Confirm in the admin console that the pi5 device shows "Key expiry: Disabled".**
-  Re-authenticating with a tagged key disables expiry automatically; applying the tag
-  by hand in the console does not.
 - **Unverified: the "convert an existing user-owned node" branch** of
   `tasks/tailscale_mint_key.yml` (pi5 was already tagged, the vps is down), and the
   mint + compose path on a fresh host.
@@ -91,7 +87,10 @@ and the homepage vps widgets, now moved to `pi5_tailscale_ipv4` / `vps_tailscale
 - **homepage is publicly routed with no auth** (`HOMEPAGE_ALLOWED_HOSTS: "*"`). v2.2.0
   fixed GHSA-669x-4pg4-w24r; consider enabling v2 auth.
 - **hex is not installable yet** (no release; absent from PyPI/crates.io). Add a pinned
-  entry once published; `.agents` install.sh errors while it is missing.
+  entry once published; `.agents` install.sh links `../hex/skills` only when present.
+- **pi5 Hermes skills clone moved** to `/srv/data/hermes/.agents`. After the next pi5
+  deploy (done 2026-10-01), `/srv/data/hermes/agentic-tools` still holds uncommitted Hermes edits to `anki-connect/SKILL.md` that upstream does not have; merge or drop them, then remove it
+  by hand. Turn on ZDR at https://openrouter.ai/settings/privacy (account-side only).
 - **CI still needs a full green run.** The MacBook jobs now clone k4black/.dotfiles and
   k4black/.agents over HTTPS and skip the external scripts; the pi5/vps jobs skip
   docker-dependent verification via `run_docker`.

@@ -54,18 +54,18 @@
         # SSH so the user's key auto-authenticates pulls (re-runs) and manual pushes.
         # CI overrides this with the public HTTPS URL (see .github/workflows/test.yml).
         dotfiles_repo_url: "git@github.com:k4black/.dotfiles.git"
-        dotfiles_dest: "/Users/{{ ansible_user_id }}/.dotfiles"
+        dotfiles_dest: "/Users/{{ ansible_user_id }}/Projects/personal/.dotfiles"
         dotfiles_symlinks:
           .zshrc: "/Users/{{ ansible_user_id }}/.zshrc"
           .gitconfig: "/Users/{{ ansible_user_id }}/.gitconfig"
         dotfiles_run_scripts:
-          - "/Users/{{ ansible_user_id }}/.dotfiles/.macos.sh"
+          - "/Users/{{ ansible_user_id }}/Projects/personal/.dotfiles/.macos.sh"
     - role: zsh_setup
       vars:
         zsh_setup_set_default_shell: true
         zsh_setup_user: "{{ ansible_user_id }}"
-    # Installs the agent CLIs (codex/rtk/ralph-orchestrator) and runs
-    # k4black/agentic-tools install.sh to wire skills + rules into every harness.
+    # Installs the agent CLIs and runs k4black/.agents install.sh, which wires
+    # skills, rules, plugins and harness config into every harness.
     - role: agents_setup
       tags: ["agents"]
 
@@ -83,12 +83,11 @@
         owner: "{{ ansible_user_id }}"
         mode: "0755"
       loop: "{{ macbook_projects_subdirs }}"
-    - name: Expose ~/.dotfiles under ~/Projects/personal (hidden clone -> visible)
+    - name: Link ~/.dotfiles to the clone in ~/Projects/personal
       ansible.builtin.file:
-        src: "/Users/{{ ansible_user_id }}/.dotfiles"
-        dest: "/Users/{{ ansible_user_id }}/Projects/personal/dotfiles"
+        src: "/Users/{{ ansible_user_id }}/Projects/personal/.dotfiles"
+        dest: "/Users/{{ ansible_user_id }}/.dotfiles"
         state: link
-        force: true
     - name: Create Applications directory at ~/
       ansible.builtin.file:
         path: "~/Applications"

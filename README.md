@@ -5,6 +5,18 @@
 This repository contains Ansible playbooks to set up a personal MacBook and home server. 
 This README provides instructions on how to customize variables and run the playbooks.
 
+## Related repos
+
+Sibling clones in `~/Projects/personal/`, set up by the MacBook playbook:
+
+| Repo | Clone | Owns |
+|---|---|---|
+| [k4black/.dotfiles](https://github.com/k4black/.dotfiles) | `../.dotfiles` (`~/.dotfiles` links here) | zsh, git, `.macos.sh` |
+| [k4black/.agents](https://github.com/k4black/.agents) | `../.agents` | skills, global agent rules, `install.sh` |
+
+Split: this repo installs every binary (agent CLIs, `jq`). `.agents/install.sh`
+fails on a missing CLI, then wires skills, rules, plugins, MCP servers and harness config.
+
 
 ## Prerequisites
 
@@ -196,7 +208,10 @@ Access after deploy (host:port, like the other services — no DNS route):
   rotate with `ansible-vault encrypt_string --stdin-name hermes_dashboard_password`).
 
 Change the model by editing `default:` in `files/pi5/hermes-config.yaml.j2` (any
-OpenRouter model id); the image tag is pinned inline in `docker-compose.yml.j2`.
+OpenRouter model id, now `deepseek/deepseek-v4.1-flash`); the image tag is pinned
+inline in `docker-compose.yml.j2`. Zero Data Retention is an OpenRouter account
+setting (https://openrouter.ai/settings/privacy): Hermes `provider_routing` has no
+`zdr` key, and `data_collection: deny` only blocks training.
 The agent's shell tools run inside the container (`terminal.backend: local`); the
 docker socket is intentionally not mounted. iCloud (`icloud-cli-tools`) is not
 wired up yet — it would be a thin `FROM nousresearch/hermes-agent` + `pip install`
@@ -204,11 +219,11 @@ layer.
 
 **Skills.** The 66 bundled skills are trimmed to a personal-assistant set via
 `skills.disabled` in `hermes-config.yaml.j2` (no dev/mlops/heavy-creative). On top
-of that, the personal skills repo [k4black/agentic-tools](https://github.com/k4black/agentic-tools)
-is cloned to `/srv/data/hermes/agentic-tools` (clone-if-missing) and loaded via
+of that, the personal skills repo [k4black/.agents](https://github.com/k4black/.agents)
+is cloned to `/srv/data/hermes/.agents` (clone-if-missing) and loaded via
 `skills.external_dirs` (`skills/`). Hermes can read, edit/author,
 and **git-push** those skills: a fine-grained PAT (`hermes_github_pat`, scoped to
-`k4black/agentic-tools`, Contents R/W) is exposed as `GITHUB_TOKEN` and wired into the
+`k4black/.agents`, Contents R/W) is exposed as `GITHUB_TOKEN` and wired into the
 container's `~/.gitconfig` credential helper. Set it once:
 `ansible-vault encrypt_string --stdin-name hermes_github_pat`. The `github-auth`,
 `github-repo-management`, `github-pr-workflow`, and `hermes-agent-skill-authoring`
