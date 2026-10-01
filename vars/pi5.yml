@@ -31,12 +31,12 @@ anki_build_dir: /srv/build/headless-anki
 # flaresolverr tag so Prowlarr routes its requests through FlareSolverr.
 prowlarr_indexers:
   # Public, no auth
-  - { name: "The Pirate Bay" }
-  - { name: "YTS" }
-  - { name: "Internet Archive" }
+  - {name: "The Pirate Bay"}
+  - {name: "YTS"}
+  - {name: "Internet Archive"}
   # Public but CloudFlare-protected — route through FlareSolverr
-  - { name: "1337x", cf_protected: true }
-  - { name: "kickasstorrents.to", cf_protected: true }
+  - {name: "1337x", cf_protected: true}
+  - {name: "kickasstorrents.to", cf_protected: true}
   # Private — credentials from vault below
   - name: "RuTracker.org"
     fields:

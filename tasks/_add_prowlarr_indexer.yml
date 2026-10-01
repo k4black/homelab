@@ -14,18 +14,18 @@
 #                          (e.g. {username: "...", password: "..."})
 #   indexer_cf_protected - bool; if true, tag with flaresolverr_tag_id
 
-- name: "[{{ indexer_name }}] Locate schema"
+- name: "Locate Prowlarr schema for {{ indexer_name }}"
   ansible.builtin.set_fact:
     arr_schema: "{{ (prowlarr_schemas.json | selectattr('name', 'equalto', indexer_name) | list | first) | default({}) }}"
 
 # Initialise arr_fields unconditionally — Ansible may evaluate the body of
 # downstream `set_fact` tasks even when their `when:` says skip, so an
 # undefined arr_fields will fault before the skip kicks in.
-- name: "[{{ indexer_name }}] Initialise merged fields accumulator"
+- name: "Initialise merged fields accumulator for {{ indexer_name }}"
   ansible.builtin.set_fact:
     arr_fields: []
 
-- name: "[{{ indexer_name }}] Skip (already exists or schema missing)"
+- name: "Skip indexer (missing or already present) for {{ indexer_name }}"
   ansible.builtin.debug:
     msg: >-
       {{ 'Already present in Prowlarr — skipping'
@@ -35,7 +35,7 @@
     (prowlarr_idxs.json | selectattr('name', 'equalto', indexer_name) | list | length) > 0
     or not arr_schema
 
-- name: "[{{ indexer_name }}] Add to Prowlarr"
+- name: "Add indexer to Prowlarr for {{ indexer_name }}"
   when:
     - (prowlarr_idxs.json | selectattr('name', 'equalto', indexer_name) | list | length) == 0
     - arr_schema != {}
@@ -44,7 +44,7 @@
     # overrides (Jinja's `combine` filter is dict-only, can't deep-merge a
     # list-of-dicts keyed on `name`). Rename loop var from `item` to `f` to
     # avoid shadowing the outer include_tasks loop's `item` (the indexer).
-    - name: "[{{ indexer_name }}] Merge each schema field with user overrides"
+    - name: "Merge each schema field with user overrides for {{ indexer_name }}"
       ansible.builtin.set_fact:
         arr_fields: "{{ arr_fields + [f | combine({'value': indexer_fields[f.name]}) if f.name in indexer_fields else f] }}"
       loop: "{{ arr_schema.fields }}"
@@ -52,23 +52,26 @@
         loop_var: f
         label: "{{ f.name }}"
 
-    - name: "[{{ indexer_name }}] POST with enable=false (no Test runs)"
+    - name: "Build create payload for {{ indexer_name }}"
+      ansible.builtin.set_fact:
+        arr_create_payload:
+          enable: false
+          appProfileId: 1
+          tags: "{{ [flaresolverr_tag_id | int] if (indexer_cf_protected | bool) else [] }}"
+          fields: "{{ arr_fields }}"
+
+    - name: "POST with enable=false (no Test runs) for {{ indexer_name }}"
       ansible.builtin.uri:
         url: "{{ prowlarr_url }}/api/v1/indexer"
         method: POST
         headers:
           X-Api-Key: "{{ prowlarr_apikey }}"
         body_format: json
-        body: "{{ arr_schema | combine({
-                  'enable': false,
-                  'appProfileId': 1,
-                  'tags': (indexer_cf_protected | bool) | ternary([flaresolverr_tag_id | int], []),
-                  'fields': arr_fields
-                }) }}"
+        body: "{{ arr_schema | combine(arr_create_payload) }}"
         status_code: [201]
       register: arr_post
 
-    - name: "[{{ indexer_name }}] PUT enable=true&forceSave=true (skips Test)"
+    - name: "PUT enable=true&forceSave=true (skips Test) for {{ indexer_name }}"
       ansible.builtin.uri:
         url: "{{ prowlarr_url }}/api/v1/indexer/{{ arr_post.json.id }}?forceSave=true"
         method: PUT

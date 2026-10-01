@@ -14,8 +14,21 @@ rules:
   comments-indentation: disable
   document-start: disable
 
+  # The blocks below are pinned to the values ansible-lint requires from a
+  # custom yamllint config. With other values ansible-lint ignores this file
+  # ("WARNING Found incompatible custom yamllint configuration") and lints with
+  # its own rules, so `yamllint .` and `ansible-lint` would disagree.
+  comments:
+    min-spaces-from-content: 1
+  braces:
+    max-spaces-inside: 1
+  octal-values:
+    forbid-implicit-octal: true
+    forbid-explicit-octal: true
+
 
 ignore: |
   .github/*
   .venv/*
+  .ansible/*
   roles/*.*

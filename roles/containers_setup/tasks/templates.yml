@@ -13,7 +13,7 @@
   ansible.builtin.file:
     path: "{{ item }}"
     state: directory
-    mode: 0755
+    mode: "0755"
     owner: "{{ containers_setup_user if (testing is undefined or testing != 'true') else omit }}"
     group: "{{ containers_setup_user if (testing is undefined or testing != 'true') else omit }}"
   become: true
@@ -23,7 +23,7 @@
   ansible.builtin.file:
     path: "{{ containers_setup_data_dir }}/traefik-letsencrypt"
     state: directory
-    mode: 0755
+    mode: "0755"
     owner: "{{ containers_setup_user if (testing is undefined or testing != 'true') else omit }}"
     group: "{{ containers_setup_user if (testing is undefined or testing != 'true') else omit }}"
   become: true
@@ -34,21 +34,21 @@
 - name: Stat ACME path
   ansible.builtin.stat:
     path: "{{ containers_setup_data_dir }}/traefik-letsencrypt/acme.json"
-  register: _acme_stat
+  register: containers_setup_acme_stat
   become: true
 
 - name: Remove ACME path if Docker auto-created it as a directory
   ansible.builtin.file:
     path: "{{ containers_setup_data_dir }}/traefik-letsencrypt/acme.json"
     state: absent
-  when: _acme_stat.stat.exists and _acme_stat.stat.isdir
+  when: containers_setup_acme_stat.stat.exists and containers_setup_acme_stat.stat.isdir
   become: true
 
 - name: Create ACME file if missing (content preserved across runs)
   ansible.builtin.copy:
     content: ""
     dest: "{{ containers_setup_data_dir }}/traefik-letsencrypt/acme.json"
-    mode: 0600
+    mode: "0600"
     owner: "{{ containers_setup_user if (testing is undefined or testing != 'true') else omit }}"
     group: "{{ containers_setup_user if (testing is undefined or testing != 'true') else omit }}"
     force: false
@@ -61,7 +61,7 @@
   ansible.builtin.file:
     path: "{{ containers_setup_data_dir }}/traefik-letsencrypt/acme.json"
     state: file
-    mode: 0600
+    mode: "0600"
     owner: "{{ containers_setup_user if (testing is undefined or testing != 'true') else omit }}"
     group: "{{ containers_setup_user if (testing is undefined or testing != 'true') else omit }}"
   become: true

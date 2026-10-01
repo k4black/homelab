@@ -6,7 +6,7 @@
 #     marker: "# {mark} ANSIBLE MANAGED BLOCK: style config"
 #     block: "{{ lookup('file', '{{ zsh_setup_config_src }}') }}"
 #     create: true
-#     mode: 0644
+#     mode: "0644"
 #     owner: "{{ zsh_setup_user }}"
 #     group: "{{ zsh_setup_user }}"
 #   failed_when: false  # TODO: fix macos problem on github actions

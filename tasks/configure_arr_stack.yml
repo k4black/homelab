@@ -31,8 +31,8 @@
       X-Api-Key: "{{ item.key }}"
   loop:
     - {name: prowlarr, url: "{{ prowlarr_url }}", ver: v1, key: "{{ prowlarr_apikey }}"}
-    - {name: radarr,   url: "{{ radarr_url }}",   ver: v3, key: "{{ radarr_apikey }}"}
-    - {name: sonarr,   url: "{{ sonarr_url }}",   ver: v3, key: "{{ sonarr_apikey }}"}
+    - {name: radarr, url: "{{ radarr_url }}", ver: v3, key: "{{ radarr_apikey }}"}
+    - {name: sonarr, url: "{{ sonarr_url }}", ver: v3, key: "{{ sonarr_apikey }}"}
   loop_control:
     label: "{{ item.name }}"
   register: arr_ping
