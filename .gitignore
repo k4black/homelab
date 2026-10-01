@@ -173,3 +173,4 @@ cython_debug/
 
 # plaintext secret key drops (e.g. or.key, tg.key) — never commit
 *.key
+*.keys

@@ -19,10 +19,12 @@
     # the position cannot live in vars: select for this profile, then number in
     # order. dockutil --position needs a contiguous 1..N sequence.
     - name: Select dock items for profile {{ macbook_profile }}
+      tags: [dock]
       ansible.builtin.set_fact:
         macbook_dock_items: >-
           {{ dockitems_persist_layout | selectattr('profile', 'in', ['all', macbook_profile]) | list }}
     - name: Assign dock positions
+      tags: [dock]
       ansible.builtin.set_fact:
         dockitems_persist: "{{ dockitems_persist | default([]) + [item | combine({'pos': idx + 1})] }}"
       loop: "{{ macbook_dock_items }}"

@@ -130,7 +130,12 @@
 # test — ansible-core 2.19+ rejects list results in `when` ("Conditionals must
 # have a boolean result").
 - name: Setup ufw
-  when: linux_server_setup_block_ports and (linux_server_setup_open_ports | length > 0)
+  # testing=true skips firewall setup entirely (CI runners must not be firewalled),
+  # including the rule conversion below.
+  when:
+    - linux_server_setup_block_ports
+    - linux_server_setup_open_ports | length > 0
+    - testing is undefined or testing != 'true'
   block:
     - name: Convert linux_server_setup_open_ports to ufw_rules format
       ansible.builtin.set_fact:
@@ -154,7 +159,6 @@
         ufw_default_outgoing_policy: "allow"
         ufw_logging: "medium"
         ufw_rules: "{{ linux_server_setup_ufw_rules_converted }}"
-      when: testing is undefined or testing != 'true'
 
     # https://github.com/chaifeng/ufw-docker
     - name: Setup docker to work with ufw, add

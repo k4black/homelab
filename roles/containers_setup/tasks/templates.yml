@@ -4,7 +4,10 @@
   ansible.builtin.template:
     src: "{{ containers_setup_docker_compose_template }}"
     dest: "{{ containers_setup_configs_dir }}/docker-compose.yml"
-    mode: '0644'
+    # 0600: the rendered compose holds vault secrets (API keys, bot tokens, PAT,
+    # dashboard password) and is owned by the login user, so 0644 exposed them
+    # to any local account.
+    mode: '0600'
     owner: "{{ containers_setup_user if (testing is undefined or testing != 'true') else omit }}"
     group: "{{ containers_setup_user if (testing is undefined or testing != 'true') else omit }}"
   become: true
