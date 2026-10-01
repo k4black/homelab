@@ -5,8 +5,8 @@ username: "k4black"
 macbook_profile: "personal"
 
 # Feature flags driven by profile
-macbook_setup_admin_juggling: "{{ macbook_profile == 'personal' }}"
-macbook_setup_vpn: "{{ macbook_profile == 'personal' }}"
+# Admin juggling (separate admin user + sudoers) is disabled for now.
+macbook_setup_admin_juggling: false
 
 # ~/Projects working-tree layout (mirrors the local Mac structure).
 macbook_projects_subdirs:
@@ -163,7 +163,6 @@ mas_password: !vault |
 mas_installed_apps:
   - {id: 1444383602, name: "Goodnotes 6"}
   - {id: 1423210932, name: "Flow"}
-  - {id: 1441195209, name: "WireGuard"}
 # required admin permissions
 mas_uninstalled_apps: []
 # mas_uninstalled_apps:

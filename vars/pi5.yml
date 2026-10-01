@@ -69,7 +69,6 @@ packages_install_list:
   # web
   - wget
   - curl
-  - wireguard
   - dnsutils
   # utils
   - exfat-fuse

@@ -230,28 +230,3 @@
           when: zen_browser_app.stat.exists
           changed_when: false
           become: true
-
-    - name: Setup Wireguard VPN
-      when: macbook_setup_vpn | bool
-      block:
-        - name: Install Wireguard and killswitch
-          community.general.homebrew:
-            name: "{{ item }}"
-            state: present
-          with_items:
-            - wireguard-tools
-            - killswitch
-        - name: Create wireguard configs directory
-          ansible.builtin.file:
-            path: "~/.config/wireguard"
-            state: directory
-            mode: "0755"
-        - name: Copy wireguard config files
-          ansible.builtin.template:
-            src: "{{ item.src }}"
-            dest: "~/.config/wireguard/{{ item.dest }}"
-            mode: "0600"
-          loop:
-            - {src: "files/macbook/vps-client-wg0.conf.j2", dest: "vps_wg0.conf"}
-            - {src: "files/macbook/pi5-client-wg0.conf.j2", dest: "pi5_wg0.conf"}
-            - {src: "files/macbook/router-client-wg0.conf.j2", dest: "router_wg0.conf"}
