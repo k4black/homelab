@@ -63,6 +63,55 @@ ansible-playbook playbook_vps.yml --tags docker
 5. to run `ansible-playbook -i inventory.ini playbook_vps.yml`
 
 To lint run `yamllint .` and `ansible-lint`
+`.ansible/*` (stale role checkouts) is in the yamllint ignore list, so a local run
+lints exactly the same files as CI.
+
+
+## MacBook (macOS) notes
+
+### Profiles
+
+`macbook_profile` selects what is installed and configured. Default is `personal`.
+
+| | personal | work |
+|---|---|---|
+| extra cask | tunnelblick | slack |
+| extra formula | — | azure-cli |
+| dock | Slack absent | Slack at position 6 |
+| admin juggling + VPN config | yes | no |
+
+Run the work laptop with `-e macbook_profile=work`.
+
+### Dock
+
+Dock items live in `vars/macbook.yml` under `dockitems_persist_layout`. Each entry
+carries `profile: all` or a profile name. `playbook_macbook.yml` selects the entries
+for the current profile and numbers them in list order: `dockutil --position` needs
+a contiguous 1..N sequence, and a work-only app would otherwise leave a hole.
+
+macOS 26/27 renamed apps, so the spec uses the new paths: `/System/Applications/Apps.app`
+(Launchpad), `/System/Applications/Mail.app`, `/System/Applications/Calendar.app`,
+`/Applications/Zen.app` (Zen Browser).
+
+### macOS preferences
+
+Finder/Dock/keyboard/locale settings and the hot corners live in
+[k4black/.dotfiles](https://github.com/k4black/.dotfiles) `~/.dotfiles/.macos.sh`.
+The `dotfiles` role clones that repo and runs the script on every MacBook playbook
+run. All four hot corners are set to 0 — macOS 26+ ships Quick Note on the
+bottom-right corner, which fires on accidental swipes.
+
+Homebrew policy: the playbook ensures the specced packages are present and never
+upgrades them (`homebrew_upgrade_all_packages` stays commented out). Run
+`brew upgrade` by hand.
+
+### CI
+
+`.github/workflows/test.yml` lints, then runs the MacBook playbook for both profiles
+plus the vps and pi5 playbooks, each with an idempotence check. CI has no SSH key,
+so the MacBook jobs override the clone URLs with the public HTTPS endpoints
+(`-e dotfiles_repo_url=… -e agents_setup_repo=…`); local runs keep the SSH URLs.
+
 
 
 ## pi5 setup
@@ -141,8 +190,13 @@ move to / be added on another node later:
 
 Access after deploy (host:port, like the other services — no DNS route):
 * Telegram — message your bot (only `hermes_telegram_allowed_users` may talk to it).
-* Dashboard — `http://[PI5_IP]:9119` or `http://pi5.[tailnet].ts.net:9119`, no login
-  (runs `--insecure`), reachable on LAN/Tailscale/VPN only.
+* Dashboard — `http://[PI5_IP]:9119` or `http://pi5.[tailnet].ts.net:9119`, reachable on
+  LAN/Tailscale/VPN only. HTTP basic auth is required: since hermes-agent
+  v2026.9.24 a non-loopback dashboard bind always needs an auth provider
+  (`--insecure` is a warned no-op and the dashboard fails closed). User name is
+  `hermes_dashboard_username`; the password and signing secret are vaulted
+  (`hermes_dashboard_password`, `hermes_dashboard_auth_secret` in `vars/all.yml`,
+  rotate with `ansible-vault encrypt_string --stdin-name hermes_dashboard_password`).
 
 Change the model by editing `default:` in `files/pi5/hermes-config.yaml.j2` (any
 OpenRouter model id); the image tag is pinned inline in `docker-compose.yml.j2`.
