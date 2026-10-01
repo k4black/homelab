@@ -47,6 +47,7 @@
         --advertise-tags={{ tailscale_tag }}
         {{ tailscale_extra_args }}
         --force-reauth
+        --reset
       become: true
       no_log: true
       changed_when: true
