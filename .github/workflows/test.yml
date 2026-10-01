@@ -23,7 +23,7 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Set up Python 3.12
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: 3.12
           cache: 'pip' # caching pip dependencies
@@ -75,14 +75,14 @@ jobs:
         run: ansible-playbook playbook_macbook.yml -i inventory-test.ini -e "device_name=test-mac" -e "macbook_profile=${{ matrix.profile }}" --syntax-check
 
       - name: Test the playbook (${{ matrix.profile }})
-        run: ansible-playbook playbook_macbook.yml -i inventory-test.ini -e "testing=true" -e "device_name=test-mac" -e "macbook_profile=${{ matrix.profile }}" -e "admin_password=admin_password user_account_password=" --skip-tags "mas"
+        run: ansible-playbook playbook_macbook.yml -i inventory-test.ini -e "testing=true" -e "device_name=test-mac" -e "macbook_profile=${{ matrix.profile }}" -e "admin_password=admin_password user_account_password=" -e "dotfiles_repo_url=https://github.com/k4black/.dotfiles.git" -e "agents_setup_repo=https://github.com/k4black/.agents.git" --skip-tags "mas"
         env:
           ANSIBLE_FORCE_COLOR: '1'
 
       - name: Idempotence check (${{ matrix.profile }})
         run: |
           idempotence=$(mktemp)
-          ansible-playbook playbook_macbook.yml -i inventory-test.ini -e "testing=true" -e "device_name=test-mac" -e "macbook_profile=${{ matrix.profile }}" -e "admin_password=admin_password user_account_password=" --skip-tags "mas,dock" | tee -a ${idempotence}
+          ansible-playbook playbook_macbook.yml -i inventory-test.ini -e "testing=true" -e "device_name=test-mac" -e "macbook_profile=${{ matrix.profile }}" -e "admin_password=admin_password user_account_password=" -e "dotfiles_repo_url=https://github.com/k4black/.dotfiles.git" -e "agents_setup_repo=https://github.com/k4black/.agents.git" --skip-tags "mas,dock" | tee -a ${idempotence}
           tail ${idempotence} | grep -q 'changed=0.*failed=0' && (echo 'Idempotence test: pass' && exit 0) || (echo 'Idempotence test: fail' && exit 1)
         env:
           ANSIBLE_FORCE_COLOR: '1'

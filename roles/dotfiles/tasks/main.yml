@@ -27,7 +27,7 @@
   ansible.builtin.file:
     path: "~/.localrc"
     state: touch
-    mode: 0600
+    mode: "0600"
     owner: "{{ ansible_user_id }}"
   changed_when: false
 
@@ -35,7 +35,7 @@
   ansible.builtin.file:
     path: "~/.gitconfig.local"
     state: touch
-    mode: 0600
+    mode: "0600"
     owner: "{{ ansible_user_id }}"
   changed_when: false
 
@@ -51,11 +51,16 @@
 #     - name: Make files executable
 #       ansible.builtin.file:
 #         path: "{{ item.path }}"
-#         mode: 0755
+#         mode: "0755"
 #       with_items: "{{ find_result.files }}"
 
 - name: Run dotfiles setup scripts
-  when: dotfiles_run_scripts is defined
+  # Skipped in CI (testing=true): .macos.sh mutates the runner's user defaults and
+  # is the dotfiles repo's own concern, while the playbook's job in CI is to prove
+  # the role converges.
+  when:
+    - dotfiles_run_scripts is defined
+    - testing is undefined or testing != 'true'
   ansible.builtin.command: "{{ item }}"
   with_items: "{{ dotfiles_run_scripts }}"
   args:

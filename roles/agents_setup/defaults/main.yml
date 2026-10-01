@@ -6,12 +6,17 @@
 # per-harness rules files, `rtk init` hook, claude marketplaces/plugins, MCP).
 
 # SSH so the user's key auto-authenticates pulls (re-runs) and manual pushes.
-agents_setup_repo: "git@github.com:k4black/agentic-tools.git"
+# CI overrides this with the public HTTPS URL (see .github/workflows/test.yml).
+agents_setup_repo: "git@github.com:k4black/.agents.git"
 agents_setup_dest: "{{ ansible_env.HOME }}/Projects/personal/agentic-tools"
 agents_setup_version: "main"
 
 # Agent CLIs install.sh wires up. claude/claude-code are casks in
 # vars/macbook.yml (installed by the geerlingguy.mac.homebrew role).
+# k4black/.agents install.sh only VERIFIES these are present and fails loudly
+# when one is missing, so this repo stays the single installer.
+# hex (k4black/hex) is intentionally absent until hex-cli is published to a
+# registry — there is no tap/formula yet, only `cargo install --git` from main.
 agents_setup_brew_casks:
   - codex  # OpenAI Codex CLI (installs a `codex` binary, not a .app)
 agents_setup_brew_formulae:

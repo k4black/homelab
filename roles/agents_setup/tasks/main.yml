@@ -22,6 +22,7 @@
     mode: "0755"
 
 - name: Checkout k4black/agentic-tools (SSH — auto-authed pulls + pushes)
+  # CI overrides agents_setup_repo with the public HTTPS URL (see test.yml).
   ansible.builtin.git:
     repo: "{{ agents_setup_repo }}"
     dest: "{{ agents_setup_dest }}"
@@ -31,6 +32,10 @@
     # working tree is dirty rather than clobbering in-progress skill work.
 
 - name: Wire agent harnesses via install.sh (idempotent — safe to re-run)
+  # Skipped in CI (testing=true): install.sh drives the claude/codex CLIs (marketplace
+  # + plugin installs) which need interactive auth, so it cannot run on a runner.
+  # The clone above is still exercised.
+  when: testing is undefined or testing != 'true'
   ansible.builtin.command: ./install.sh
   args:
     chdir: "{{ agents_setup_dest }}"
@@ -42,5 +47,6 @@
     ('removed' in agents_setup_install.stdout)
 
 - name: Show install.sh summary
+  when: agents_setup_install.stdout_lines is defined
   ansible.builtin.debug:
     var: agents_setup_install.stdout_lines

@@ -126,8 +126,11 @@
       when: linux_server_setup_nslookup_output.rc != 0
 
 
+# linux_server_setup_open_ports is a list, so it needs an explicit emptiness
+# test — ansible-core 2.19+ rejects list results in `when` ("Conditionals must
+# have a boolean result").
 - name: Setup ufw
-  when: linux_server_setup_block_ports and linux_server_setup_open_ports
+  when: linux_server_setup_block_ports and (linux_server_setup_open_ports | length > 0)
   block:
     - name: Convert linux_server_setup_open_ports to ufw_rules format
       ansible.builtin.set_fact:
@@ -160,7 +163,7 @@
         marker: "# {mark} ANSIBLE MANAGED BLOCK: docker ufw setup"
         block: "{{ lookup('file', 'templates/ufw-docker-after.rules') }}"
         create: true
-        mode: 0640
+        mode: "0640"
         owner: root
         group: root
       become: true
