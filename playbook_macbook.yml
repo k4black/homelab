@@ -15,6 +15,20 @@
     - name: Macos Admin Juggling
       ansible.builtin.include_tasks: tasks/macos_admin_juggling.yml
       when: macbook_setup_admin_juggling | bool and (testing is undefined or testing != 'true')
+    # Dock items are profile-scoped (Slack ships only with the work profile), so
+    # the position cannot live in vars: select for this profile, then number in
+    # order. dockutil --position needs a contiguous 1..N sequence.
+    - name: Select dock items for profile {{ macbook_profile }}
+      ansible.builtin.set_fact:
+        macbook_dock_items: >-
+          {{ dockitems_persist_layout | selectattr('profile', 'in', ['all', macbook_profile]) | list }}
+    - name: Assign dock positions
+      ansible.builtin.set_fact:
+        dockitems_persist: "{{ dockitems_persist | default([]) + [item | combine({'pos': idx + 1})] }}"
+      loop: "{{ macbook_dock_items }}"
+      loop_control:
+        index_var: idx
+        label: "{{ item.name }}"
     - name: Ensure homebrew is in PATH
       ansible.builtin.stat:
         path: /opt/homebrew/bin/brew
@@ -36,7 +50,8 @@
       tags: ["dotfiles"]
       vars:
         # SSH so the user's key auto-authenticates pulls (re-runs) and manual pushes.
-        dotfiles_repo_url: "git@github.com:k4black/dotfiles.git"
+        # CI overrides this with the public HTTPS URL (see .github/workflows/test.yml).
+        dotfiles_repo_url: "git@github.com:k4black/.dotfiles.git"
         dotfiles_dest: "/Users/{{ ansible_user_id }}/.dotfiles"
         dotfiles_symlinks:
           .zshrc: "/Users/{{ ansible_user_id }}/.zshrc"
@@ -91,7 +106,7 @@
         line: 'eval "$(ssh-agent -s)"'
         state: present
         create: true
-        mode: 0600
+        mode: "0600"
         insertafter: EOF
       become: true
     - name: Add brew to path in localrc
@@ -100,7 +115,7 @@
         line: 'export PATH="/opt/homebrew/bin:$PATH"'
         state: present
         create: true
-        mode: 0600
+        mode: "0600"
         insertafter: EOF
       become: true
     - name: Ensure Host * line in ssh config
@@ -109,7 +124,7 @@
         line: "Host *"
         state: present
         create: true
-        mode: 0600
+        mode: "0600"
         insertbefore: BOF
       become: true
     - name: Add AddKeysToAgent yes to ssh config Host *
@@ -118,7 +133,7 @@
         line: "    AddKeysToAgent yes"
         state: present
         create: true
-        mode: 0600
+        mode: "0600"
         insertafter: "Host *"
       become: true
     - name: Add pi5-local SSH config (LAN access)
@@ -133,7 +148,7 @@
               IdentityFile ~/.ssh/id_ed25519
               PasswordAuthentication no
         create: true
-        mode: 0600
+        mode: "0600"
     - name: Add pi5-duckdns SSH config (remote via DuckDNS)
       ansible.builtin.blockinfile:
         path: ~/.ssh/config
@@ -146,7 +161,7 @@
               IdentityFile ~/.ssh/id_ed25519
               PasswordAuthentication no
         create: true
-        mode: 0600
+        mode: "0600"
     - name: Add pi5-tailscale SSH config (via Tailscale tailnet)
       ansible.builtin.blockinfile:
         path: ~/.ssh/config
@@ -159,13 +174,13 @@
               IdentityFile ~/.ssh/id_ed25519
               PasswordAuthentication no
         create: true
-        mode: 0600
+        mode: "0600"
 
     - name: Setup .gitconfig.local
       ansible.builtin.template:
         src: files/.gitconfig.local.j2
         dest: ~/.gitconfig.local
-        mode: 0600
+        mode: "0600"
         owner: "{{ ansible_user_id }}"
 
     - name: Setup MonitorControl
@@ -228,12 +243,12 @@
           ansible.builtin.file:
             path: "~/.config/wireguard"
             state: directory
-            mode: 0755
+            mode: "0755"
         - name: Copy wireguard config files
           ansible.builtin.template:
             src: "{{ item.src }}"
             dest: "~/.config/wireguard/{{ item.dest }}"
-            mode: 0600
+            mode: "0600"
           loop:
             - {src: "files/macbook/vps-client-wg0.conf.j2", dest: "vps_wg0.conf"}
             - {src: "files/macbook/pi5-client-wg0.conf.j2", dest: "pi5_wg0.conf"}

@@ -38,9 +38,11 @@ homebrew_cask_apps_common:
   - claude
   - claude-code
   # fun
-  - autodesk-fusion
+  # - autodesk-fusion  # not installed; Fusion needs a manual seat + driver setup
   - anki
   - steam
+  - freecad
+  - flutter
   # utils
   - google-drive
   - the-unarchiver
@@ -49,10 +51,10 @@ homebrew_cask_apps_common:
   - monitorcontrol  # TODO: add permissions to Accessibility and login item
   # creative
   - affinity
-  # - inkscape  # superseded by affinity
-  # - gimp  # superseded by affinity
+  # - inkscape  # superseded by affinity (removed from the machine)
+  # - gimp  # superseded by affinity (removed from the machine)
   # 3d printing
-  - prusaslicer  # Original Prusa Drivers must be installed manually
+  # - prusaslicer  # not installed; Original Prusa Drivers must be installed manually
   # mix
   - todoist-app
   - obsidian
@@ -89,6 +91,7 @@ homebrew_installed_packages_common:
   - openjdk
   # utils
   - grpcurl
+  - tree
   # ssh
   - ssh-copy-id
   - openssl
@@ -104,6 +107,13 @@ homebrew_taps: []
 # error when installed this way, include in homebrew_installed_packages
 dockutil_install: true
 configure_dock: true
+# DOCK: mirrors the live dock of k4pro-m3 (macOS 27). Slack exists only with the
+# work profile, so items carry a `profile` (`all` or a profile name) and
+# playbook_macbook.yml selects + numbers them in list order. Positions are not
+# hardcoded: dockutil --position needs a contiguous 1..N sequence, and dropping
+# Slack from the personal profile would leave a hole.
+# macOS 26/27 renames: Launchpad -> Apps (/System/Applications/Apps.app),
+# Mail/Calendar moved under /System/Applications, Zen Browser -> Zen.app.
 dockitems_remove:
   - TV
   - Podcasts
@@ -114,7 +124,6 @@ dockitems_remove:
   - Contacts
   - Maps
   - Messages
-  - Podcasts
   - News
   - Music
   - Photos
@@ -122,41 +131,19 @@ dockitems_remove:
   - Keynote
   - Numbers
   - Pages
-dockitems_persist:
-  # NOTE: Finder is always first (pos 0)
-  - name: "Launchpad"
-    path: "/System/Applications/Launchpad.app"
-    pos: 1
-  - name: "Mail"
-    path: "/Applications/Mail.app"
-    pos: 2
-  - name: "Calendar"
-    path: "/Applications/Calendar.app"
-    pos: 3
-  - name: "Todoist"
-    path: "/Applications/Todoist.app"
-    pos: 4
-  - name: "Notes"
-    path: "/System/Applications/Notes.app"
-    pos: 5
-  - name: "System Settings"
-    path: "/System/Applications/System Settings.app"
-    pos: 6
-  - name: "Zen Browser"
-    path: "/Applications/Zen Browser.app"
-    pos: 7
-  - name: "Chromium"
-    path: "/Applications/Chromium.app"
-    pos: 8
-  - name: "Telegram Desktop"
-    path: "/Applications/Telegram Desktop.app"
-    pos: 9
-  - name: "Terminal"
-    path: "/System/Applications/Utilities/Terminal.app"
-    pos: 10
-  - name: "Activity Monitor"
-    path: "/System/Applications/Utilities/Activity Monitor.app"
-    pos: 11
+dockitems_persist_layout:
+  # NOTE: Finder is always first (pos 0, added by macOS itself)
+  - {name: "Apps", path: "/System/Applications/Apps.app", profile: all}
+  - {name: "Mail", path: "/System/Applications/Mail.app", profile: all}
+  - {name: "Calendar", path: "/System/Applications/Calendar.app", profile: all}
+  - {name: "Todoist", path: "/Applications/Todoist.app", profile: all}
+  - {name: "Obsidian", path: "/Applications/Obsidian.app", profile: all}
+  - {name: "Slack", path: "/Applications/Slack.app", profile: work}
+  - {name: "System Settings", path: "/System/Applications/System Settings.app", profile: all}
+  - {name: "Zen", path: "/Applications/Zen.app", profile: all}
+  - {name: "Telegram Desktop", path: "/Applications/Telegram Desktop.app", profile: all}
+  - {name: "Terminal", path: "/System/Applications/Utilities/Terminal.app", profile: all}
+  - {name: "Activity Monitor", path: "/System/Applications/Utilities/Activity Monitor.app", profile: all}
 
 
 mas_email: !vault |
