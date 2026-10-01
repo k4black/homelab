@@ -46,7 +46,7 @@ services:
 
   ### Reverse Proxy ###
   traefik:
-    image: traefik:v3.7
+    image: traefik:v3.7.13
     container_name: traefik
     hostname: traefik.pi5.{{ domain }}
     environment:
@@ -109,7 +109,7 @@ services:
     restart: unless-stopped
 
   cloudflare-ddns:
-    image: favonia/cloudflare-ddns:1.16.2
+    image: favonia/cloudflare-ddns:1.17.1
     container_name: cloudflare-ddns
     environment:
       CF_API_TOKEN: {{ cloudflare_api_token }}
@@ -124,7 +124,7 @@ services:
     restart: unless-stopped
 
   wireguard:
-    image: linuxserver/wireguard:1.0.20250521
+    image: linuxserver/wireguard:1.0.20260223
     container_name: wireguard
     cap_add:
       - NET_ADMIN
@@ -158,7 +158,7 @@ services:
 
   # TODO: thing about unbound to resolve DNS and not send it to the google etc
   pihole:
-    image: pihole/pihole:2026.05.0
+    image: pihole/pihole:2026.09.0
     container_name: pihole
     environment:
       PUID: 1000
@@ -167,6 +167,10 @@ services:
       FTLCONF_webserver_api_password: ''  # no password
       FTLCONF_dns_listeningMode: 'ALL'
       FTLCONF_dns_upstreams: "1.1.1.1;8.8.8.8"
+      # Pi-hole v6 does NOT read /etc/dnsmasq.d unless this is set, so the
+      # mounted 02-custom-dns.conf (split-horizon pi5.<domain>) is ignored
+      # without it. Only *.conf files are loaded.
+      FTLCONF_misc_etc_dnsmasq_d: 'true'
       DNSMASQ_LISTENING: "all"  # TODO: make local, but re-route from reserved-proxy
       FTLCONF_LOCAL_IPV4: "{{ local_ipv4 }}"
     ports:
@@ -210,7 +214,7 @@ services:
     restart: unless-stopped
 
   homepage:
-    image: ghcr.io/gethomepage/homepage:v1.13.1
+    image: ghcr.io/gethomepage/homepage:v2.4.0
     container_name: homepage
     user: "1000:{{ docker_gid }}"
     environment:
@@ -218,7 +222,6 @@ services:
       PGID: 1000
       TZ: {{ timezone }}
       HOMEPAGE_ALLOWED_HOSTS: "*"
-      LOG_PATH: /app/logs
     # Lets server-side widget calls reach host-network containers (netdata) via the bridge gateway.
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -226,7 +229,6 @@ services:
       - "3000:3000"
     volumes:
       - {{ containers_setup_configs_dir }}/homepage-config:/app/config
-      - {{ containers_setup_data_dir }}/homepage-logs:/app/logs
       - /var/run/docker.sock:/var/run/docker.sock:ro
     labels:
       - "traefik.enable=true"
@@ -284,7 +286,7 @@ services:
 {#    restart: unless-stopped#}
 
   timemachine:
-    image: mbentley/timemachine:smb
+    image: mbentley/timemachine:smb-20261001  # pinned: the rolling `smb` tag re-pulls daily
     container_name: timemachine
     hostname: timemachine
     environment:
@@ -337,7 +339,7 @@ services:
   # transcode later: pass `--device /dev/dri` and configure Jellyfin > Playback >
   # VAAPI in the admin UI.
   jellyfin:
-    image: jellyfin/jellyfin:10.11.8
+    image: jellyfin/jellyfin:10.11.11
     container_name: jellyfin
     # Jellyfin reads the server name from the container hostname on first start —
     # without this it shows a container-hash string in the UI.
@@ -373,7 +375,7 @@ services:
   # No auth by default — relies on LAN/VPN gating. To set a password later,
   # visit Settings > General in the UI.
   prowlarr:
-    image: linuxserver/prowlarr:2.3.5
+    image: linuxserver/prowlarr:2.6.5
     container_name: prowlarr
     environment:
       PUID: 1000
@@ -404,7 +406,7 @@ services:
   # Transmission's /downloads view happens via Radarr's Remote Path Mapping
   # configured in tasks/configure_arr_stack.yml.
   radarr:
-    image: linuxserver/radarr:6.1.1
+    image: linuxserver/radarr:6.4.4
     container_name: radarr
     environment:
       PUID: 1000
@@ -436,7 +438,7 @@ services:
   # requests through this container. Note: FS runs a headless Chromium
   # (200-400 MB RAM) — pay the cost only when CF-protected indexers are wanted.
   flaresolverr:
-    image: ghcr.io/flaresolverr/flaresolverr:v3.3.21
+    image: ghcr.io/flaresolverr/flaresolverr:v3.5.2
     container_name: flaresolverr
     environment:
       LOG_LEVEL: info
@@ -451,7 +453,7 @@ services:
       - homepage.statusStyle=basic
       - homepage.ping=http://flaresolverr:8191
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8191/health"]
+      test: ["CMD", "curl", "-fsS", "http://localhost:8191/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -459,7 +461,7 @@ services:
 
   # TV automation. Same canonical /data mount as Radarr — see comment above.
   sonarr:
-    image: linuxserver/sonarr:4.0.17
+    image: linuxserver/sonarr:4.0.20
     container_name: sonarr
     environment:
       PUID: 1000
@@ -486,7 +488,7 @@ services:
 
   ### AI ###
   hermes:
-    image: nousresearch/hermes-agent:v2026.6.19
+    image: nousresearch/hermes-agent:v2026.9.24
     container_name: hermes
     environment:
       TZ: {{ timezone }}
@@ -496,12 +498,17 @@ services:
       HERMES_GID: "1000"
       # Run the web dashboard inside this container; the port is published on the
       # host (below) and reached directly by host:port like the other services
-      # here (no Traefik route). --insecure: no-auth, acceptable behind the
-      # VPN/LAN gating. Bind to all interfaces so the published port works.
+      # here (no Traefik route). Since hermes-agent v2026.9.24 (June-2026
+      # hardening, PR #50476) a non-loopback bind ALWAYS requires an auth
+      # provider — HERMES_DASHBOARD_INSECURE is a warned no-op and the dashboard
+      # fails closed without basic auth. Bind to all interfaces so the published
+      # port works.
       HERMES_DASHBOARD: "true"
       HERMES_DASHBOARD_HOST: 0.0.0.0
       HERMES_DASHBOARD_PORT: "9119"
-      HERMES_DASHBOARD_INSECURE: "true"
+      HERMES_DASHBOARD_BASIC_AUTH_USERNAME: "{{ hermes_dashboard_username }}"
+      HERMES_DASHBOARD_BASIC_AUTH_PASSWORD: "{{ hermes_dashboard_password }}"
+      HERMES_DASHBOARD_BASIC_AUTH_SECRET: "{{ hermes_dashboard_auth_secret }}"
       # LLM provider (model/provider/base_url are in config.yaml).
       OPENROUTER_API_KEY: {{ hermes_openrouter_api_key }}
       # Telegram gateway — token present => the gateway enables the bot. The
@@ -588,7 +595,7 @@ services:
   # /database; to flip it later, wipe /database/filebrowser.db on the host and
   # recreate the container.
   filebrowser:
-    image: filebrowser/filebrowser:v2.63.3
+    image: filebrowser/filebrowser:v2.63.23
     container_name: filebrowser
     user: "1000:1000"
     command: ["--noauth"]
@@ -667,7 +674,7 @@ services:
 
   ### Metrics ###
   glances:
-    image: nicolargo/glances:4.3.1-full
+    image: nicolargo/glances:4.5.7-full
     container_name: glances
     pid: host
     environment:
@@ -696,7 +703,7 @@ services:
     restart: unless-stopped
 
   netdata:
-    image: netdata/netdata:v2.10
+    image: netdata/netdata:v2.12.0
     container_name: netdata
     hostname: {{ device_name }}
     pid: host
@@ -735,7 +742,7 @@ services:
     restart: unless-stopped
 
   tailscale:
-    image: tailscale/tailscale:v1.96
+    image: tailscale/tailscale:v1.102.5
     container_name: tailscale
     hostname: pi5
     network_mode: host

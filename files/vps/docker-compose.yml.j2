@@ -39,7 +39,7 @@ services:
     restart: unless-stopped
 
   cloudflare-ddns:
-    image: favonia/cloudflare-ddns:1.16.2
+    image: favonia/cloudflare-ddns:1.17.1
     container_name: cloudflare-ddns
     environment:
       CF_API_TOKEN: {{ cloudflare_api_token }}
@@ -50,7 +50,7 @@ services:
     restart: unless-stopped
 
   wireguard:
-    image: linuxserver/wireguard:1.0.20250521
+    image: linuxserver/wireguard:1.0.20260223
     container_name: wireguard
     cap_add:
       - NET_ADMIN
@@ -80,7 +80,7 @@ services:
 
   # TODO: thing about unbound to resolve DNS and not send it to the google etc
   pihole:
-    image: pihole/pihole:2026.05.0
+    image: pihole/pihole:2026.09.0
     container_name: pihole
     environment:
       PIHOLE_UID: 1000
@@ -89,6 +89,10 @@ services:
       FTLCONF_webserver_api_password: ''  # no password
       FTLCONF_dns_upstreams: "1.1.1.1;8.8.8.8"
       FTLCONF_dns_listeningMode: "local"
+      # Pi-hole v6 does NOT read /etc/dnsmasq.d unless this is set, so the
+      # mounted 02-custom-dns.conf (cname entries) is ignored without it.
+      # Only *.conf files are loaded.
+      FTLCONF_misc_etc_dnsmasq_d: 'true'
       FTLCONF_LOCAL_IPV4: "{{ local_ipv4 }}"
     ports:
       - "53:53/tcp"
@@ -108,7 +112,7 @@ services:
     restart: unless-stopped
 
   traefik:
-    image: traefik:v3.7
+    image: traefik:v3.7.13
     container_name: traefik
     environment:
       # Used by the `cf` ACME resolver for DNS-01. Same token as cloudflare-ddns —
@@ -133,8 +137,11 @@ services:
 
   ### Games ###
   foundryvtt:
-    image: felddy/foundryvtt:14.361.0
+    image: felddy/foundryvtt:14.368.0
     container_name: foundryvtt
+    # Foundry binds its licence to the container hostname; without this Docker
+    # assigns a random ID per recreate and licence verification fails.
+    hostname: foundryvtt
     environment:
       PUID: 1000
       PGID: 1000
@@ -182,7 +189,7 @@ req.end();"]
   # flip it later, wipe /database/filebrowser.db on the host and recreate the
   # container.
   filebrowser:
-    image: filebrowser/filebrowser:v2.63.3
+    image: filebrowser/filebrowser:v2.63.23
     container_name: filebrowser
     user: "1000:1000"
     command: ["--noauth"]
@@ -205,7 +212,7 @@ req.end();"]
 
   ### Downloads ###
   transmission:
-    image: linuxserver/transmission:4.1.1
+    image: linuxserver/transmission:4.1.3
     container_name: transmission
     environment:
       PUID: 1000
@@ -227,7 +234,7 @@ req.end();"]
 
   ### Metrics ###
   glances:
-    image: nicolargo/glances:4.3.1-full
+    image: nicolargo/glances:4.5.7-full
     container_name: glances
     pid: host
     environment:
@@ -249,7 +256,7 @@ req.end();"]
     restart: unless-stopped
 
   netdata:
-    image: netdata/netdata:v2.10
+    image: netdata/netdata:v2.12.0
     container_name: netdata
     hostname: {{ device_name }}
     pid: host
@@ -278,7 +285,7 @@ req.end();"]
     restart: unless-stopped
 
   tailscale:
-    image: tailscale/tailscale:v1.96
+    image: tailscale/tailscale:v1.102.5
     container_name: tailscale
     hostname: vps
     network_mode: host
