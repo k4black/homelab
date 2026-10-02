@@ -30,7 +30,7 @@ entryPoints:
 
 certificatesResolvers:
   # Cloudflare DNS-01 — issues a wildcard *.pi5.{{ domain }} + apex cert without
-  # any inbound port exposure. Reuses the existing cloudflare_api_token vault entry;
+  # any inbound port exposure. Reuses the existing cloudflare_api_token BWS secret;
   # for stricter isolation, mint a separate token scoped to Zone:DNS:Edit only.
   cf:
     acme:

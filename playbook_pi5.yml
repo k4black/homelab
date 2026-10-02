@@ -66,6 +66,9 @@
     - vars/pi5.yml
 
   pre_tasks:
+    - name: Load secrets from Bitwarden Secrets Manager
+      ansible.builtin.import_tasks: tasks/bws_load.yml
+      tags: [always]
     - name: Check if pi user exists
       ansible.builtin.command: id -u pi
       register: pi_user_check
@@ -302,12 +305,10 @@
         docker_gid: "{{ docker_group_info.stdout.split(':')[2] if docker_group_info.rc == 0 else '999' }}"
       tags: [docker]
 
-    # Hermes' skills repo: k4black/.agents (single source of truth for agent
-    # skills). Cloned as a writable working copy that the agent reads
-    # (skills.external_dirs -> .agents/skills) AND git-commits/pushes back to
-    # (PAT in the container env + ~/.gitconfig credential helper). Clone-if-missing
-    # only (update: false) so Hermes' own local commits are never reset by a
-    # redeploy. Public repo — no creds to clone; the PAT is only used for push.
+    # Hermes' skills repo: k4black/.agents, a public read-only clone. The container
+    # mounts it `:ro` (skills.external_dirs -> .agents/skills), and Hermes holds no
+    # GitHub token: it sends suggested changes as Telegram diffs. A daily cron pull
+    # keeps it on main; --ff-only never discards local commits.
     - name: Ensure Hermes data dir exists (parent of the skills clone)
       ansible.builtin.file:
         path: "{{ services_data_dir }}/hermes"
@@ -322,17 +323,17 @@
         repo: https://github.com/k4black/.agents.git
         dest: "{{ services_data_dir }}/hermes/.agents"
         version: main
-        clone: true
         update: false
       become: true
+      become_user: "{{ username }}"
       tags: [docker]
-    - name: Own .agents clone by the Hermes container user (uid/gid 1000)
-      ansible.builtin.file:
-        path: "{{ services_data_dir }}/hermes/.agents"
-        state: directory
-        owner: "{{ username }}"
-        group: "{{ username }}"
-        recurse: true
+    - name: Pull the skills repo daily
+      ansible.builtin.cron:
+        name: "Pull k4black/.agents for Hermes"
+        user: "{{ username }}"
+        minute: "30"
+        hour: "4"
+        job: "git -C {{ services_data_dir }}/hermes/.agents pull --ff-only --quiet"
       become: true
       tags: [docker]
 
@@ -412,6 +413,7 @@
           files/pi5/transmission-settings.json.j2: "transmission-config/settings.json"
           files/pi5/home-assistant-config.yml.j2: "home-assistant-config/configuration.yaml"
           files/pi5/pihole-02-custom-dns.conf.j2: "pihole-dnsmasq.d/02-custom-dns.conf"
+          # TODO: Pi-hole v6 ignores adlists.list (lists live in gravity.db); use the API or drop it.
           files/pi5/pihole-adlists.list: "pihole/adlists.list"
           files/pi5/pihole-custom.list.j2: "pihole/custom.list"
           files/pi5/traefik-config.yml.j2: "traefik-config.yml"
@@ -426,11 +428,11 @@
           files/pi5/netdata.conf.j2: "netdata-config/netdata.conf"
           files/pi5/netdata-stream.conf.j2: "netdata-config/stream.conf"
           files/pi5/netdata-pihole.conf: "netdata-config/go.d/pihole.conf"
-          # Rendered into Hermes' HERMES_HOME (data dir, not configs dir) so it
-          # sits at /opt/data/config.yaml inside the container. Non-secret only.
+        containers_setup_secret_templates:
+          files/pi5/compose.env.j2: ".env"
+          # Hermes' HERMES_HOME (data dir, not configs dir), so it sits at
+          # /opt/data/config.yaml in the container. Holds the Todoist token.
           files/pi5/hermes-config.yaml.j2: "../data/hermes/config.yaml"
-          # Git identity + PAT credential helper for the .agents skills repo.
-          files/pi5/hermes-gitconfig.j2: "../data/hermes/.gitconfig"
 
     - name: Verify Tailscale connection
       # run_docker too: this needs the container up, and CI runs --skip-tags run_docker.
@@ -458,7 +460,7 @@
     # drive them once on fresh installs. Gated on StartupWizardCompleted so
     # re-running the playbook is a no-op. Login cannot be fully disabled in
     # Jellyfin 10.11; falls back to admin/admin if jellyfin_admin_password
-    # is not set in vault.
+    # is not set in BWS.
     - name: Initialize Jellyfin (first-run wizard via API)
       tags: [docker, run_docker]
       vars:

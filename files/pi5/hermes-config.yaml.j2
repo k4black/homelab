@@ -19,11 +19,9 @@ terminal:
   backend: local
 
 skills:
-  # Personal skills repo (k4black/.agents) cloned as a writable working copy
-  # by the playbook. Hermes indexes these and edits them IN PLACE here, so skill
-  # authoring lands in the repo clone — then the agent git-commits/pushes it
-  # (GITHUB_TOKEN + ~/.gitconfig credential helper). Non-existent paths are
-  # silently skipped, so this is harmless before the clone exists.
+  # Personal skills repo (k4black/.agents), mounted read-only. Hermes cannot edit
+  # or push it: it sends suggested changes as a unified diff in Telegram, and the
+  # owner applies them. Non-existent paths are silently skipped.
   external_dirs:
     - /opt/data/.agents/skills
   # Trim the 66 bundled skills to a personal-assistant set — no dev/coding,
@@ -32,12 +30,13 @@ skills:
   # a skill once it's here. Re-enable by removing the line. Kept (not listed):
   # hermes-agent, dogfood, himalaya, obsidian, notion, google-workspace,
   # airtable, maps, nano-pdf, ocr-and-documents, powerpoint, arxiv, blogwatcher,
-  # llm-wiki, research-paper-writing, youtube-content, songsee, humanizer, plus
-  # the github/skill-authoring skills kept on for managing the .agents repo.
+  # llm-wiki, research-paper-writing, youtube-content, songsee, humanizer,
+  # hermes-agent-skill-authoring (drafts the diffs it suggests).
   disabled:
-    # dev / coding (no dev sessions on this agent). github-auth,
-    # github-repo-management, github-pr-workflow, and hermes-agent-skill-authoring
-    # are intentionally NOT listed — Hermes needs them to manage the .agents repo.
+    # dev / coding (no dev sessions on this agent). No GitHub token either.
+    - github-auth
+    - github-repo-management
+    - github-pr-workflow
     - claude-code
     - codex
     - opencode
@@ -89,7 +88,7 @@ skills:
 mcp_servers:
   # Official Doist Todoist MCP (npm @doist/todoist-mcp), run as a local stdio
   # subprocess via the image's npx. Full task/project/label capability, auth by
-  # the personal API token (rendered from the vaulted todoist_api_token).
+  # the personal API token (todoist_api_token from BWS; this file is rendered 0600).
   todoist:
     command: "npx"
     args: ["-y", "@doist/todoist-mcp"]

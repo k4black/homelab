@@ -1,0 +1,24 @@
+# {{ ansible_managed }}
+# Homelab hosts. ~/.ssh/config (k4black/.dotfiles) includes this file.
+
+Host pi5-local
+    HostName {{ pi5_local_ipv4 }}
+    Port {{ pi5_ssh_port }}
+
+Host pi5-duckdns
+    HostName {{ pi5_duckdns_subdomain }}.duckdns.org
+    Port {{ pi5_ssh_port }}
+
+Host pi5-tailscale
+    HostName {{ pi5_tailscale_ipv4 }}
+    Port {{ pi5_ssh_port }}
+
+Host hetzner
+    HostName vps.{{ domain }}
+
+Host pi5-* hetzner
+    User {{ default_username }}
+    # Without a private key file, ssh uses id_ed25519.pub to pick the agent key.
+    IdentityFile ~/.ssh/id_ed25519
+    IdentitiesOnly yes
+    PasswordAuthentication no

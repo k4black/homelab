@@ -35,7 +35,7 @@ entryPoints:
 
 certificatesResolvers:
   # Cloudflare DNS-01 — wildcard *.vps.{{ domain }} + apex without any HTTP
-  # challenge. Reuses the cloudflare_api_token vault entry (already used by
+  # challenge. Reuses the cloudflare_api_token BWS secret (already used by
   # cloudflare-ddns; has Zone:DNS:Edit on the zone).
   cf:
     acme:
@@ -52,7 +52,7 @@ certificatesResolvers:
   ts:
     tailscale: {}
   # Let's Encrypt HTTP-01 — still used by foundryvtt on its DuckDNS hostname,
-  # which isn't in the chernyshev.work zone so DNS-01 wouldn't help there.
+  # which isn't in the DNS zone so DNS-01 wouldn't help there.
   lehttp:
     acme:
       email: {{ email }}

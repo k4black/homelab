@@ -1,0 +1,42 @@
+---
+# Loads every secret of the Bitwarden Secrets Manager (BWS) machine account into
+# the `bws` dict, keyed by secret name: `{{ bws.cloudflare_api_token }}`.
+# One API call per run. The token comes from $BWS_ACCESS_TOKEN (CI) or from the
+# macOS Keychain item `bws-homelab` (see README "Secrets").
+# Import it with `tags: always` so `--tags docker` runs still get the secrets.
+
+- name: Install bws if missing (official script, verifies the release checksum)
+  ansible.builtin.shell: |
+    set -o pipefail
+    command -v bws || [ -x "$HOME/.local/bin/bws" ] || curl -fsSL https://bws.bitwarden.com/install | sh
+  args:
+    executable: /bin/bash
+  delegate_to: localhost
+  run_once: true
+  become: false
+  changed_when: false
+
+- name: Fetch secrets from Bitwarden Secrets Manager
+  ansible.builtin.shell: |
+    export PATH="$HOME/.local/bin:/usr/local/bin:$PATH"
+    export BWS_ACCESS_TOKEN="${BWS_ACCESS_TOKEN:-$(security find-generic-password -s bws-homelab -w 2>/dev/null)}"
+    [ -n "$BWS_ACCESS_TOKEN" ] || { echo "No BWS token: set BWS_ACCESS_TOKEN or the Keychain item bws-homelab (README: Secrets)" >&2; exit 1; }
+    bws secret list --output json
+  register: bws_secret_list
+  delegate_to: localhost
+  run_once: true
+  become: false
+  changed_when: false
+  failed_when: false
+  no_log: true
+
+# stdout holds the secrets and stays hidden; stderr only holds the bws error.
+- name: Fail when bws could not fetch the secrets
+  ansible.builtin.fail:
+    msg: "bws failed: {{ bws_secret_list.stderr }}"
+  when: bws_secret_list.rc != 0
+
+- name: Key the secrets by name
+  ansible.builtin.set_fact:
+    bws: "{{ bws_secret_list.stdout | from_json | items2dict(key_name='key', value_name='value') }}"
+  no_log: true

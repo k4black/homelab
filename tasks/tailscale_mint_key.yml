@@ -1,8 +1,8 @@
 ---
 # Mints a one-off, tagged Tailscale key with tasks/tailscale_create_key.yml and
 # exposes it to the compose template as `tailscale_node_authkey` (empty when the
-# node is already authenticated and tagged). The OAuth client secret stays in the
-# vault and never reaches a host.
+# node is already authenticated and tagged). The OAuth client secret stays in
+# BWS and never reaches a host.
 #
 # Runs before the containers_setup role.
 

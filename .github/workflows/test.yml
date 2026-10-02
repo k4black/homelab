@@ -1,6 +1,5 @@
 name: "Test playbooks"
 
-
 on:
   pull_request:
     branches:
@@ -18,15 +17,17 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
+# TODO: the BWS token reads the whole `homelab` project. Give test jobs dummy vars
+# and move the Tailscale check to its own `ci` project.
 jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
 
       - name: Set up Python 3.12
-        uses: actions/setup-python@v7
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
         with:
           python-version: 3.12
           cache: 'pip' # caching pip dependencies
@@ -35,10 +36,6 @@ jobs:
         run: |
           python -m pip install -r requirements.txt
           ansible-galaxy install -r requirements.yml
-
-      - name: Create dummy .vault_pass.txt
-        run: |
-          echo "test" > .vault_pass.txt
 
       - name: Lint code.
         run: |
@@ -50,9 +47,14 @@ jobs:
   # and the shared install path is exercised here once.
   test-macbook-playbook:
     runs-on: macos-latest
+    # Nobody approves the `bws` environment for the weekly cron run.
+    if: github.event_name != 'schedule'
+    environment: bws
+    env:
+      BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
 
       - name: Uninstall GitHub Actions' built-in Homebrew
         run: sudo /bin/bash tests/uninstall-homebrew.sh
@@ -69,10 +71,6 @@ jobs:
         run: |
           python -m pip install -r requirements.txt
           ansible-galaxy install -r requirements.yml
-
-      - name: Create .vault_pass.txt
-        run: |
-          echo "${{ secrets.VAULT_PASS }}" > .vault_pass.txt
 
       - name: Test the playbook's syntax
         run: ansible-playbook playbook_macbook.yml -i inventory-test.ini -e "device_name=test-mac" -e "macbook_profile=personal" --syntax-check
@@ -94,16 +92,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
 
       - name: Install python and ansible requirements
         run: |
           python -m pip install -r requirements.txt
           ansible-galaxy install -r requirements.yml
-
-      - name: Create dummy .vault_pass.txt
-        run: |
-          echo "test" > .vault_pass.txt
 
       - name: Syntax check both profiles
         run: |
@@ -119,18 +113,19 @@ jobs:
 
   check-tailscale-credential:
     runs-on: ubuntu-latest
+    # Nobody approves the `bws` environment for the weekly cron run.
+    if: github.event_name != 'schedule'
+    environment: bws
+    env:
+      BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
 
       - name: Install python and ansible requirements
         run: |
           python -m pip install -r requirements.txt
           ansible-galaxy install -r requirements.yml
-
-      - name: Create .vault_pass.txt
-        run: |
-          echo "${{ secrets.VAULT_PASS }}" > .vault_pass.txt
 
       - name: Mint an ephemeral key and join a throwaway node
         run: ansible-playbook playbook_tailscale_check.yml -i localhost, -c local
@@ -139,36 +134,19 @@ jobs:
 
   test-vps-playbook:
     runs-on: ubuntu-latest
+    # Nobody approves the `bws` environment for the weekly cron run.
+    if: github.event_name != 'schedule'
+    environment: bws
+    env:
+      BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v7
-
-      - name: Debug print /etc/resolv.conf  # TODO: remove this debug print
-        run: | 
-          echo "/etc/resolv.conf"
-          cat /etc/resolv.conf
-          echo "/etc/systemd/resolved.conf"
-          cat /etc/systemd/resolved.conf
-          echo "/run/systemd/resolve/resolv.conf"
-          cat /run/systemd/resolve/resolv.conf
-
-#      - name: Disable github actions systemd-resolved
-#        run: sudo /bin/bash tests/disable-systemd-resolved.sh
-
-#      - name: Setup to free up port 53
-#        run: sudo /bin/bash tests/edit-systemd-resolved.sh
-#
-#      - name: Debug ping google.com  # TODO: remove this debug print
-#        run: ping -c 3 google.com
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
 
       - name: Install python and ansible requirements
         run: |
           python -m pip install -r requirements.txt
           ansible-galaxy install -r requirements.yml
-
-      - name: Create .vault_pass.txt
-        run: |
-          echo "${{ secrets.VAULT_PASS }}" > .vault_pass.txt
 
       - name: Test the playbook's syntax
         run: ansible-playbook playbook_vps.yml -i inventory-test.ini --syntax-check
@@ -186,41 +164,21 @@ jobs:
         env:
           ANSIBLE_FORCE_COLOR: '1'
 
-#      - name: Enable github actions systemd-resolved
-#        run: sudo /bin/bash tests/enable-systemd-resolved.sh
-
   test-pi5-playbook:
     runs-on: ubuntu-latest
+    # Nobody approves the `bws` environment for the weekly cron run.
+    if: github.event_name != 'schedule'
+    environment: bws
+    env:
+      BWS_ACCESS_TOKEN: ${{ secrets.BWS_ACCESS_TOKEN }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v7
-
-      - name: Debug print /etc/resolv.conf  # TODO: remove this debug print
-        run: | 
-          echo "/etc/resolv.conf"
-          cat /etc/resolv.conf
-          echo "/etc/systemd/resolved.conf"
-          cat /etc/systemd/resolved.conf
-          echo "/run/systemd/resolve/resolv.conf"
-          cat /run/systemd/resolve/resolv.conf
-
-#      - name: Disable github actions systemd-resolved
-#        run: sudo /bin/bash tests/disable-systemd-resolved.sh
-
-#      - name: Setup to free up port 53
-#        run: sudo /bin/bash tests/edit-systemd-resolved.sh
-#
-#      - name: Debug ping google.com  # TODO: remove this debug print
-#        run: ping -c 3 google.com
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
 
       - name: Install python and ansible requirements
         run: |
           python -m pip install -r requirements.txt
           ansible-galaxy install -r requirements.yml
-
-      - name: Create .vault_pass.txt
-        run: |
-          echo "${{ secrets.VAULT_PASS }}" > .vault_pass.txt
 
       - name: Test the playbook's syntax
         run: ansible-playbook playbook_pi5.yml -i inventory-test.ini --syntax-check
@@ -238,5 +196,3 @@ jobs:
         env:
           ANSIBLE_FORCE_COLOR: '1'
 
-#      - name: Enable github actions systemd-resolved
-#        run: sudo /bin/bash tests/enable-systemd-resolved.sh

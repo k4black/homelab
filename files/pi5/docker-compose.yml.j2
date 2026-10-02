@@ -50,9 +50,9 @@ services:
     container_name: traefik
     hostname: traefik.pi5.{{ domain }}
     environment:
-      # Used by the `cf` ACME resolver for DNS-01. Same token as cloudflare-ddns —
-      # already has Zone:DNS:Edit on the chernyshev.work zone.
-      CF_DNS_API_TOKEN: {{ cloudflare_api_token }}
+      # Used by the `cf` ACME resolver for DNS-01. Same token as cloudflare-ddns (from .env) —
+      # already has Zone:DNS:Edit on the zone.
+      CF_DNS_API_TOKEN: ${CLOUDFLARE_API_TOKEN}
     ports:
       - "80:80"
       - "443:443"
@@ -100,7 +100,7 @@ services:
     environment:
       TZ: {{ timezone }}
       SUBDOMAINS: {{ pi5_duckdns_subdomain }}
-      TOKEN: {{ duckdns_token }}
+      TOKEN: ${DUCKDNS_TOKEN}
       LOG_FILE: true
     labels:
       - homepage.group=Networking
@@ -112,7 +112,7 @@ services:
     image: favonia/cloudflare-ddns:1.17.1
     container_name: cloudflare-ddns
     environment:
-      CF_API_TOKEN: {{ cloudflare_api_token }}
+      CF_API_TOKEN: ${CLOUDFLARE_API_TOKEN}
       DOMAINS: "pi5.{{ domain }},*.pi5.{{ domain }}"
       PROXIED: "false"
       IP4_PROVIDER: cloudflare.trace
@@ -211,7 +211,7 @@ services:
       - "traefik.http.routers.homepage-http.entrypoints=web"
       - "traefik.http.routers.homepage-http.middlewares=https-redirect@file"
       # HTTPS via the Tailscale resolver for the MagicDNS hostname (no wildcards on .ts.net).
-      - "traefik.http.routers.homepage-ts.rule=Host(`{{ device_name }}.gorgon-elver.ts.net`)"
+      - "traefik.http.routers.homepage-ts.rule=Host(`{{ device_name }}.{{ tailscale_tailnet_name }}.ts.net`)"
       - "traefik.http.routers.homepage-ts.entrypoints=websecure"
       - "traefik.http.routers.homepage-ts.tls=true"
       - "traefik.http.routers.homepage-ts.tls.certresolver=ts"
@@ -306,6 +306,7 @@ services:
   # transcode later: pass `--device /dev/dri` and configure Jellyfin > Playback >
   # VAAPI in the admin UI.
   jellyfin:
+    # TODO: 12.1 needs a /config backup, plugin removal and a full library rescan.
     image: jellyfin/jellyfin:10.11.11
     container_name: jellyfin
     # Jellyfin reads the server name from the container hostname on first start —
@@ -474,18 +475,14 @@ services:
       HERMES_DASHBOARD_HOST: 0.0.0.0
       HERMES_DASHBOARD_PORT: "9119"
       HERMES_DASHBOARD_BASIC_AUTH_USERNAME: "{{ hermes_dashboard_username }}"
-      HERMES_DASHBOARD_BASIC_AUTH_PASSWORD: "{{ hermes_dashboard_password }}"
-      HERMES_DASHBOARD_BASIC_AUTH_SECRET: "{{ hermes_dashboard_auth_secret }}"
+      HERMES_DASHBOARD_BASIC_AUTH_PASSWORD: ${HERMES_DASHBOARD_PASSWORD}
+      HERMES_DASHBOARD_BASIC_AUTH_SECRET: ${HERMES_DASHBOARD_AUTH_SECRET}
       # LLM provider (model/provider/base_url are in config.yaml).
-      OPENROUTER_API_KEY: {{ hermes_openrouter_api_key }}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
       # Telegram gateway — token present => the gateway enables the bot. The
       # allowlist restricts who may talk to it (numeric Telegram user IDs).
-      TELEGRAM_BOT_TOKEN: {{ hermes_telegram_bot_token }}
-      TELEGRAM_ALLOWED_USERS: "{{ hermes_telegram_allowed_users }}"
-      # GitHub PAT (fine-grained, k4black/.agents, Contents R/W) for the
-      # github-* skills + git credential helper in ~/.gitconfig (lets Hermes
-      # pull/commit/push the skills repo cloned at /opt/data/.agents).
-      GITHUB_TOKEN: {{ hermes_github_pat }}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      TELEGRAM_ALLOWED_USERS: ${TELEGRAM_ALLOWED_USERS}
       # The anki-connect skill reads this to reach the sibling `anki` container
       # over the bridge (the skill defaults to localhost, falls back to anki).
       ANKI_CONNECT_URL: http://anki:8765
@@ -495,6 +492,10 @@ services:
       # HERMES_HOME — holds config.yaml, session history, vector memory, learned
       # skills, and logs. config.yaml is rendered here before first start.
       - {{ containers_setup_data_dir }}/hermes:/opt/data
+      # Skills repo (k4black/.agents), read-only: Hermes cannot rewrite its own
+      # skills. A host cron pulls it daily; Hermes sends suggested changes as
+      # Telegram diffs instead of pushing.
+      - {{ containers_setup_data_dir }}/hermes/.agents:/opt/data/.agents:ro
     command: ["gateway", "run"]
     labels:
       - homepage.group=Services
@@ -562,6 +563,7 @@ services:
   # /database; to flip it later, wipe /database/filebrowser.db on the host and
   # recreate the container.
   filebrowser:
+    # TODO: final release (upstream archived 2026-09); move to the maintained fork.
     image: filebrowser/filebrowser:v2.63.23
     container_name: filebrowser
     user: "1000:1000"

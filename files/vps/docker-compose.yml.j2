@@ -34,7 +34,7 @@ services:
     environment:
       TZ: {{ timezone }}
       SUBDOMAINS: {{ vps_duckdns_subdomain }}
-      TOKEN: {{ duckdns_token }}
+      TOKEN: ${DUCKDNS_TOKEN}
       LOG_FILE: true
     restart: unless-stopped
 
@@ -42,7 +42,7 @@ services:
     image: favonia/cloudflare-ddns:1.17.1
     container_name: cloudflare-ddns
     environment:
-      CF_API_TOKEN: {{ cloudflare_api_token }}
+      CF_API_TOKEN: ${CLOUDFLARE_API_TOKEN}
       DOMAINS: "vps.{{ domain }},*.vps.{{ domain }}"
       PROXIED: "false"
       IP4_PROVIDER: cloudflare.trace
@@ -86,9 +86,9 @@ services:
     image: traefik:v3.7.13
     container_name: traefik
     environment:
-      # Used by the `cf` ACME resolver for DNS-01. Same token as cloudflare-ddns —
-      # already has Zone:DNS:Edit on the chernyshev.work zone.
-      CF_DNS_API_TOKEN: {{ cloudflare_api_token }}
+      # Used by the `cf` ACME resolver for DNS-01. Same token as cloudflare-ddns (from .env) —
+      # already has Zone:DNS:Edit on the zone.
+      CF_DNS_API_TOKEN: ${CLOUDFLARE_API_TOKEN}
     ports:
       - "80:80"
       - "443:443"
@@ -123,9 +123,9 @@ services:
       FOUNDRY_PROXY_PORT: 443              # external port the clients hit
       FOUNDRY_HOSTNAME: "foundry.{{ vps_duckdns_subdomain }}.duckdns.org"
       CONTAINER_PRESERVE_CONFIG: "true"
-      FOUNDRY_USERNAME: "{{ foundry_username }}"
-      FOUNDRY_PASSWORD: "{{ foundry_password }}"
-      FOUNDRY_ADMIN_KEY: "{{ foundry_admin_password }}"
+      FOUNDRY_USERNAME: ${FOUNDRY_USERNAME}
+      FOUNDRY_PASSWORD: ${FOUNDRY_PASSWORD}
+      FOUNDRY_ADMIN_KEY: ${FOUNDRY_ADMIN_KEY}
     volumes:
       - {{ containers_setup_data_dir }}/foundryvtt:/data
     labels:
@@ -160,6 +160,7 @@ req.end();"]
   # flip it later, wipe /database/filebrowser.db on the host and recreate the
   # container.
   filebrowser:
+    # TODO: final release (upstream archived 2026-09); move to the maintained fork.
     image: filebrowser/filebrowser:v2.63.23
     container_name: filebrowser
     user: "1000:1000"

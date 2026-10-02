@@ -8,6 +8,9 @@
     - vars/macbook.yml
 
   pre_tasks:
+    - name: Load secrets from Bitwarden Secrets Manager
+      ansible.builtin.import_tasks: tasks/bws_load.yml
+      tags: [always]
     - name: Assert device_name is provided
       ansible.builtin.assert:
         that: device_name is defined
@@ -31,6 +34,27 @@
       loop_control:
         index_var: idx
         label: "{{ item.name }}"
+    - name: Create .ssh directory at ~/
+      ansible.builtin.file:
+        path: "~/.ssh"
+        state: directory
+        owner: "{{ ansible_user_id }}"
+        mode: "0700"
+      become: false
+    - name: Check ~/.ssh/config before the dotfiles role links it
+      ansible.builtin.stat:
+        path: ~/.ssh/config
+      register: macbook_ssh_config
+      become: false
+    - name: Keep a copy of a hand-made ~/.ssh/config
+      ansible.builtin.copy:
+        src: ~/.ssh/config
+        dest: ~/.ssh/config.pre-dotfiles
+        remote_src: true
+        force: false
+        mode: "0600"
+      when: macbook_ssh_config.stat.isreg | default(false)
+      become: false
     - name: Ensure homebrew is in PATH
       ansible.builtin.stat:
         path: /opt/homebrew/bin/brew
@@ -58,6 +82,7 @@
         dotfiles_symlinks:
           .zshrc: "/Users/{{ ansible_user_id }}/.zshrc"
           .gitconfig: "/Users/{{ ansible_user_id }}/.gitconfig"
+          ssh_config: "/Users/{{ ansible_user_id }}/.ssh/config"
         dotfiles_run_scripts:
           - "/Users/{{ ansible_user_id }}/Projects/personal/.dotfiles/.macos.sh"
     - role: zsh_setup
@@ -94,22 +119,12 @@
         state: directory
         owner: "{{ ansible_user_id }}"
         mode: "0755"
-    - name: Create .ssh directory at ~/
-      ansible.builtin.file:
-        path: "~/.ssh"
-        state: directory
-        owner: "{{ ansible_user_id }}"
-        mode: "0700"
-
-    - name: Add ssh-agent to localrc
+    - name: Remove the ssh-agent line from localrc (it would hide the Bitwarden agent)
       ansible.builtin.lineinfile:
         path: ~/.localrc
         line: 'eval "$(ssh-agent -s)"'
-        state: present
-        create: true
-        mode: "0600"
-        insertafter: EOF
-      become: true
+        state: absent
+      become: false
     - name: Add brew to path in localrc
       ansible.builtin.lineinfile:
         path: ~/.localrc
@@ -119,63 +134,45 @@
         mode: "0600"
         insertafter: EOF
       become: true
-    - name: Ensure Host * line in ssh config
-      ansible.builtin.lineinfile:
-        path: ~/.ssh/config
-        line: "Host *"
-        state: present
-        create: true
+
+    # ~/.ssh/config itself comes from k4black/.dotfiles (Host * defaults, the
+    # Bitwarden IdentityAgent, `Include config.d/*`). This repo owns the homelab
+    # hosts, whose names come from BWS.
+    - name: Create ~/.ssh/config.d
+      ansible.builtin.file:
+        path: ~/.ssh/config.d
+        state: directory
+        mode: "0700"
+      become: false
+    - name: Write homelab SSH hosts
+      ansible.builtin.template:
+        src: files/macbook/ssh-config-homelab.j2
+        dest: ~/.ssh/config.d/homelab
         mode: "0600"
-        insertbefore: BOF
-      become: true
-    - name: Add AddKeysToAgent yes to ssh config Host *
-      ansible.builtin.lineinfile:
-        path: ~/.ssh/config
-        line: "    AddKeysToAgent yes"
-        state: present
-        create: true
-        mode: "0600"
-        insertafter: "Host *"
-      become: true
-    - name: Add pi5-local SSH config (LAN access)
-      ansible.builtin.blockinfile:
-        path: ~/.ssh/config
-        marker: "# {mark} ANSIBLE MANAGED: pi5-local"
-        block: |
-          Host pi5-local
-              HostName {{ pi5_local_ipv4 }}
-              User {{ default_username }}
-              Port {{ pi5_ssh_port }}
-              IdentityFile ~/.ssh/id_ed25519
-              PasswordAuthentication no
-        create: true
-        mode: "0600"
-    - name: Add pi5-duckdns SSH config (remote via DuckDNS)
-      ansible.builtin.blockinfile:
-        path: ~/.ssh/config
-        marker: "# {mark} ANSIBLE MANAGED: pi5-duckdns"
-        block: |
-          Host pi5-duckdns
-              HostName {{ pi5_duckdns_subdomain }}.duckdns.org
-              User {{ default_username }}
-              Port {{ pi5_ssh_port }}
-              IdentityFile ~/.ssh/id_ed25519
-              PasswordAuthentication no
-        create: true
-        mode: "0600"
-    - name: Add pi5-tailscale SSH config (via Tailscale tailnet)
-      ansible.builtin.blockinfile:
-        path: ~/.ssh/config
-        marker: "# {mark} ANSIBLE MANAGED: pi5-tailscale"
-        block: |
-          Host pi5-tailscale
-              HostName {{ pi5_tailscale_ipv4 }}
-              User {{ default_username }}
-              Port {{ pi5_ssh_port }}
-              IdentityFile ~/.ssh/id_ed25519
-              PasswordAuthentication no
-        create: true
-        mode: "0600"
+      become: false
+
+    # Bitwarden's SSH agent holds the private keys. Git signing and the server
+    # playbooks read ~/.ssh/<key>.pub, so write each agent key whose comment
+    # (= the Bitwarden item name) starts with `id_` and has no .pub file yet.
+    - name: List keys in the Bitwarden SSH agent
+      ansible.builtin.command: ssh-add -L
+      environment:
+        SSH_AUTH_SOCK: "{{ bitwarden_ssh_agent_sock }}"
+      register: macbook_agent_keys
+      changed_when: false
+      failed_when: false
+      when: testing is undefined or testing != 'true'
+      become: false
+    - name: Write .pub files from the agent
+      ansible.builtin.copy:
+        content: "{{ item }}\n"
+        dest: "~/.ssh/{{ item.split(' ')[2] }}.pub"
+        mode: "0644"
+        force: false
+      loop: "{{ macbook_agent_keys.stdout_lines | default([]) | select('search', ' id_') | list }}"
+      loop_control:
+        label: "{{ item.split(' ')[2] }}"
+      become: false
 
     - name: Setup .gitconfig.local
       ansible.builtin.template:

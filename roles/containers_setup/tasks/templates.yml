@@ -4,13 +4,25 @@
   ansible.builtin.template:
     src: "{{ containers_setup_docker_compose_template }}"
     dest: "{{ containers_setup_configs_dir }}/docker-compose.yml"
-    # 0600: the rendered compose holds vault secrets (API keys, bot tokens, PAT,
-    # dashboard password) and is owned by the login user, so 0644 exposed them
-    # to any local account.
+    # Secrets live in .env (below); the compose file still holds private names.
     mode: '0600'
     owner: "{{ containers_setup_user if (testing is undefined or testing != 'true') else omit }}"
     group: "{{ containers_setup_user if (testing is undefined or testing != 'true') else omit }}"
   become: true
+
+# .env (compose interpolation) and any other file that holds secrets: 0600, no_log.
+- name: Render secret files
+  ansible.builtin.template:
+    src: "{{ item.key }}"
+    dest: "{{ containers_setup_configs_dir }}/{{ item.value }}"
+    mode: '0600'
+    owner: "{{ containers_setup_user if (testing is undefined or testing != 'true') else omit }}"
+    group: "{{ containers_setup_user if (testing is undefined or testing != 'true') else omit }}"
+  become: true
+  loop: "{{ containers_setup_secret_templates | dict2items }}"
+  loop_control:
+    label: "{{ item.value }}"
+  no_log: true
 
 - name: Make directories
   ansible.builtin.file:
@@ -104,7 +116,7 @@
 
 - name: Validate docker compose file
   ansible.builtin.command:
-    cmd: docker compose config
+    cmd: docker compose config --quiet  # validate only: the full output holds secrets
     chdir: "{{ containers_setup_configs_dir }}"
   changed_when: false
   become: true

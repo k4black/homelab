@@ -65,6 +65,11 @@
     - vars/all.yml
     - vars/vps.yml
 
+  pre_tasks:
+    - name: Load secrets from Bitwarden Secrets Manager
+      ansible.builtin.import_tasks: tasks/bws_load.yml
+      tags: [always]
+
   roles:
     - role: packages_install
       become: true
@@ -177,8 +182,11 @@
           - "{{ services_data_dir }}/filebrowser/config"
           - "{{ services_data_dir }}/filebrowser/database"
         containers_setup_touch_files: []
+        containers_setup_secret_templates:
+          files/vps/compose.env.j2: ".env"
         containers_setup_config_templates:
           files/vps/pihole-02-custom-dns.conf.j2: "pihole-dnsmasq.d/02-custom-dns.conf"
+          # TODO: Pi-hole v6 ignores adlists.list (lists live in gravity.db); use the API or drop it.
           files/vps/pihole-adlists.list: "pihole/adlists.list"
           files/vps/pihole-custom.list.j2: "pihole/custom.list"
           files/vps/traefik-config.yml.j2: "traefik-config.yml"

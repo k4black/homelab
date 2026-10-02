@@ -1,7 +1,7 @@
 ---
 # Mints a one-off auth key from the OAuth client (scope: auth_keys only) and
-# exports it as `tailscale_minted_key`. The OAuth secret itself never leaves the
-# vault. Every key created here is consumed on first login.
+# exports it as `tailscale_minted_key`. The OAuth secret itself never leaves
+# BWS. Every key created here is consumed on first login.
 #
 # Vars:
 #   tailscale_tag             tag to create the key for (must be assigned to the client)

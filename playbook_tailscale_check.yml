@@ -11,6 +11,8 @@
   vars_files:
     - vars/all.yml
   tasks:
+    - name: Load secrets from Bitwarden Secrets Manager
+      ansible.builtin.import_tasks: tasks/bws_load.yml
     - name: Mint an ephemeral key
       ansible.builtin.include_tasks: tasks/tailscale_create_key.yml
       vars:
