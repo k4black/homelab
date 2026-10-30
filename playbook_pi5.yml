@@ -61,7 +61,7 @@
         linux_server_setup_login_ssh_public_key: "{{ ssh_public_key }}"
         linux_server_setup_block_ports: true
         linux_server_setup_allow_subnets:
-          - {subnet: "192.168.1.0/24", comment: "LAN full access"}
+          - {subnet: "{{ lan_subnet }}", comment: "LAN full access"}
           - {subnet: "100.64.0.0/10", comment: "Tailscale full access"}
         linux_server_setup_open_ports:
           # sshd listens on ssh_port only (geerlingguy.security); 22 stays closed.
