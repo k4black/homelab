@@ -26,14 +26,9 @@ entryPoints:
           priority: 1
   websecure:
     address: ":443"
-    # Keep X-Forwarded-For from the other hosts' Traefik (tailnet) and the
-    # docker bridges, so Authelia sees the real client IP for its bypass rule
-    # and its ban list. From anywhere else the header is replaced.
-    forwardedHeaders:
-      trustedIPs:
-{% for net in trusted_networks %}
-        - "{{ net }}"
-{% endfor %}
+    # Forwarded headers are NOT trusted: a request relayed by another host's
+    # Traefik keeps that host's tailnet IP as the client, so Authelia bypasses
+    # it (the relaying Traefik already restricted its own clients).
     http:
       tls:
         # Default cert from the cf resolver (wildcard *.vps.{{ domain }}). Routers
