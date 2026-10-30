@@ -1,4 +1,7 @@
 # {{ ansible_managed }}
+# No published ports: every web UI is a Traefik router svc.vps.{{ domain }}
+# behind Authelia (middlewares=authelia@file). Exceptions: traefik 80/443,
+# pihole 53, transmission 51413, the docker socket proxy on the tailnet IP.
 
 networks:
   default:
@@ -21,10 +24,23 @@ services:
   myspeed:
     image: germannewsmaker/myspeed:1.0.9
     container_name: myspeed
-    ports:
-      - "5216:5216"
     volumes:
       - {{ containers_setup_data_dir }}/myspeed:/myspeed/data
+    labels:
+      - traefik.enable=true
+      - traefik.http.services.myspeed.loadbalancer.server.port=5216
+      - traefik.http.routers.myspeed.rule=Host(`myspeed.vps.{{ domain }}`)
+      - traefik.http.routers.myspeed.entrypoints=websecure
+      - traefik.http.routers.myspeed.tls.certresolver=cf
+      - traefik.http.routers.myspeed.middlewares=authelia@file
+      - "homepage.group=vps: Monitoring"
+      - homepage.name=MySpeed
+      - homepage.icon=myspeed
+      - homepage.href=https://myspeed.vps.{{ domain }}
+      - homepage.statusStyle=basic
+      - homepage.instance.vps.ping=http://myspeed:5216
+      - homepage.instance.vps.widget.type=myspeed
+      - homepage.instance.vps.widget.url=http://myspeed:5216
     restart: unless-stopped
 
   ## Networking ##
@@ -36,17 +52,27 @@ services:
       SUBDOMAINS: {{ vps_duckdns_subdomain }}
       TOKEN: ${DUCKDNS_TOKEN}
       LOG_FILE: true
+    labels:
+      - "homepage.group=vps: Networking"
+      - homepage.name=DuckDNS
+      - homepage.icon=duckdns
     restart: unless-stopped
 
+  # The vps is the public door: it publishes the A records of EVERY host in
+  # homelab_hosts; the vps Traefik forwards the other hosts over the tailnet.
   cloudflare-ddns:
     image: favonia/cloudflare-ddns:1.17.1
     container_name: cloudflare-ddns
     environment:
       CF_API_TOKEN: ${CLOUDFLARE_API_TOKEN}
-      DOMAINS: "vps.{{ domain }},*.vps.{{ domain }}"
+      DOMAINS: "{% for h in homelab_hosts %}{{ h.name }}.{{ domain }},*.{{ h.name }}.{{ domain }}{% if not loop.last %},{% endif %}{% endfor %}"
       PROXIED: "false"
       IP4_PROVIDER: cloudflare.trace
       IP6_PROVIDER: none
+    labels:
+      - "homepage.group=vps: Networking"
+      - homepage.name=Cloudflare DDNS
+      - homepage.icon=cloudflare
     restart: unless-stopped
 
   # TODO: thing about unbound to resolve DNS and not send it to the google etc
@@ -65,21 +91,83 @@ services:
       # Only *.conf files are loaded.
       FTLCONF_misc_etc_dnsmasq_d: 'true'
       FTLCONF_LOCAL_IPV4: "{{ local_ipv4 }}"
+    # Bound to the host's own IP and loopback: the tailnet IP:53 belongs to
+    # tailnet-dns (host network). Containers use the bridge IP directly.
     ports:
-      - "53:53/tcp"
-      - "53:53/udp"
-      - "8053:80/tcp"  # custom port for web interface
+      - "127.0.0.1:53:53/tcp"
+      - "127.0.0.1:53:53/udp"
+{% if local_ipv4 != '127.0.0.1' %}
+      - "{{ local_ipv4 }}:53:53/tcp"
+      - "{{ local_ipv4 }}:53:53/udp"
+{% endif %}
     volumes:
       - {{ containers_setup_configs_dir }}/pihole/:/etc/pihole/:rw
       - {{ containers_setup_configs_dir }}/pihole-dnsmasq.d:/etc/dnsmasq.d/:rw
     networks:
       default:
         ipv4_address: {{ vps_docker_network_pihole_ip }}
+    labels:
+      - traefik.enable=true
+      - traefik.http.services.pihole.loadbalancer.server.port=80
+      - traefik.http.routers.pihole.rule=Host(`pihole.vps.{{ domain }}`)
+      - traefik.http.routers.pihole.entrypoints=websecure
+      - traefik.http.routers.pihole.tls.certresolver=cf
+      - traefik.http.routers.pihole.middlewares=authelia@file
+      - "homepage.group=vps: Networking"
+      - homepage.name=Pi-hole
+      - homepage.icon=pi-hole
+      - homepage.href=https://pihole.vps.{{ domain }}/admin
+      - homepage.statusStyle=basic
+      - homepage.instance.vps.ping=http://pihole:80
+      - homepage.instance.vps.widget.type=pihole
+      - homepage.instance.vps.widget.url=http://pihole:80
+      - homepage.instance.vps.widget.version=6
+      - homepage.instance.vps.widget.key=
     healthcheck:
       test: ["CMD", "dig", "+norecurse", "+retry=0", "@127.0.0.1", "pi.hole"]
       interval: 30s
       timeout: 10s
       retries: 3
+    restart: unless-stopped
+
+  # Tailnet view of the DNS: *.<host>.{{ domain }} -> that host's tailnet IP.
+  # Listens on tailscale0 only (files/shared/tailnet-dns.conf.j2), so it needs the
+  # interface up first. Tailscale split DNS for {{ domain }} points here.
+  tailnet-dns:
+    image: 4km3/dnsmasq:2.90-r3
+    container_name: tailnet-dns
+    network_mode: host
+    cap_add:
+      - NET_ADMIN
+    volumes:
+      - {{ containers_setup_configs_dir }}/tailnet-dns.conf:/etc/dnsmasq.conf:ro
+    depends_on:
+      tailscale:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Read-only view of the docker API for traefik, homepage and glances (local)
+  # and the other hosts' homepages (tailnet). Only netdata keeps the raw socket.
+  docker-socket-proxy:
+    image: tecnativa/docker-socket-proxy:v0.5.0
+    container_name: docker-socket-proxy
+    environment:
+      CONTAINERS: 1
+      NETWORKS: 1
+      EVENTS: 1
+      PING: 1
+      VERSION: 1
+      INFO: 1
+      POST: 0
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+{% if vps_tailscale_ipv4 %}
+    ports:
+      - "{{ vps_tailscale_ipv4 }}:2375:2375"
+    depends_on:
+      tailscale:
+        condition: service_healthy
+{% endif %}
     restart: unless-stopped
 
   traefik:
@@ -92,13 +180,29 @@ services:
     ports:
       - "80:80"
       - "443:443"
-      - "8080:8080"  # optional dashboard
+    # netdata runs on the host network; its router points at host.docker.internal.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
       - {{ containers_setup_configs_dir }}/traefik-config.yml:/etc/traefik/traefik.yml:ro
       - {{ containers_setup_configs_dir }}/traefik-dynamic.yml:/etc/traefik/dynamic.yml:ro
       - {{ containers_setup_data_dir }}/traefik-letsencrypt:/letsencrypt
       - tailscale-socket:/var/run/tailscale
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.traefik.rule=Host(`traefik.vps.{{ domain }}`)
+      - traefik.http.routers.traefik.service=api@internal
+      - traefik.http.routers.traefik.entrypoints=websecure
+      - traefik.http.routers.traefik.tls.certresolver=cf
+      - traefik.http.routers.traefik.middlewares=authelia@file
+      - "homepage.group=vps: Networking"
+      - homepage.name=Traefik
+      - homepage.icon=traefik
+      - homepage.href=https://traefik.vps.{{ domain }}
+      - homepage.statusStyle=basic
+      - homepage.instance.vps.ping=http://traefik:8082/ping
+    depends_on:
+      - docker-socket-proxy
     healthcheck:
       test: ["CMD", "traefik", "healthcheck", "--ping=true", "--ping.entrypoint=ping"]
       interval: 30s
@@ -106,7 +210,63 @@ services:
       retries: 3
     restart: unless-stopped
 
+  ### Auth ###
+  # The single login for the public door. configuration.yml + users_database.yml
+  # are secret templates (0640); the sqlite db and the notification file live
+  # in /data. The image ships its own HEALTHCHECK (/app/healthcheck.sh).
+  authelia:
+    image: authelia/authelia:4.39.28
+    container_name: authelia
+    environment:
+      TZ: {{ timezone }}
+    volumes:
+      - {{ containers_setup_configs_dir }}/authelia:/config
+      - {{ containers_setup_data_dir }}/authelia:/data
+    labels:
+      - traefik.enable=true
+      - traefik.http.services.authelia.loadbalancer.server.port=9091
+      - traefik.http.routers.authelia.rule=Host(`auth.vps.{{ domain }}`)
+      - traefik.http.routers.authelia.entrypoints=websecure
+      - traefik.http.routers.authelia.tls.certresolver=cf
+      - "homepage.group=vps: Networking"
+      - homepage.name=Authelia
+      - homepage.icon=authelia
+      - homepage.href=https://auth.vps.{{ domain }}
+      - homepage.statusStyle=basic
+      - homepage.instance.vps.ping=http://authelia:9091/api/health
+    restart: unless-stopped
+
+  ### Dashboard ###
+  homepage:
+    image: ghcr.io/gethomepage/homepage:v2.4.0
+    container_name: homepage
+    user: "1000:1000"
+    environment:
+      PUID: 1000
+      PGID: 1000
+      TZ: {{ timezone }}
+      HOMEPAGE_ALLOWED_HOSTS: "vps.{{ domain }}"
+    # Lets server-side widget calls reach host-network containers (netdata) via the bridge gateway.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    # The local Pi-hole resolves the other hosts' service names (LAN view).
+    dns:
+      - {{ vps_docker_network_pihole_ip }}
+    volumes:
+      - {{ containers_setup_configs_dir }}/homepage-config:/app/config
+    labels:
+      - traefik.enable=true
+      - traefik.http.services.homepage.loadbalancer.server.port=3000
+      - traefik.http.routers.homepage.rule=Host(`vps.{{ domain }}`)
+      - traefik.http.routers.homepage.entrypoints=websecure
+      - traefik.http.routers.homepage.tls.certresolver=cf
+      - traefik.http.routers.homepage.middlewares=authelia@file
+    depends_on:
+      - docker-socket-proxy
+    restart: unless-stopped
+
   ### Games ###
+  # Own login, own DuckDNS host (not under {{ domain }}): no Authelia.
   foundryvtt:
     image: felddy/foundryvtt:14.368.0
     container_name: foundryvtt
@@ -130,16 +290,17 @@ services:
       - {{ containers_setup_data_dir }}/foundryvtt:/data
     labels:
       - traefik.enable=true
-      # service (backend) → Foundry on :30000 inside the container
       - traefik.http.services.foundry.loadbalancer.server.port=30000
-      # router → subdomain host
       - traefik.http.routers.foundry.rule=Host(`foundry.{{ vps_duckdns_subdomain }}.duckdns.org`)
       - traefik.http.routers.foundry.entrypoints=websecure
-      - traefik.http.routers.foundry.tls=true
+      # HTTP-01: the DuckDNS name is not in the Cloudflare zone.
       - traefik.http.routers.foundry.tls.certresolver=lehttp
-      - traefik.http.routers.foundry.service=foundry
-    ports:
-      - "30000:30000"
+      - "homepage.group=vps: Services"
+      - homepage.name=Foundry VTT
+      - homepage.icon=foundry-vtt
+      - homepage.href=https://foundry.{{ vps_duckdns_subdomain }}.duckdns.org
+      - homepage.statusStyle=basic
+      - homepage.instance.vps.ping=http://foundryvtt:30000
     healthcheck:
       test: ["CMD", "node", "-e",
         "const http=require('http');\
@@ -154,24 +315,33 @@ req.end();"]
     restart: unless-stopped
 
   ### Files ###
-  # Auth is disabled (`--noauth`) — relies on VPN/Tailscale for access control;
-  # UFW already blocks :8181 from the public internet (not in open_ports list).
-  # `--noauth` only takes effect during quickSetup() on an empty /database; to
-  # flip it later, wipe /database/filebrowser.db on the host and recreate the
-  # container.
+  # `--noauth`: Authelia in front. It only takes effect during quickSetup() on
+  # an empty /database; to flip it later, wipe /database/filebrowser.db on the
+  # host and recreate the container.
   filebrowser:
     # TODO: final release (upstream archived 2026-09); move to the maintained fork.
     image: filebrowser/filebrowser:v2.63.23
     container_name: filebrowser
     user: "1000:1000"
     command: ["--noauth"]
-    ports:
-      - "8181:80"
     volumes:
       - {{ containers_setup_data_dir }}/filebrowser/config:/config
       - {{ containers_setup_data_dir }}/filebrowser/database:/database
       - {{ containers_setup_data_dir }}/downloads:/srv/downloads
       - {{ containers_setup_data_dir }}/foundryvtt:/srv/foundryvtt
+    labels:
+      - traefik.enable=true
+      - traefik.http.services.filebrowser.loadbalancer.server.port=80
+      - traefik.http.routers.filebrowser.rule=Host(`files.vps.{{ domain }}`)
+      - traefik.http.routers.filebrowser.entrypoints=websecure
+      - traefik.http.routers.filebrowser.tls.certresolver=cf
+      - traefik.http.routers.filebrowser.middlewares=authelia@file
+      - "homepage.group=vps: Storage"
+      - homepage.name=Filebrowser
+      - homepage.icon=filebrowser
+      - homepage.href=https://files.vps.{{ domain }}
+      - homepage.statusStyle=basic
+      - homepage.instance.vps.ping=http://filebrowser:80
     healthcheck:
       # /healthcheck.sh is shipped in the image — wraps `wget --spider /health`
       # and reads port/address from /config/settings.json. Overriding only to
@@ -191,12 +361,26 @@ req.end();"]
       PGID: 1000
       TZ: {{ timezone }}
     ports:
-      - "9091:9091"
       - "51413:51413"
       - "51413:51413/udp"
     volumes:
       - {{ containers_setup_configs_dir }}/transmission-config:/config
       - {{ containers_setup_data_dir }}/downloads:/downloads
+    labels:
+      - traefik.enable=true
+      - traefik.http.services.transmission.loadbalancer.server.port=9091
+      - traefik.http.routers.transmission.rule=Host(`transmission.vps.{{ domain }}`)
+      - traefik.http.routers.transmission.entrypoints=websecure
+      - traefik.http.routers.transmission.tls.certresolver=cf
+      - traefik.http.routers.transmission.middlewares=authelia@file
+      - "homepage.group=vps: Media"
+      - homepage.name=Transmission
+      - homepage.icon=transmission
+      - homepage.href=https://transmission.vps.{{ domain }}
+      - homepage.statusStyle=basic
+      - homepage.instance.vps.ping=http://transmission:9091
+      - homepage.instance.vps.widget.type=transmission
+      - homepage.instance.vps.widget.url=http://transmission:9091
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9091"]
       interval: 30s
@@ -211,15 +395,28 @@ req.end();"]
     pid: host
     environment:
       TZ: {{ timezone }}
+      DOCKER_HOST: tcp://docker-socket-proxy:2375
       # -w web/API mode; -t 10 = refresh every 10s instead of default 3s (homepage polls ~15s anyway);
       # disable plugins we never query.
       GLANCES_OPT: "-w -t 10 --disable-plugin sensors,smart,raid,hddtemp,wifi,gpu,ports,irq,folders,amps"
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
       - /:/rootfs:ro
       - /etc/os-release:/etc/os-release:ro
-    ports:
-      - "61208:61208"
+    labels:
+      - traefik.enable=true
+      - traefik.http.services.glances.loadbalancer.server.port=61208
+      - traefik.http.routers.glances.rule=Host(`glances.vps.{{ domain }}`)
+      - traefik.http.routers.glances.entrypoints=websecure
+      - traefik.http.routers.glances.tls.certresolver=cf
+      - traefik.http.routers.glances.middlewares=authelia@file
+      - "homepage.group=vps: Monitoring"
+      - homepage.name=Glances
+      - homepage.icon=glances
+      - homepage.href=https://glances.vps.{{ domain }}
+      - homepage.statusStyle=basic
+      - homepage.instance.vps.ping=http://glances:61208
+    depends_on:
+      - docker-socket-proxy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:61208/api/4/status"]
       interval: 30s
@@ -254,6 +451,22 @@ req.end();"]
       - /etc/os-release:/host/etc/os-release:ro
       - /var/log:/host/var/log:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
+    labels:
+      - traefik.enable=true
+      # Host network: no container IP for Traefik, so the backend URL is explicit.
+      - traefik.http.services.netdata.loadbalancer.server.url=http://host.docker.internal:19999
+      - traefik.http.routers.netdata.rule=Host(`netdata.vps.{{ domain }}`)
+      - traefik.http.routers.netdata.entrypoints=websecure
+      - traefik.http.routers.netdata.tls.certresolver=cf
+      - traefik.http.routers.netdata.middlewares=authelia@file
+      - "homepage.group=vps: Monitoring"
+      - homepage.name=Netdata
+      - homepage.icon=netdata
+      - homepage.href=https://netdata.vps.{{ domain }}/v3#
+      - homepage.statusStyle=basic
+      - homepage.instance.vps.ping=http://host.docker.internal:19999
+      - homepage.instance.vps.widget.type=netdata
+      - homepage.instance.vps.widget.url=http://host.docker.internal:19999
     restart: unless-stopped
 
   tailscale:

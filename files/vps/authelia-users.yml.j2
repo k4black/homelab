@@ -1,0 +1,10 @@
+# {{ ansible_managed }}
+# Rendered from the BWS secret `authelia_users` (see README "Auth").
+users:
+{% for u in authelia_users %}
+  {{ u.username }}:
+    displayname: "{{ u.displayname }}"
+    email: "{{ u.email }}"
+    password: "{{ u.password }}"
+    groups: {{ u.groups | default([]) | to_json }}
+{% endfor %}

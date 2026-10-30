@@ -90,10 +90,15 @@
       ansible.builtin.shell: uci commit && /etc/init.d/network reload && /etc/init.d/dnsmasq restart && /etc/init.d/adguardhome restart
       changed_when: false
 
-    # Tailscale: firmware 4.x bundles tailscale/tailscaled. The node joins with a
-    # one-off tagged key (same OAuth flow as the servers), advertises the home
-    # LAN as a subnet route, and is an exit node. The key is minted on the Mac:
-    # the uri module needs python, and the router only gets python3-light.
+    # Tailscale: firmware 4.x bundles tailscale/tailscaled. The node joins as
+    # tag:router (vars/router.yml) with a one-off tagged key (same OAuth flow as
+    # the servers), advertises the home LAN as a subnet route, and is an exit
+    # node. files/tailscale-policy.hujson.j2 auto-approves both. The key is
+    # minted on the Mac: the uri module needs python, the router only gets
+    # python3-light.
+    # Split DNS is set by hand in the admin console (DNS -> Nameservers ->
+    # Add nameserver -> Custom, restrict to <domain>): each server's tailnet
+    # IP, so tailnet clients resolve svc.<host>.<domain> via tailnet-dns.
     - name: Tailscale node state
       ansible.builtin.command: tailscale status --json
       register: router_ts_status
@@ -119,5 +124,3 @@
             --advertise-exit-node --accept-dns=false
           changed_when: true
           no_log: true
-        # TODO: approve the route in the admin console, or add it to autoApprovers
-        #       in the ACL next to the exit-node TODO in vars/all.yml.

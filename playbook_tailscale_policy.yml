@@ -1,0 +1,104 @@
+---
+# Pushes files/tailscale-policy.hujson.j2 to the tailnet.
+#   ansible-playbook playbook_tailscale_policy.yml --check   # diff only
+#   ansible-playbook playbook_tailscale_policy.yml           # validate, then apply
+# Uses the second OAuth client (scope policy_file only). The If-Match ETag
+# refuses the push when the policy changed in the admin console since the GET.
+# API: https://tailscale.com/api#tag/policyfile
+- name: Push the tailnet policy
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars_files:
+    - vars/all.yml
+  vars:
+    policy_new: "{{ lookup('template', 'files/tailscale-policy.hujson.j2') }}"
+  tasks:
+    - name: Load secrets from Bitwarden Secrets Manager
+      ansible.builtin.import_tasks: tasks/bws_load.yml
+      check_mode: false  # its shell tasks must run under --check too
+
+    - name: Get an OAuth access token
+      ansible.builtin.uri:
+        url: https://api.tailscale.com/api/v2/oauth/token
+        method: POST
+        body_format: form-urlencoded
+        body:
+          grant_type: client_credentials
+          scope: policy_file
+        url_username: "{{ tailscale_policy_oauth_client_id }}"
+        url_password: "{{ tailscale_policy_oauth_client_secret }}"
+        force_basic_auth: true
+      register: tailscale_oauth_token
+      no_log: true
+      check_mode: false
+
+    - name: Get the current policy
+      ansible.builtin.uri:
+        url: https://api.tailscale.com/api/v2/tailnet/-/acl
+        headers:
+          Authorization: "Bearer {{ tailscale_oauth_token.json.access_token }}"
+          Accept: application/hujson
+        return_content: true
+      register: policy_current
+      check_mode: false
+
+    - name: Write the current policy to a temp file for diff
+      ansible.builtin.tempfile:
+        suffix: .hujson
+      register: policy_tmp
+      check_mode: false
+
+    - name: Save the current policy
+      ansible.builtin.copy:
+        content: "{{ policy_current.content }}"
+        dest: "{{ policy_tmp.path }}"
+        mode: "0600"
+      check_mode: false
+
+    - name: Diff current against the template
+      ansible.builtin.command: diff -u -L tailnet -L files/tailscale-policy.hujson.j2 {{ policy_tmp.path }} -
+      args:
+        stdin: "{{ policy_new }}"
+      register: policy_diff
+      changed_when: false
+      failed_when: policy_diff.rc > 1
+      check_mode: false
+
+    - name: Remove the temp file
+      ansible.builtin.file:
+        path: "{{ policy_tmp.path }}"
+        state: absent
+      check_mode: false
+
+    - name: Show the diff
+      ansible.builtin.debug:
+        msg: "{{ policy_diff.stdout_lines or ['no change'] }}"
+
+    - name: Validate and apply
+      when: policy_diff.rc == 1 and not ansible_check_mode
+      block:
+        # Always HTTP 200; a failed validation puts `message` in the body.
+        - name: Validate the new policy
+          ansible.builtin.uri:
+            url: https://api.tailscale.com/api/v2/tailnet/-/acl/validate
+            method: POST
+            headers:
+              Authorization: "Bearer {{ tailscale_oauth_token.json.access_token }}"
+              Content-Type: application/hujson
+            body: "{{ policy_new }}"
+            return_content: true
+          register: policy_validate
+          failed_when: (policy_validate.json | default({})).message is defined
+          changed_when: false
+
+        - name: Apply the new policy
+          ansible.builtin.uri:
+            url: https://api.tailscale.com/api/v2/tailnet/-/acl
+            method: POST
+            headers:
+              Authorization: "Bearer {{ tailscale_oauth_token.json.access_token }}"
+              Content-Type: application/hujson
+              If-Match: "{{ policy_current.etag }}"
+            body: "{{ policy_new }}"
+          changed_when: true

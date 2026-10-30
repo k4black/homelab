@@ -7,7 +7,8 @@ log:
 
 api:
   dashboard: true
-  insecure: true
+  # Reached only through the traefik router (traefik.pi5.{{ domain }}), not :8080.
+  insecure: false
 
 # Lightweight health endpoint used by `traefik healthcheck --ping` (container healthcheck).
 ping: {}
@@ -52,6 +53,8 @@ certificatesResolvers:
 
 providers:
   docker:
+    # Read-only socket proxy instead of the raw docker.sock (see docker-compose.yml.j2).
+    endpoint: tcp://docker-socket-proxy:2375
     exposedByDefault: false
   file:
     filename: /etc/traefik/dynamic.yml

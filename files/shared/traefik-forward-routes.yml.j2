@@ -1,0 +1,35 @@
+{# Forward routes to the other hosts over the tailnet. Included by every
+   host's traefik-dynamic.yml.j2 (path relative to the playbook dir). The local
+   Pi-hole answers every <host>.<domain> name with the local IP, so the local
+   Traefik terminates TLS for the other hosts' names and proxies them over the
+   tailnet to the other Traefik, which verifies the cert against the real name.
+   Hosts without a tailnet IP (BWS value empty) get no route.
+   traefik_forward_middlewares: set by the vps to [authelia] (public door). #}
+{% for h in homelab_hosts if h.name != homelab_host and h.tailscale_ipv4 %}
+    forward-{{ h.name }}:
+      rule: 'HostRegexp(`^.+\.{{ h.name }}\.{{ domain | replace(".", "\\.") }}$`) || Host(`{{ h.name }}.{{ domain }}`)'
+      entryPoints: [websecure]
+      service: forward-{{ h.name }}
+{% if traefik_forward_middlewares | default([]) %}
+      middlewares: {{ traefik_forward_middlewares | to_json }}
+{% endif %}
+      tls:
+        certResolver: cf
+        domains:
+          - main: "{{ h.name }}.{{ domain }}"
+            sans: ["*.{{ h.name }}.{{ domain }}"]
+{% endfor %}
+  services:
+{% for h in homelab_hosts if h.name != homelab_host and h.tailscale_ipv4 %}
+    forward-{{ h.name }}:
+      loadBalancer:
+        passHostHeader: true
+        serversTransport: forward-{{ h.name }}
+        servers:
+          - url: "https://{{ h.tailscale_ipv4 }}:443"
+{% endfor %}
+  serversTransports:
+{% for h in homelab_hosts if h.name != homelab_host and h.tailscale_ipv4 %}
+    forward-{{ h.name }}:
+      serverName: "{{ h.name }}.{{ domain }}"
+{% endfor %}

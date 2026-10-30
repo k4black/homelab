@@ -1,0 +1,13 @@
+# {{ ansible_managed }}
+# Services are auto-discovered from Docker container labels (docker.yaml).
+# Glances widgets for this host only; the other hosts' dashboards show their own.
+---
+- Servers:
+{% for metric in ['info', 'cpu', 'memory', 'containers'] %}
+    - {{ homelab_host }} {{ metric }}:
+        widget:
+          type: glances
+          url: http://glances:61208
+          version: 4
+          metric: {{ metric }}
+{% endfor %}

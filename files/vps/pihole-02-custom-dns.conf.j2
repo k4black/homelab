@@ -1,2 +1,6 @@
-# dnsmasq extras for the vps Pi-hole. The vps has no LAN, so there is no
-# split-horizon entry here (compare files/pi5/pihole-02-custom-dns.conf.j2).
+# Local view of the DNS for the vps containers (homepage uses this Pi-hole):
+# every host's names resolve to this host, whose Traefik forwards the other
+# hosts over the tailnet. dnsmasq matches the apex and every subdomain.
+{% for h in homelab_hosts %}
+address=/{{ h.name }}.{{ domain }}/{{ local_ipv4 }}
+{% endfor %}

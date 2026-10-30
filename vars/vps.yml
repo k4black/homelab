@@ -1,5 +1,7 @@
 username: "k4black"
 device_name: "hetzner"
+homelab_host: "vps"  # entry in homelab_hosts (vars/all.yml); service names svc.vps.<domain>
+tailscale_tag: "tag:server"
 ssh_port: 22
 password: "{{ bws.vps_password }}"
 ssh_public_key_file: "~/.ssh/id_ed25519.pub"

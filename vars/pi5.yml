@@ -1,5 +1,8 @@
 username: "k4black"
 device_name: "pi5"
+homelab_host: "pi5"  # entry in homelab_hosts (vars/all.yml); service names svc.pi5.<domain>
+tailscale_tag: "tag:server"
+lan_subnet: "192.168.1.0/24"  # this home's LAN; the second home gets its own vars file
 ssh_port: "{{ pi5_ssh_port }}"
 password: "{{ bws.pi5_password }}"
 ssh_public_key_file: "~/.ssh/id_ed25519.pub"

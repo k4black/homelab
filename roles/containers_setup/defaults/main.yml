@@ -10,3 +10,4 @@ containers_setup_docker_compose_template: ""
 containers_setup_make_dirs: []  # list of strings directory names
 containers_setup_touch_files: []  # list of strings file names
 containers_setup_config_templates: {}  # dict of src: dest
+containers_setup_secret_templates: {}  # dict of src: dest, rendered with no_log

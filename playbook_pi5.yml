@@ -19,45 +19,6 @@
         ssh_public_key: "{{ lookup('file', ssh_public_key_file) }}"
       when: testing is undefined or testing != 'true'
 
-- name: Setup local_ipv4
-  hosts: pi5
-  gather_facts: true
-
-  tasks:
-    # https://medium.com/opsops/ansible-default-ipv4-is-not-what-you-think-edb8ab154b10
-    - name: Gather local_ipv4
-      ansible.builtin.set_fact:
-        local_ipv4: "{{ '127.0.0.1' if (testing is defined and testing == 'true') else (ansible_default_ipv4.address | default(ansible_all_ipv4_addresses[0])) }}"
-      tags: [docker]
-    - name: Debug local_ipv4
-      ansible.builtin.debug:
-        var: local_ipv4
-      tags: [docker]
-
-- name: Setup for testing
-  hosts: pi5
-  gather_facts: false
-  become: true
-
-  tasks:
-    - name: For testing at github actions set username to "runner"
-      ansible.builtin.set_fact:
-        username: "runner"
-      when: testing is defined and testing == 'true'
-
-    - name: List all ports used
-      block:
-        - name: List all ports used
-          ansible.builtin.command: netstat -tulpn
-          become: true
-          changed_when: false
-          when: testing is defined and testing == 'true'
-          register: netstat_output
-        - name: Debug output ports
-          ansible.builtin.debug:
-            var: netstat_output.stdout_lines
-          when: testing is defined and testing == 'true'
-
 - name: Configure Pi5 personal server.
   hosts: pi5
 
@@ -69,47 +30,16 @@
     - name: Load secrets from Bitwarden Secrets Manager
       ansible.builtin.import_tasks: tasks/bws_load.yml
       tags: [always]
-    - name: Check if pi user exists
-      ansible.builtin.command: id -u pi
-      register: pi_user_check
-      ignore_errors: true
-      changed_when: false
-    - name: Rename pi user and group if exists
-      when: pi_user_check.rc == 0
-      block:
-        - name: Create new group with desired name
-          ansible.builtin.group:
-            name: "{{ username }}"
-            gid: 1000
-            state: present
-        - name: Create new user with desired name
-          ansible.builtin.user:
-            name: "{{ username }}"
-            uid: 1000
-            group: "{{ username }}"
-            home: "/home/{{ username }}"
-            shell: /bin/bash
-            state: present
-        - name: Copy pi home directory to new user
-          ansible.builtin.command: cp -a /home/pi/. /home/{{ username }}/
-          failed_when: false
-          changed_when: false
-        - name: Set ownership of new home directory
-          ansible.builtin.file:
-            path: "/home/{{ username }}"
-            owner: "{{ username }}"
-            group: "{{ username }}"
-            recurse: true
-        - name: Remove pi user
-          ansible.builtin.user:
-            name: pi
-            state: absent
-            remove: true
-        - name: Remove pi group
-          ansible.builtin.group:
-            name: pi
-            state: absent
-          failed_when: false
+    # https://medium.com/opsops/ansible-default-ipv4-is-not-what-you-think-edb8ab154b10
+    - name: Gather local_ipv4
+      ansible.builtin.set_fact:
+        local_ipv4: "{{ '127.0.0.1' if (testing is defined and testing == 'true') else (ansible_default_ipv4.address | default(ansible_all_ipv4_addresses[0])) }}"
+      tags: [docker]
+    - name: For testing at github actions set username to "runner"
+      ansible.builtin.set_fact:
+        username: "runner"
+      when: testing is defined and testing == 'true'
+      tags: [always]
 
   roles:
     - role: geerlingguy.raspberry-pi  # set gpu_mem to 16 and 1200ma for usb
@@ -294,17 +224,6 @@
       become: true
       tags: [docker]
 
-    - name: Get docker group GID for homepage
-      ansible.builtin.command: getent group docker
-      register: docker_group_info
-      changed_when: false
-      failed_when: false
-      tags: [docker]
-    - name: Set docker_gid fact
-      ansible.builtin.set_fact:
-        docker_gid: "{{ docker_group_info.stdout.split(':')[2] if docker_group_info.rc == 0 else '999' }}"
-      tags: [docker]
-
     # Hermes' skills repo: k4black/.agents, a public read-only clone. The container
     # mounts it `:ro` (skills.external_dirs -> .agents/skills), and Hermes holds no
     # GitHub token: it sends suggested changes as Telegram diffs. A daily cron pull
@@ -413,20 +332,18 @@
         containers_setup_touch_files: []
         containers_setup_config_templates:
           files/pi5/transmission-settings.json.j2: "transmission-config/settings.json"
-          files/pi5/home-assistant-config.yml.j2: "home-assistant-config/configuration.yaml"
           files/pi5/pihole-02-custom-dns.conf.j2: "pihole-dnsmasq.d/02-custom-dns.conf"
           # TODO: Pi-hole v6 ignores adlists.list (lists live in gravity.db); use the API or drop it.
           files/pi5/pihole-adlists.list: "pihole/adlists.list"
           files/pi5/pihole-custom.list.j2: "pihole/custom.list"
+          files/shared/tailnet-dns.conf.j2: "tailnet-dns.conf"
           files/pi5/traefik-config.yml.j2: "traefik-config.yml"
           files/pi5/traefik-dynamic.yml.j2: "traefik-dynamic.yml"
-          files/pi5/homepage-docker.yaml.j2: "homepage-config/docker.yaml"
-          files/pi5/homepage-settings.yaml.j2: "homepage-config/settings.yaml"
-          files/pi5/homepage-services.yaml.j2: "homepage-config/services.yaml"
-          files/pi5/homepage-widgets.yaml.j2: "homepage-config/widgets.yaml"
-          files/pi5/homepage-bookmarks.yaml.j2: "homepage-config/bookmarks.yaml"
-          files/pi5/homepage-custom.js.j2: "homepage-config/custom.js"
-          files/pi5/homepage-custom.css.j2: "homepage-config/custom.css"
+          files/shared/homepage-docker.yaml.j2: "homepage-config/docker.yaml"
+          files/shared/homepage-settings.yaml.j2: "homepage-config/settings.yaml"
+          files/shared/homepage-services.yaml.j2: "homepage-config/services.yaml"
+          files/shared/homepage-widgets.yaml.j2: "homepage-config/widgets.yaml"
+          files/shared/homepage-custom.css.j2: "homepage-config/custom.css"
           files/pi5/netdata.conf.j2: "netdata-config/netdata.conf"
           files/pi5/netdata-stream.conf.j2: "netdata-config/stream.conf"
           files/pi5/netdata-pihole.conf: "netdata-config/go.d/pihole.conf"
@@ -435,6 +352,8 @@
           # Hermes' HERMES_HOME (data dir, not configs dir), so it sits at
           # /opt/data/config.yaml in the container. Holds the Todoist token.
           files/pi5/hermes-config.yaml.j2: "../data/hermes/config.yaml"
+          # Holds the Authelia OIDC client secret.
+          files/pi5/home-assistant-config.yml.j2: "home-assistant-config/configuration.yaml"
 
     - name: Verify Tailscale connection
       # run_docker too: this needs the container up, and CI runs --skip-tags run_docker.
@@ -589,6 +508,113 @@
             - {name: "TV Shows", collection: "tvshows", path: "/media/tv"}
             - {name: "Books", collection: "books", path: "/media/books"}
           when: (jf_libs.json | selectattr('Name', 'equalto', item.name) | list | length) == 0
+
+    # Jellyfin SSO (9p4/jellyfin-plugin-sso, archived 2026-05, last release
+    # 4.0.0.4 for 10.11) against Authelia on the vps. Every step is gated on a
+    # GET, so a re-run is a no-op; to rotate the client secret delete the
+    # provider in the plugin UI and re-run. Skipped until the BWS secret exists.
+    - name: Configure Jellyfin SSO (Authelia OIDC)
+      tags: [docker, run_docker]
+      when: authelia_oidc_jellyfin_secret | length > 0
+      vars:
+        jf_url: "http://127.0.0.1:8096"
+        jf_headers:
+          X-Emby-Token: "{{ jf_auth.json.AccessToken }}"
+        jf_sso_repo: "https://raw.githubusercontent.com/9p4/jellyfin-plugin-sso/manifest-release/manifest.json"
+        jf_sso_login: '<form action="/sso/OID/start/authelia"><button class="raised block emby-button button-submit">Sign in with Authelia</button></form>'
+      block:
+        - name: List Jellyfin plugin repositories
+          ansible.builtin.uri:
+            url: "{{ jf_url }}/Repositories"
+            headers: "{{ jf_headers }}"
+          register: jf_repos
+
+        - name: Add the SSO plugin repository (keeps the existing ones)
+          ansible.builtin.uri:
+            url: "{{ jf_url }}/Repositories"
+            method: POST
+            headers: "{{ jf_headers }}"
+            body_format: json
+            body: "{{ jf_repos.json + [{'Name': 'Jellyfin SSO', 'Url': jf_sso_repo, 'Enabled': true}] }}"
+            status_code: [200, 204]
+          when: jf_repos.json | selectattr('Url', 'equalto', jf_sso_repo) | list | length == 0
+
+        - name: List installed Jellyfin plugins
+          ansible.builtin.uri:
+            url: "{{ jf_url }}/Plugins"
+            headers: "{{ jf_headers }}"
+          register: jf_plugins
+
+        - name: Install the SSO plugin and restart Jellyfin
+          when: jf_plugins.json | selectattr('Name', 'equalto', 'SSO Authentication') | list | length == 0
+          block:
+            - name: Install the SSO Authentication package
+              ansible.builtin.uri:
+                url: "{{ jf_url }}/Packages/Installed/SSO%20Authentication?repositoryUrl={{ jf_sso_repo | urlencode }}"
+                method: POST
+                headers: "{{ jf_headers }}"
+                status_code: [200, 204]
+            - name: Restart Jellyfin to load the plugin
+              ansible.builtin.command: docker restart jellyfin
+              changed_when: true
+            - name: Wait for Jellyfin to be reachable again
+              ansible.builtin.uri:
+                url: "{{ jf_url }}/health"
+              register: jf_health
+              retries: 30
+              delay: 5
+              until: jf_health.status == 200
+
+        - name: Read the configured SSO OpenID providers
+          ansible.builtin.uri:
+            url: "{{ jf_url }}/sso/OID/Get"
+            headers: "{{ jf_headers }}"
+          register: jf_sso
+          retries: 6
+          delay: 5
+          until: jf_sso.status == 200
+
+        # Field names: plugin README "OpenID" section; values per
+        # https://www.authelia.com/integration/openid-connect/clients/jellyfin/
+        - name: Add the Authelia provider
+          ansible.builtin.uri:
+            url: "{{ jf_url }}/sso/OID/Add/authelia"
+            method: POST
+            headers: "{{ jf_headers }}"
+            body_format: json
+            body:
+              oidEndpoint: "{{ authelia_url }}"
+              oidClientId: jellyfin
+              oidSecret: "{{ authelia_oidc_jellyfin_secret }}"
+              oidScopes: [groups]
+              roleClaim: groups
+              roles: []
+              adminRoles: [admins]
+              enabled: true
+              enableAuthorization: true
+              enableAllFolders: true
+              enabledFolders: []
+              enableFolderRoles: false
+              folderRoleMapping: []
+            status_code: [200, 204]
+          when: "'authelia' not in jf_sso.json"
+          no_log: true
+
+        - name: Read Jellyfin branding
+          ansible.builtin.uri:
+            url: "{{ jf_url }}/Branding/Configuration"
+            headers: "{{ jf_headers }}"
+          register: jf_branding
+
+        - name: Add the SSO button to the login page
+          ansible.builtin.uri:
+            url: "{{ jf_url }}/System/Configuration/branding"
+            method: POST
+            headers: "{{ jf_headers }}"
+            body_format: json
+            body: "{{ jf_branding.json | combine({'LoginDisclaimer': jf_sso_login}) }}"
+            status_code: [200, 204]
+          when: "'/sso/OID/start/authelia' not in (jf_branding.json.LoginDisclaimer | default('') | string)"
 
     # Prowlarr/Radarr/Sonarr don't accept auth via env vars — auth lives in
     # /config/config.xml. Patch in-place after the apps create their initial

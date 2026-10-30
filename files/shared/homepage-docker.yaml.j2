@@ -1,0 +1,10 @@
+# {{ ansible_managed }}
+# Homepage reads every host's containers (labels) through the read-only
+# docker-socket-proxy: the local one over the bridge, the others over the
+# tailnet (the proxy is published on the tailnet IP only). Hosts without a
+# tailnet IP (BWS value empty) are omitted.
+{% for h in homelab_hosts if h.name == homelab_host or h.tailscale_ipv4 %}
+{{ h.name }}:
+  host: {{ 'docker-socket-proxy' if h.name == homelab_host else h.tailscale_ipv4 }}
+  port: 2375
+{% endfor %}

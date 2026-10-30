@@ -79,7 +79,7 @@ Store in BWS: `hermes_openrouter_api_key` ([OpenRouter](https://openrouter.ai/ke
 `hermes_dashboard_password`, `hermes_dashboard_auth_secret`, `todoist_api_token`.
 
 - Chat: message the bot in Telegram.
-- Dashboard: `http://[PI5_IP]:9119` or `http://pi5.[TAILNET].ts.net:9119`, basic auth.
+- Dashboard: `https://hermes.pi5.[DOMAIN]`, basic auth.
 
 ### Anki (pi5), one-time AnkiWeb login
 
@@ -89,11 +89,43 @@ Store in BWS: `hermes_openrouter_api_key` ([OpenRouter](https://openrouter.ai/ke
 
 ### Tailscale
 
-Create an OAuth client with the `auth_keys` write scope and tag `tag:node`, and store
-`tailscale_oauth_client_id` / `tailscale_oauth_client_secret` in BWS. The playbooks
-mint a one-off tagged key per new node. In the admin console, check that each node
-shows "key expiry disabled".
+Two OAuth clients, both in BWS:
+- `tailscale_policy_oauth_client_id` / `_secret`: scope `policy_file`, used only by
+  `playbook_tailscale_policy.yml` (`--check` shows the diff, without it validates and applies
+  `files/tailscale-policy.hujson.j2`). Push the policy first: it defines the tag owners.
+- `tailscale_oauth_client_id` / `_secret`: scope `auth_keys`, owns `tag:server` and `tag:router`
+  (keep `tag:node` until every node has re-joined). The playbooks mint a one-off tagged key per node.
 
+By hand in the admin console: DNS -> Nameservers -> Add nameserver -> Custom, one per server
+(pi5, vps) with its tailnet IP, "Restrict to domain" = `[DOMAIN]`. Every server runs a
+`tailnet-dns` resolver on its tailnet IP that answers `*.<host>.[DOMAIN]` with that host's tailnet IP.
+
+### Auth (Authelia on the vps)
+
+One login for the public door `https://auth.vps.[DOMAIN]`. Clients on the tailnet, a LAN
+behind a pi5, or a docker bridge see no login. Store in BWS:
+- Random (`openssl rand -hex 32`): `authelia_jwt_secret`, `authelia_session_secret`,
+  `authelia_storage_encryption_key`, `authelia_oidc_hmac_secret`.
+- `authelia_oidc_jwks_key`: `openssl genrsa 4096`, the whole PEM.
+- `authelia_users`: JSON list `[{"username": "...", "displayname": "...", "email": "...",
+  "password": "<hash>", "groups": ["admins"]}]`. Hash:
+  `docker run --rm authelia/authelia:4.39.28 authelia crypto hash generate argon2 --password '...'`.
+- OIDC clients, two values each from one command
+  `docker run --rm authelia/authelia:4.39.28 authelia crypto hash generate pbkdf2 --random --random.length 64 --random.charset alphanumeric`:
+  `authelia_oidc_jellyfin_secret` (the password) + `authelia_oidc_jellyfin_secret_hash` (the digest),
+  same for `authelia_oidc_homeassistant_*`.
+
+Second factor: each user enrols a passkey or TOTP on first login. Identity mails land in
+`/srv/data/authelia/notification.txt` on the vps; pass the link on.
+
+### How requests flow
+
+- Public: `svc.<host>.[DOMAIN]` -> vps IP -> vps Traefik (Authelia) -> local service, or the
+  other host's Traefik over the tailnet.
+- Tailnet: split DNS -> that host's tailnet IP -> its Traefik, no login.
+- LAN: Pi-hole answers every `svc.<host>.[DOMAIN]` with the local pi5, whose Traefik forwards
+  remote hosts over the tailnet, no login.
+- Container ports are not published; use the names. The firewall only opens 80/443/53/ssh.
 
 ## Run
 
@@ -102,6 +134,7 @@ ansible-playbook playbook_macbook.yml -e device_name=k4pro-i7
 ansible-playbook playbook_macbook.yml -e device_name=k4pro-m3 -e macbook_profile=work
 ansible-playbook playbook_pi5.yml
 ansible-playbook playbook_vps.yml
+ansible-playbook playbook_tailscale_policy.yml --check   # diff; drop --check to apply
 ```
 
 Containers only (configs + `docker compose up`):
@@ -126,6 +159,14 @@ BWS names that differ from the var: `base_domain` -> `domain`, `personal_email` 
 `pi5_password` / `vps_password` -> `password`.
 Private identifiers live there too: `pi5_tailscale_ipv4`, `vps_tailscale_ipv4` (empty
 until the vps rejoins the tailnet), `pi5_mac_address`.
+
+### Add a service or a host
+
+- Service: a container with Traefik labels (`svc.<host>.[DOMAIN]`, `websecure`, `certresolver=cf`,
+  on the vps also `middlewares=authelia@file`) and Homepage labels (`homepage.group`, `href`).
+  No published port. Every Homepage shows it on the next run.
+- Host: an entry in `homelab_hosts` (`vars/all.yml`) with its tailnet IP in BWS, a
+  `vars/<host>.yml` with `homelab_host`, `tailscale_tag`, `lan_subnet`, and the split DNS entry.
 
 ### Hermes
 

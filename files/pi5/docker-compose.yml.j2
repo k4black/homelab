@@ -29,19 +29,23 @@ services:
   myspeed:
     image: germannewsmaker/myspeed:1.0.9
     container_name: myspeed
-    ports:
-      - "5216:5216"
     volumes:
       - {{ containers_setup_data_dir }}/myspeed:/myspeed/data
     labels:
-      - homepage.group=Monitoring
+      - "traefik.enable=true"
+      - "traefik.http.routers.myspeed.rule=Host(`myspeed.pi5.{{ domain }}`)"
+      - "traefik.http.routers.myspeed.entrypoints=websecure"
+      - "traefik.http.routers.myspeed.tls=true"
+      - "traefik.http.routers.myspeed.tls.certresolver=cf"
+      - "traefik.http.services.myspeed.loadbalancer.server.port=5216"
+      - "homepage.group={{ homelab_host }}: Monitoring"
       - homepage.name=MySpeed
       - homepage.icon=myspeed
-      - homepage.href=http://homepage_host:5216
+      - homepage.href=https://myspeed.pi5.{{ domain }}
       - homepage.statusStyle=basic
-      - homepage.ping=http://myspeed:5216
-      - homepage.widget.type=myspeed
-      - homepage.widget.url=http://myspeed:5216
+      - homepage.instance.{{ homelab_host }}.ping=http://myspeed:5216
+      - homepage.instance.{{ homelab_host }}.widget.type=myspeed
+      - homepage.instance.{{ homelab_host }}.widget.url=http://myspeed:5216
     restart: unless-stopped
 
   ### Reverse Proxy ###
@@ -50,15 +54,15 @@ services:
     container_name: traefik
     hostname: traefik.pi5.{{ domain }}
     environment:
-      # Used by the `cf` ACME resolver for DNS-01. Same token as cloudflare-ddns (from .env) —
-      # already has Zone:DNS:Edit on the zone.
+      # Used by the `cf` ACME resolver for DNS-01 (from .env; the vps cloudflare-ddns
+      # uses the same token, Zone:DNS:Edit on the zone).
       CF_DNS_API_TOKEN: ${CLOUDFLARE_API_TOKEN}
     ports:
       - "80:80"
       - "443:443"
-      - "8080:8080"
+    depends_on:
+      - docker-socket-proxy
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
       - {{ containers_setup_configs_dir }}/traefik-config.yml:/etc/traefik/traefik.yml:ro
       - {{ containers_setup_configs_dir }}/traefik-dynamic.yml:/etc/traefik/dynamic.yml:ro
       # /letsencrypt/acme.json is created with 0600 by the containers_setup role
@@ -77,14 +81,15 @@ services:
       - "traefik.http.routers.traefik-http.rule=Host(`traefik.pi5.{{ domain }}`)"
       - "traefik.http.routers.traefik-http.entrypoints=web"
       - "traefik.http.routers.traefik-http.middlewares=https-redirect@file"
-      - homepage.group=Networking
+      - "homepage.group={{ homelab_host }}: Networking"
       - homepage.name=Traefik
       - homepage.icon=traefik
-      - homepage.href=http://homepage_host:8080
+      - homepage.href=https://traefik.pi5.{{ domain }}
       - homepage.statusStyle=basic
-      - homepage.ping=http://traefik:8080
-      - homepage.widget.type=traefik
-      - homepage.widget.url=http://traefik:8080
+      # The API is only served by the router above (api.insecure=false), so the
+      # widget goes through the local Traefik (homepage resolves via Pi-hole).
+      - homepage.instance.{{ homelab_host }}.widget.type=traefik
+      - homepage.instance.{{ homelab_host }}.widget.url=https://traefik.pi5.{{ domain }}
     healthcheck:
       test: ["CMD", "traefik", "healthcheck", "--ping"]
       interval: 30s
@@ -92,7 +97,49 @@ services:
       retries: 3
     restart: unless-stopped
 
+  # Read-only view of the docker API for traefik, homepage and glances (no raw
+  # docker.sock in those containers). Published on the tailnet IP only, so the
+  # other hosts' homepages can list this host's containers.
+  docker-socket-proxy:
+    image: tecnativa/docker-socket-proxy:v0.5.0
+    container_name: docker-socket-proxy
+    environment:
+      CONTAINERS: 1
+      NETWORKS: 1
+      EVENTS: 1
+      PING: 1
+      VERSION: 1
+      INFO: 1
+      POST: 0
+{% if pi5_tailscale_ipv4 %}
+    ports:
+      - "{{ pi5_tailscale_ipv4 }}:2375:2375"
+    # The tailnet IP must exist before the port can bind.
+    depends_on:
+      tailscale:
+        condition: service_healthy
+{% endif %}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    restart: unless-stopped
+
   ## Networking ##
+
+  # Tailnet view of <host>.{{ domain }} (files/shared/tailnet-dns.conf.j2):
+  # listens on tailscale0 only, so it does not clash with Pi-hole on :53.
+  tailnet-dns:
+    image: 4km3/dnsmasq:2.90-r3
+    container_name: tailnet-dns
+    network_mode: host
+    cap_add:
+      - NET_ADMIN
+    command: ["--keep-in-foreground", "--log-facility=-"]
+    volumes:
+      - {{ containers_setup_configs_dir }}/tailnet-dns.conf:/etc/dnsmasq.conf:ro
+    depends_on:
+      tailscale:
+        condition: service_healthy
+    restart: unless-stopped
 
   duckdns:
     image: linuxserver/duckdns:latest
@@ -103,24 +150,9 @@ services:
       TOKEN: ${DUCKDNS_TOKEN}
       LOG_FILE: true
     labels:
-      - homepage.group=Networking
+      - "homepage.group={{ homelab_host }}: Networking"
       - homepage.name=DuckDNS
       - homepage.icon=duckdns
-    restart: unless-stopped
-
-  cloudflare-ddns:
-    image: favonia/cloudflare-ddns:1.17.1
-    container_name: cloudflare-ddns
-    environment:
-      CF_API_TOKEN: ${CLOUDFLARE_API_TOKEN}
-      DOMAINS: "pi5.{{ domain }},*.pi5.{{ domain }}"
-      PROXIED: "false"
-      IP4_PROVIDER: cloudflare.trace
-      IP6_PROVIDER: none
-    labels:
-      - homepage.group=Networking
-      - homepage.name=Cloudflare DDNS
-      - homepage.icon=cloudflare
     restart: unless-stopped
 
   # TODO: thing about unbound to resolve DNS and not send it to the google etc
@@ -141,9 +173,12 @@ services:
       DNSMASQ_LISTENING: "all"  # TODO: make local, but re-route from reserved-proxy
       FTLCONF_LOCAL_IPV4: "{{ local_ipv4 }}"
     ports:
-      - "53:53/tcp"
-      - "53:53/udp"
-      - "8053:80/tcp"  # custom port for web interface
+      # LAN + loopback only; the tailnet gets tailnet-dns instead.
+      - "{{ local_ipv4 }}:53:53/tcp"
+      - "{{ local_ipv4 }}:53:53/udp"
+      - "127.0.0.1:53:53/tcp"
+      - "127.0.0.1:53:53/udp"
+      - "127.0.0.1:8053:80/tcp"  # netdata (host network) polls the API here
     volumes:
       - {{ containers_setup_configs_dir }}/pihole/:/etc/pihole/:rw
       - {{ containers_setup_configs_dir }}/pihole-dnsmasq.d:/etc/dnsmasq.d/:rw
@@ -160,16 +195,16 @@ services:
       - "traefik.http.routers.pihole-http.rule=Host(`pihole.pi5.{{ domain }}`)"
       - "traefik.http.routers.pihole-http.entrypoints=web"
       - "traefik.http.routers.pihole-http.middlewares=https-redirect@file"
-      - homepage.group=Services
+      - "homepage.group={{ homelab_host }}: Services"
       - homepage.name=Pi-hole
       - homepage.icon=pi-hole
-      - homepage.href=http://homepage_host:8053/admin
+      - homepage.href=https://pihole.pi5.{{ domain }}/admin
       - homepage.statusStyle=basic
-      - homepage.ping=http://pihole:80
-      - homepage.widget.type=pihole
-      - homepage.widget.url=http://pihole:80
-      - homepage.widget.version=6
-      - homepage.widget.key=
+      - homepage.instance.{{ homelab_host }}.ping=http://pihole:80
+      - homepage.instance.{{ homelab_host }}.widget.type=pihole
+      - homepage.instance.{{ homelab_host }}.widget.url=http://pihole:80
+      - homepage.instance.{{ homelab_host }}.widget.version=6
+      - homepage.instance.{{ homelab_host }}.widget.key=
     networks:
       default:
         ipv4_address: {{ pi5_docker_network_pihole_ip }}
@@ -183,7 +218,7 @@ services:
   homepage:
     image: ghcr.io/gethomepage/homepage:v2.4.0
     container_name: homepage
-    user: "1000:{{ docker_gid }}"
+    user: "1000:1000"
     environment:
       PUID: 1000
       PGID: 1000
@@ -192,11 +227,13 @@ services:
     # Lets server-side widget calls reach host-network containers (netdata) via the bridge gateway.
     extra_hosts:
       - "host.docker.internal:host-gateway"
-    ports:
-      - "3000:3000"
+    # Resolve svc.<host>.{{ domain }} hrefs/widgets through the local Pi-hole (LAN view).
+    dns:
+      - {{ pi5_docker_network_pihole_ip }}
+    depends_on:
+      - docker-socket-proxy
     volumes:
       - {{ containers_setup_configs_dir }}/homepage-config:/app/config
-      - /var/run/docker.sock:/var/run/docker.sock:ro
     labels:
       - "traefik.enable=true"
       - "traefik.http.services.homepage.loadbalancer.server.port=3000"
@@ -243,8 +280,18 @@ services:
 {#      - /run/dbus:/run/dbus:ro#}
 {#    privileged: true#}
 {#    network_mode: host#}
-{#    ports:#}
-{#      - 8123:8123  # host mode, do just declarative#}
+{#    labels:#}
+{#      - "traefik.enable=true"#}
+{#      - "traefik.http.routers.ha.rule=Host(`ha.pi5.{{ domain }}`)"#}
+{#      - "traefik.http.routers.ha.entrypoints=websecure"#}
+{#      - "traefik.http.routers.ha.tls=true"#}
+{#      - "traefik.http.routers.ha.tls.certresolver=cf"#}
+{#      # Host network: no bridge IP, so point Traefik at the host via the gateway.#}
+{#      - "traefik.http.services.ha.loadbalancer.server.url=http://{{ pi5_docker_network_gateway }}:8123"#}
+{#      - "homepage.group={{ homelab_host }}: Services"#}
+{#      - homepage.name=Home Assistant#}
+{#      - homepage.icon=home-assistant#}
+{#      - homepage.href=https://ha.pi5.{{ domain }}#}
 {#    healthcheck:#}
 {#      test: ["CMD", "curl", "-f", "http://localhost:8123"]#}
 {#      interval: 30s#}
@@ -294,7 +341,7 @@ services:
       - "445:445"
 {#    network_mode: host#}
     labels:
-      - homepage.group=Storage
+      - "homepage.group={{ homelab_host }}: Storage"
       - homepage.name=Time Machine
       - homepage.icon=apple
     restart: unless-stopped
@@ -321,19 +368,28 @@ services:
       # match one of LAN-IP / Tailscale / pi5.local; leave it unset for clients
       # to use the request's own origin.
     ports:
-      - "8096:8096"
+      - "127.0.0.1:8096:8096"  # the playbook drives the API from the host
       - "7359:7359/udp"   # LAN auto-discovery (Swiftfin/Findroid find the server)
+    # The SSO plugin must resolve auth.vps.{{ domain }} (LAN view via Pi-hole).
+    dns:
+      - {{ pi5_docker_network_pihole_ip }}
     volumes:
       - {{ containers_setup_data_dir }}/jellyfin/config:/config
       - {{ containers_setup_data_dir }}/jellyfin/cache:/cache
       - /mnt/storage/media:/media:ro
     labels:
-      - homepage.group=Media
+      - "traefik.enable=true"
+      - "traefik.http.routers.jellyfin.rule=Host(`jellyfin.pi5.{{ domain }}`)"
+      - "traefik.http.routers.jellyfin.entrypoints=websecure"
+      - "traefik.http.routers.jellyfin.tls=true"
+      - "traefik.http.routers.jellyfin.tls.certresolver=cf"
+      - "traefik.http.services.jellyfin.loadbalancer.server.port=8096"
+      - "homepage.group={{ homelab_host }}: Media"
       - homepage.name=Jellyfin
       - homepage.icon=jellyfin
-      - homepage.href=http://homepage_host:8096
+      - homepage.href=https://jellyfin.pi5.{{ domain }}
       - homepage.statusStyle=basic
-      - homepage.ping=http://jellyfin:8096
+      - homepage.instance.{{ homelab_host }}.ping=http://jellyfin:8096
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8096/health"]
       interval: 30s
@@ -351,16 +407,22 @@ services:
       PGID: 1000
       TZ: {{ timezone }}
     ports:
-      - "9696:9696"
+      - "127.0.0.1:9696:9696"  # the playbook drives the API from the host
     volumes:
       - {{ containers_setup_data_dir }}/prowlarr/config:/config
     labels:
-      - homepage.group=Media
+      - "traefik.enable=true"
+      - "traefik.http.routers.prowlarr.rule=Host(`prowlarr.pi5.{{ domain }}`)"
+      - "traefik.http.routers.prowlarr.entrypoints=websecure"
+      - "traefik.http.routers.prowlarr.tls=true"
+      - "traefik.http.routers.prowlarr.tls.certresolver=cf"
+      - "traefik.http.services.prowlarr.loadbalancer.server.port=9696"
+      - "homepage.group={{ homelab_host }}: Media"
       - homepage.name=Prowlarr
       - homepage.icon=prowlarr
-      - homepage.href=http://homepage_host:9696
+      - homepage.href=https://prowlarr.pi5.{{ domain }}
       - homepage.statusStyle=basic
-      - homepage.ping=http://prowlarr:9696
+      - homepage.instance.{{ homelab_host }}.ping=http://prowlarr:9696
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:9696/ping"]
       interval: 30s
@@ -382,17 +444,23 @@ services:
       PGID: 1000
       TZ: {{ timezone }}
     ports:
-      - "7878:7878"
+      - "127.0.0.1:7878:7878"  # the playbook drives the API from the host
     volumes:
       - {{ containers_setup_data_dir }}/radarr/config:/config
       - /mnt/storage:/data
     labels:
-      - homepage.group=Media
+      - "traefik.enable=true"
+      - "traefik.http.routers.radarr.rule=Host(`radarr.pi5.{{ domain }}`)"
+      - "traefik.http.routers.radarr.entrypoints=websecure"
+      - "traefik.http.routers.radarr.tls=true"
+      - "traefik.http.routers.radarr.tls.certresolver=cf"
+      - "traefik.http.services.radarr.loadbalancer.server.port=7878"
+      - "homepage.group={{ homelab_host }}: Media"
       - homepage.name=Radarr
       - homepage.icon=radarr
-      - homepage.href=http://homepage_host:7878
+      - homepage.href=https://radarr.pi5.{{ domain }}
       - homepage.statusStyle=basic
-      - homepage.ping=http://radarr:7878
+      - homepage.instance.{{ homelab_host }}.ping=http://radarr:7878
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:7878/ping"]
       interval: 30s
@@ -413,14 +481,20 @@ services:
       LOG_LEVEL: info
       TZ: {{ timezone }}
     ports:
-      - "8191:8191"
+      - "127.0.0.1:8191:8191"  # the playbook drives the API from the host
     labels:
-      - homepage.group=Media
+      - "traefik.enable=true"
+      - "traefik.http.routers.flaresolverr.rule=Host(`flaresolverr.pi5.{{ domain }}`)"
+      - "traefik.http.routers.flaresolverr.entrypoints=websecure"
+      - "traefik.http.routers.flaresolverr.tls=true"
+      - "traefik.http.routers.flaresolverr.tls.certresolver=cf"
+      - "traefik.http.services.flaresolverr.loadbalancer.server.port=8191"
+      - "homepage.group={{ homelab_host }}: Media"
       - homepage.name=FlareSolverr
       - homepage.icon=flaresolverr
-      - homepage.href=http://homepage_host:8191
+      - homepage.href=https://flaresolverr.pi5.{{ domain }}
       - homepage.statusStyle=basic
-      - homepage.ping=http://flaresolverr:8191
+      - homepage.instance.{{ homelab_host }}.ping=http://flaresolverr:8191
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8191/health"]
       interval: 30s
@@ -437,17 +511,23 @@ services:
       PGID: 1000
       TZ: {{ timezone }}
     ports:
-      - "8989:8989"
+      - "127.0.0.1:8989:8989"  # the playbook drives the API from the host
     volumes:
       - {{ containers_setup_data_dir }}/sonarr/config:/config
       - /mnt/storage:/data
     labels:
-      - homepage.group=Media
+      - "traefik.enable=true"
+      - "traefik.http.routers.sonarr.rule=Host(`sonarr.pi5.{{ domain }}`)"
+      - "traefik.http.routers.sonarr.entrypoints=websecure"
+      - "traefik.http.routers.sonarr.tls=true"
+      - "traefik.http.routers.sonarr.tls.certresolver=cf"
+      - "traefik.http.services.sonarr.loadbalancer.server.port=8989"
+      - "homepage.group={{ homelab_host }}: Media"
       - homepage.name=Sonarr
       - homepage.icon=sonarr
-      - homepage.href=http://homepage_host:8989
+      - homepage.href=https://sonarr.pi5.{{ domain }}
       - homepage.statusStyle=basic
-      - homepage.ping=http://sonarr:8989
+      - homepage.instance.{{ homelab_host }}.ping=http://sonarr:8989
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8989/ping"]
       interval: 30s
@@ -465,13 +545,12 @@ services:
       # /opt/data bind mount stay owned by {{ username }} (1000) on the host.
       HERMES_UID: "1000"
       HERMES_GID: "1000"
-      # Run the web dashboard inside this container; the port is published on the
-      # host (below) and reached directly by host:port like the other services
-      # here (no Traefik route). Since hermes-agent v2026.9.24 (June-2026
-      # hardening, PR #50476) a non-loopback bind ALWAYS requires an auth
-      # provider — HERMES_DASHBOARD_INSECURE is a warned no-op and the dashboard
-      # fails closed without basic auth. Bind to all interfaces so the published
-      # port works.
+      # Web dashboard, reached through Traefik (hermes.pi5.{{ domain }}). Since
+      # hermes-agent v2026.9.24 (June-2026 hardening, PR #50476) a non-loopback
+      # bind ALWAYS requires an auth provider — HERMES_DASHBOARD_INSECURE is a
+      # warned no-op and the dashboard fails closed without basic auth. Kept:
+      # the bot has shell access, so the dashboard keeps its own login.
+      # TODO: limit egress (the container can reach the LAN and the tailnet).
       HERMES_DASHBOARD: "true"
       HERMES_DASHBOARD_HOST: 0.0.0.0
       HERMES_DASHBOARD_PORT: "9119"
@@ -487,8 +566,6 @@ services:
       # The anki-connect skill reads this to reach the sibling `anki` container
       # over the bridge (the skill defaults to localhost, falls back to anki).
       ANKI_CONNECT_URL: http://anki:8765
-    ports:
-      - "9119:9119"
     volumes:
       # HERMES_HOME — holds config.yaml, session history, vector memory, learned
       # skills, and logs. config.yaml is rendered here before first start.
@@ -499,12 +576,18 @@ services:
       - {{ containers_setup_data_dir }}/hermes/.agents:/opt/data/.agents:ro
     command: ["gateway", "run"]
     labels:
-      - homepage.group=Services
+      - "traefik.enable=true"
+      - "traefik.http.routers.hermes.rule=Host(`hermes.pi5.{{ domain }}`)"
+      - "traefik.http.routers.hermes.entrypoints=websecure"
+      - "traefik.http.routers.hermes.tls=true"
+      - "traefik.http.routers.hermes.tls.certresolver=cf"
+      - "traefik.http.services.hermes.loadbalancer.server.port=9119"
+      - "homepage.group={{ homelab_host }}: Services"
       - homepage.name=Hermes
       - homepage.icon=mdi-robot-happy
-      - homepage.href=http://homepage_host:9119
+      - homepage.href=https://hermes.pi5.{{ domain }}
       - homepage.statusStyle=basic
-      - homepage.ping=http://hermes:9119
+      - homepage.instance.{{ homelab_host }}.ping=http://hermes:9119
     healthcheck:
       # /api/status is the dashboard's public status endpoint (no auth).
       test: ["CMD", "curl", "-fsS", "http://localhost:9119/api/status"]
@@ -538,18 +621,22 @@ services:
       # anki-data volume), so no GUI login is needed — it auto-syncs on start.
       # For a future GUI session set this to "vnc" and re-publish 5900.
       QT_QPA_PLATFORM: offscreen
-    ports:
-      - "8765:8765"
     volumes:
       - anki-data:/data
       - anki-export:/export
     labels:
-      - homepage.group=Services
+      - "traefik.enable=true"
+      - "traefik.http.routers.anki.rule=Host(`anki.pi5.{{ domain }}`)"
+      - "traefik.http.routers.anki.entrypoints=websecure"
+      - "traefik.http.routers.anki.tls=true"
+      - "traefik.http.routers.anki.tls.certresolver=cf"
+      - "traefik.http.services.anki.loadbalancer.server.port=8765"
+      - "homepage.group={{ homelab_host }}: Services"
       - homepage.name=Anki
       - homepage.icon=anki
-      - homepage.href=http://homepage_host:8765
+      - homepage.href=https://anki.pi5.{{ domain }}
       - homepage.statusStyle=basic
-      - homepage.ping=http://anki:8765
+      - homepage.instance.{{ homelab_host }}.ping=http://anki:8765
     healthcheck:
       # AnkiConnect is POST-only — a bare GET returns non-2xx. Probe the real API.
       test: ["CMD-SHELL", "curl -fsS http://localhost:8765 -X POST -d '{\"action\":\"version\",\"version\":6}' | grep -q result"]
@@ -569,20 +656,23 @@ services:
     container_name: filebrowser
     user: "1000:1000"
     command: ["--noauth"]
-    ports:
-      - "8181:80"
     volumes:
       - {{ containers_setup_data_dir }}/filebrowser/config:/config
       - {{ containers_setup_data_dir }}/filebrowser/database:/database
       - /mnt/storage:/srv/storage
-      - {{ containers_setup_data_dir }}:/srv/services-data
     labels:
-      - homepage.group=Storage
+      - "traefik.enable=true"
+      - "traefik.http.routers.filebrowser.rule=Host(`filebrowser.pi5.{{ domain }}`)"
+      - "traefik.http.routers.filebrowser.entrypoints=websecure"
+      - "traefik.http.routers.filebrowser.tls=true"
+      - "traefik.http.routers.filebrowser.tls.certresolver=cf"
+      - "traefik.http.services.filebrowser.loadbalancer.server.port=80"
+      - "homepage.group={{ homelab_host }}: Storage"
       - homepage.name=Filebrowser
       - homepage.icon=filebrowser
-      - homepage.href=http://homepage_host:8181
+      - homepage.href=https://filebrowser.pi5.{{ domain }}
       - homepage.statusStyle=basic
-      - homepage.ping=http://filebrowser:80
+      - homepage.instance.{{ homelab_host }}.ping=http://filebrowser:80
     healthcheck:
       # /healthcheck.sh is shipped in the image — wraps `wget --spider /health`
       # and reads port/address from /config/settings.json. Overriding only to
@@ -620,21 +710,26 @@ services:
       # UFW blocks :9091 from the public internet, so this is acceptable.
       HOST_WHITELIST: "*"
     ports:
-      - "9091:9091"
       - "51413:51413"
       - "51413:51413/udp"
     volumes:
       - {{ containers_setup_configs_dir }}/transmission-config:/config
       - /mnt/storage:/data
     labels:
-      - homepage.group=Media
+      - "traefik.enable=true"
+      - "traefik.http.routers.transmission.rule=Host(`transmission.pi5.{{ domain }}`)"
+      - "traefik.http.routers.transmission.entrypoints=websecure"
+      - "traefik.http.routers.transmission.tls=true"
+      - "traefik.http.routers.transmission.tls.certresolver=cf"
+      - "traefik.http.services.transmission.loadbalancer.server.port=9091"
+      - "homepage.group={{ homelab_host }}: Media"
       - homepage.name=Transmission
       - homepage.icon=transmission
-      - homepage.href=http://homepage_host:9091
+      - homepage.href=https://transmission.pi5.{{ domain }}
       - homepage.statusStyle=basic
-      - homepage.ping=http://transmission:9091
-      - homepage.widget.type=transmission
-      - homepage.widget.url=http://transmission:9091
+      - homepage.instance.{{ homelab_host }}.ping=http://transmission:9091
+      - homepage.instance.{{ homelab_host }}.widget.type=transmission
+      - homepage.instance.{{ homelab_host }}.widget.url=http://transmission:9091
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9091"]
       interval: 30s
@@ -652,19 +747,25 @@ services:
       # -w web/API mode; -t 10 = refresh every 10s instead of default 3s (homepage polls ~15s anyway);
       # disable plugins we never query (cuts per-tick work substantially on a Pi 5).
       GLANCES_OPT: "-w -t 10 --disable-plugin sensors,smart,raid,hddtemp,wifi,gpu,ports,irq,folders,amps"
+      DOCKER_HOST: tcp://docker-socket-proxy:2375
+    depends_on:
+      - docker-socket-proxy
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
       - /:/rootfs:ro
       - /etc/os-release:/etc/os-release:ro
-    ports:
-      - "61208:61208"
     labels:
-      - homepage.group=Monitoring
+      - "traefik.enable=true"
+      - "traefik.http.routers.glances.rule=Host(`glances.pi5.{{ domain }}`)"
+      - "traefik.http.routers.glances.entrypoints=websecure"
+      - "traefik.http.routers.glances.tls=true"
+      - "traefik.http.routers.glances.tls.certresolver=cf"
+      - "traefik.http.services.glances.loadbalancer.server.port=61208"
+      - "homepage.group={{ homelab_host }}: Monitoring"
       - homepage.name=Glances
       - homepage.icon=glances
-      - homepage.href=http://homepage_host:61208
+      - homepage.href=https://glances.pi5.{{ domain }}
       - homepage.statusStyle=basic
-      - homepage.ping=http://glances:61208
+      - homepage.instance.{{ homelab_host }}.ping=http://glances:61208
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:61208/api/4/status"]
       interval: 30s
@@ -701,14 +802,21 @@ services:
       - /var/log:/host/var/log:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
     labels:
-      - homepage.group=Monitoring
+      - "traefik.enable=true"
+      - "traefik.http.routers.netdata.rule=Host(`netdata.pi5.{{ domain }}`)"
+      - "traefik.http.routers.netdata.entrypoints=websecure"
+      - "traefik.http.routers.netdata.tls=true"
+      - "traefik.http.routers.netdata.tls.certresolver=cf"
+      # Host network: no bridge IP, so point Traefik at the host via the gateway.
+      - "traefik.http.services.netdata.loadbalancer.server.url=http://{{ pi5_docker_network_gateway }}:19999"
+      - "homepage.group={{ homelab_host }}: Monitoring"
       - homepage.name=Netdata
       - homepage.icon=netdata
-      - homepage.href=http://homepage_host:19999/v3#
+      - homepage.href=https://netdata.pi5.{{ domain }}/v3#
       - homepage.statusStyle=basic
-      - homepage.ping=http://host.docker.internal:19999
-      - homepage.widget.type=netdata
-      - homepage.widget.url=http://host.docker.internal:19999
+      - homepage.instance.{{ homelab_host }}.ping=http://host.docker.internal:19999
+      - homepage.instance.{{ homelab_host }}.widget.type=netdata
+      - homepage.instance.{{ homelab_host }}.widget.url=http://host.docker.internal:19999
     restart: unless-stopped
 
   tailscale:
@@ -746,7 +854,7 @@ services:
       # Expose tailscaled.sock to traefik (which uses it for the `ts` cert resolver).
       - tailscale-socket:/var/run/tailscale
     labels:
-      - homepage.group=Networking
+      - "homepage.group={{ homelab_host }}: Networking"
       - homepage.name=Tailscale
       - homepage.icon=tailscale
     healthcheck:

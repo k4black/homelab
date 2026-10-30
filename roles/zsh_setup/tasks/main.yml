@@ -1,43 +1,13 @@
 ---
 
-# - name: Copy Zsh configuration block
-#   ansible.builtin.blockinfile:
-#     path: /home/{{ zsh_setup_user }}/.zshrc
-#     marker: "# {mark} ANSIBLE MANAGED BLOCK: style config"
-#     block: "{{ lookup('file', '{{ zsh_setup_config_src }}') }}"
-#     create: true
-#     mode: "0644"
-#     owner: "{{ zsh_setup_user }}"
-#     group: "{{ zsh_setup_user }}"
-#   failed_when: false  # TODO: fix macos problem on github actions
-#   become: true
-
 - name: Install Zsh
-  block:
-    - name: Check if Zsh is installed
-      ansible.builtin.stat:
-        path: /bin/zsh
-      register: zsh_setup_zsh_installed
-    - name: Install Zsh (Debian/Ubuntu)
-      ansible.builtin.apt:
-        name: zsh
-        state: present
-      when: ansible_facts['os_family'] == "Debian" and not zsh_setup_zsh_installed.stat.exists
-      become: true
-    - name: Install Zsh (RedHat/CentOS)
-      ansible.builtin.dnf:
-        name: zsh
-        state: present
-      when: ansible_facts['os_family'] == "RedHat" and not zsh_setup_zsh_installed.stat.exists
-      become: true
-    - name: Install Zsh (macOS)
-      community.general.homebrew:
-        name: zsh
-        state: present
-      when: ansible_facts['os_family'] == "Darwin" and not zsh_setup_zsh_installed.stat.exists
+  ansible.builtin.apt:
+    name: zsh
+    state: present
+  become: true
 
-- name: Setup Zsh as login shell (not on Darwin platform)
-  when: zsh_setup_set_default_shell and ansible_facts['os_family'] != "Darwin"
+- name: Setup Zsh as login shell
+  when: zsh_setup_set_default_shell
   block:
     - name: Check if Zsh is the login shell
       ansible.builtin.command: grep "{{ zsh_setup_user }}.*zsh$" /etc/passwd

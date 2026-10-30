@@ -28,6 +28,10 @@
     cleanup orphan hosts after = 30d
 
 [web]
+    # Host network. `*` on purpose: an explicit list (127.0.0.1, the docker
+    # gateway for Traefik, the tailnet IP for the vps stream) would fail to bind
+    # when tailscale0 is not up yet at start, and the tailnet IP can be empty.
+    # ufw limits :19999 to the LAN and the tailnet anyway.
     bind to = *
 
 [ml]

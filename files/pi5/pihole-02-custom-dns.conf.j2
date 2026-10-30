@@ -1,5 +1,8 @@
-# Split-horizon DNS: from inside the LAN, *.pi5.{{ domain }} resolves to the Pi's
-# LAN IP so traefik terminates TLS locally without round-tripping to the WAN.
-# From outside, the public Cloudflare A record (managed by cloudflare-ddns) wins.
-# dnsmasq matches both apex and subdomains for an `address=/.../...` entry.
-address=/pi5.{{ domain }}/{{ pi5_local_ipv4 }}
+# LAN view: every <host>.{{ domain }} (apex + subdomains) resolves to THIS host,
+# so clients on the LAN and the local containers always hit the local Traefik.
+# It serves the local services and forwards the other hosts over the tailnet
+# (files/shared/traefik-forward-routes.yml.j2). Outside the LAN the public
+# Cloudflare records (vps cloudflare-ddns) win.
+{% for h in homelab_hosts %}
+address=/{{ h.name }}.{{ domain }}/{{ local_ipv4 }}
+{% endfor %}

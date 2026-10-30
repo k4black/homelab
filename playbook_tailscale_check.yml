@@ -10,6 +10,8 @@
   gather_facts: false
   vars_files:
     - vars/all.yml
+  vars:
+    tailscale_tag: tag:server  # per host in vars/<host>.yml; the check joins as a server
   tasks:
     - name: Load secrets from Bitwarden Secrets Manager
       ansible.builtin.import_tasks: tasks/bws_load.yml

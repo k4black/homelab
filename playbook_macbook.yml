@@ -55,10 +55,6 @@
         mode: "0600"
       when: macbook_ssh_config.stat.isreg | default(false)
       become: false
-    - name: Ensure homebrew is in PATH
-      ansible.builtin.stat:
-        path: /opt/homebrew/bin/brew
-      register: _homebrew_check
 
   roles:
     - role: elliotweiser.osx-command-line-tools
@@ -85,10 +81,6 @@
           ssh_config: "/Users/{{ ansible_user_id }}/.ssh/config"
         dotfiles_run_scripts:
           - "/Users/{{ ansible_user_id }}/Projects/personal/.dotfiles/.macos.sh"
-    - role: zsh_setup
-      vars:
-        zsh_setup_set_default_shell: true
-        zsh_setup_user: "{{ ansible_user_id }}"
     # Installs the agent CLIs and runs k4black/.agents install.sh, which wires
     # skills, rules, plugins and harness config into every harness.
     - role: agents_setup
@@ -182,18 +174,6 @@
         dest: ~/.gitconfig.local
         mode: "0600"
         owner: "{{ ansible_user_id }}"
-
-    - name: Setup MonitorControl
-      when: not 'monitorcontrol' in homebrew_cask_apps
-      block:
-        - name: Install MonitorControl
-          community.general.homebrew:
-            name: monitorcontrol
-            state: present
-    #        - name: Enable MonitorControl in System Preferences -> Privacy & Security -> Privacy -> Accessibility
-    #          ansible.builtin.command: osascript -e 'tell application "System Events" to tell process "System Preferences"
-    #  to tell window "Security & Privacy" to tell scroll area "Privacy" to tell table 1 to tell row 1 to tell checkbox 1 to if value is 0 then click'
-    #          become: true
 
     # App Nap suspends background apps on macOS, which stops Anki-Connect
     # from responding while another window is in the foreground.

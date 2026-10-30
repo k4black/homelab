@@ -9,9 +9,6 @@ default_username: "k4black"
 git_email: "38007247+k4black@users.noreply.github.com"
 
 
-ssh_public_key_path: "~/.ssh/id_ed25519.pub"
-
-
 timezone: Europe/Berlin
 
 
@@ -19,12 +16,10 @@ timezone: Europe/Berlin
 # vps docker: any ip in the 10.2.1.X subnet
 vps_docker_network_subnet: 10.2.1.0/24
 vps_docker_network_gateway: 10.2.1.1
-vps_docker_network_prefix: 10.2.1
 vps_docker_network_pihole_ip: 10.2.1.53
 # pi5 docker: any ip in the 10.2.2.X subnet
 pi5_docker_network_subnet: 10.2.2.0/24
 pi5_docker_network_gateway: 10.2.2.1
-pi5_docker_network_prefix: 10.2.2
 pi5_docker_network_pihole_ip: 10.2.2.53
 
 router_local_ipv4: 192.168.1.1
@@ -46,12 +41,27 @@ cloudflare_api_token: "{{ bws.cloudflare_api_token }}"
 vps_duckdns_subdomain: "{{ bws.vps_duckdns_subdomain }}"
 pi5_duckdns_subdomain: "{{ bws.pi5_duckdns_subdomain }}"
 # Tailnet IPs (admin console -> Machines). Hosts run tailscale with
-# --accept-dns=false, so MagicDNS names do not resolve there; the IPs are needed
-# for netdata streaming and the homepage widgets. vps_tailscale_ipv4 is an empty
-# BWS value until the vps rejoins the tailnet.
+# --accept-dns=false, so MagicDNS names do not resolve there. An empty BWS value
+# (the vps until it rejoins) drops that host from the generated DNS and routes.
 pi5_tailscale_ipv4: "{{ bws.pi5_tailscale_ipv4 }}"
 vps_tailscale_ipv4: "{{ bws.vps_tailscale_ipv4 }}"
 duckdns_token: "{{ bws.duckdns_token }}"
+
+# ── Host table ─────────────────────────────────────────────────────────────
+# Every server host. Service names are svc.<name>.<domain>. Generates, on every
+# host: the Traefik forward routes to the other hosts, both DNS views
+# (files/shared/tailnet-dns.conf.j2, files/*/pihole-02-custom-dns.conf.j2), the
+# Homepage docker sources and the public DNS records (vps cloudflare-ddns).
+# `homelab_host` in vars/<host>.yml names the current host.
+homelab_hosts:
+  - {name: pi5, tailscale_ipv4: "{{ pi5_tailscale_ipv4 }}"}
+  - {name: vps, tailscale_ipv4: "{{ vps_tailscale_ipv4 }}"}
+
+# Any client on the tailnet or a docker bridge sees no login (Authelia bypass);
+# everyone else comes through the public door on the vps and logs in.
+trusted_networks:
+  - 100.64.0.0/10
+  - 10.0.0.0/8
 
 
 foundry_username: "{{ bws.foundry_username }}"
@@ -83,14 +93,34 @@ hermes_dashboard_password: "{{ bws.hermes_dashboard_password }}"
 hermes_dashboard_auth_secret: "{{ bws.hermes_dashboard_auth_secret }}"
 
 # Tailscale: nodes join with a one-off, preauthorized auth key that the playbook
-# mints at deploy time from an OAuth client (auth_keys scope only, tag:node).
-# The OAuth secret therefore never reaches the hosts — they only ever hold a spent
-# key. Tagged nodes have key expiry disabled by default, and TS_AUTH_ONCE means the
-# credential is used for the first login only (state lives in TS_STATE_DIR).
-tailscale_tag: "tag:node"
+# mints at deploy time from an OAuth client (auth_keys scope only, owning the
+# tags). The OAuth secret therefore never reaches the hosts — they only ever hold
+# a spent key. Tagged nodes have key expiry disabled by default, and TS_AUTH_ONCE
+# means the credential is used for the first login only (state lives in
+# TS_STATE_DIR). `tailscale_tag` is per host: tag:server (vars/pi5.yml, vars/vps.yml)
+# or tag:router (vars/router.yml). The policy (files/tailscale-policy.hujson.j2)
+# auto-approves the exit nodes and the routers' subnet routes.
 tailscale_image: "tailscale/tailscale:v1.102.5"
-# TODO: add ACL autoApprovers for exit nodes; the first approval is manual now.
 tailscale_extra_args: "--accept-dns=false --advertise-exit-node"
 tailscale_oauth_client_id: "{{ bws.tailscale_oauth_client_id }}"
 tailscale_oauth_client_secret: "{{ bws.tailscale_oauth_client_secret }}"
+# Second client, policy_file scope only, used by playbook_tailscale_policy.yml.
+tailscale_policy_oauth_client_id: "{{ bws.tailscale_policy_oauth_client_id }}"
+tailscale_policy_oauth_client_secret: "{{ bws.tailscale_policy_oauth_client_secret }}"
 tailscale_tailnet_name: "{{ bws.tailscale_tailnet_name }}"
+
+# ── Authelia (vps): the single login for the public door ───────────────────
+# File users (argon2id hashes) and OIDC clients. See README "Auth".
+authelia_url: "https://auth.vps.{{ domain }}"
+authelia_jwt_secret: "{{ bws.authelia_jwt_secret }}"
+authelia_session_secret: "{{ bws.authelia_session_secret }}"
+authelia_storage_encryption_key: "{{ bws.authelia_storage_encryption_key }}"
+authelia_oidc_hmac_secret: "{{ bws.authelia_oidc_hmac_secret }}"
+authelia_oidc_jwks_key: "{{ bws.authelia_oidc_jwks_key }}"
+# JSON list: [{"username", "displayname", "email", "password": "<argon2id hash>", "groups": ["admins"]}]
+authelia_users: "{{ bws.authelia_users | from_json }}"
+# OIDC clients: plaintext secret for the app, pbkdf2 digest for Authelia.
+authelia_oidc_jellyfin_secret: "{{ bws.authelia_oidc_jellyfin_secret }}"
+authelia_oidc_jellyfin_secret_hash: "{{ bws.authelia_oidc_jellyfin_secret_hash }}"
+authelia_oidc_homeassistant_secret: "{{ bws.authelia_oidc_homeassistant_secret }}"
+authelia_oidc_homeassistant_secret_hash: "{{ bws.authelia_oidc_homeassistant_secret_hash }}"

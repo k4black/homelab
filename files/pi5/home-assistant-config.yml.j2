@@ -1,0 +1,34 @@
+# {{ ansible_managed }}
+# Prepared for the (still commented out) home-assistant service in
+# docker-compose.yml.j2: host network, behind the local Traefik at
+# https://ha.pi5.{{ domain }}. Holds the OIDC client secret (rendered as a
+# secret template). Installed from the UI on both homes (HACS):
+# remote_homeassistant (one HA shows the other's entities) and hass-oidc-auth
+# (the `auth_oidc:` block, callback /auth/oidc/callback).
+
+default_config:
+
+http:
+  use_x_forwarded_for: true
+  trusted_proxies:
+    - {{ pi5_docker_network_subnet }}
+
+homeassistant:
+  auth_providers:
+    - type: homeassistant
+    # LAN + tailnet clients skip the login. Not the docker bridge: Traefik
+    # forwards the real client IP via X-Forwarded-For.
+    - type: trusted_networks
+      trusted_networks:
+        - {{ lan_subnet }}
+        - 100.64.0.0/10
+      allow_bypass_login: true
+
+# https://www.authelia.com/integration/openid-connect/clients/home-assistant/
+auth_oidc:
+  client_id: homeassistant
+  client_secret: "{{ authelia_oidc_homeassistant_secret }}"
+  discovery_url: {{ authelia_url }}/.well-known/openid-configuration
+  display_name: Authelia
+  roles:
+    admin: admins

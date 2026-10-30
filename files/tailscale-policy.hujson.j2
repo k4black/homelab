@@ -1,0 +1,44 @@
+// Tailnet policy. Pushed by playbook_tailscale_policy.yml (--check = diff only).
+// Syntax: https://tailscale.com/kb/1337/acl-syntax
+{
+  "tagOwners": {
+    "tag:server": ["autogroup:admin"], // pi5s, vps
+    "tag:router": ["autogroup:admin"], // GL.iNet subnet routers
+    // TODO: drop tag:node once every node is re-joined as tag:server (vars/*.yml).
+    "tag:node": ["autogroup:admin"],
+  },
+
+  "acls": [
+    {"action": "accept", "src": ["autogroup:admin"], "dst": ["*:*"]},
+    // Family: web and DNS on the servers, the home routers and the LANs behind
+    // them, exit nodes.
+    {
+      "action": "accept",
+      "src": ["autogroup:member"],
+      "dst": [
+        "tag:server:80,443,53",
+        "tag:router:*",
+        "192.168.0.0/16:*",
+        "autogroup:internet:*",
+      ],
+    },
+    // Servers: Traefik forward routes (443), DNS, docker-socket-proxy (2375),
+    // netdata streaming (19999).
+    {
+      "action": "accept",
+      "src": ["tag:server"],
+      "dst": ["tag:server:443,53,2375,19999", "tag:router:*", "192.168.0.0/16:*"],
+    },
+    {"action": "accept", "src": ["tag:router"], "dst": ["tag:server:443,53"]},
+  ],
+
+  // Routers advertise their home LAN, every pi5/vps/router is an exit node
+  // (tailscale_extra_args in vars/all.yml): no manual approval in the console.
+  "autoApprovers": {
+    "routes": {
+      "192.168.0.0/16": ["tag:router"],
+      "10.0.0.0/8": ["tag:router"],
+    },
+    "exitNode": ["tag:server", "tag:router"],
+  },
+}

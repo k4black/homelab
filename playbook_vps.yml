@@ -19,45 +19,6 @@
         ssh_public_key: "{{ lookup('file', ssh_public_key_file) }}"
       when: testing is undefined or testing != 'true'
 
-- name: Setup local_ipv4
-  hosts: vps
-  gather_facts: true
-
-  tasks:
-    # https://medium.com/opsops/ansible-default-ipv4-is-not-what-you-think-edb8ab154b10
-    - name: Gather local_ipv4
-      ansible.builtin.set_fact:
-        local_ipv4: "{{ '127.0.0.1' if (testing is defined and testing == 'true') else (ansible_default_ipv4.address | default(ansible_all_ipv4_addresses[0])) }}"
-      tags: [docker]
-    - name: Debug local_ipv4
-      ansible.builtin.debug:
-        var: local_ipv4
-      tags: [docker]
-
-- name: Setup for testing
-  hosts: vps
-  gather_facts: false
-  become: true
-
-  tasks:
-    - name: For testing at github actions set username to "runner"
-      ansible.builtin.set_fact:
-        username: "runner"
-      when: testing is defined and testing == 'true'
-
-    - name: List all ports used
-      block:
-        - name: List all ports used
-          ansible.builtin.command: netstat -tulpn
-          become: true
-          changed_when: false
-          when: testing is defined and testing == 'true'
-          register: netstat_output
-        - name: Debug output ports
-          ansible.builtin.debug:
-            var: netstat_output.stdout_lines
-          when: testing is defined and testing == 'true'
-
 - name: Configure VPS personal server.
   hosts: vps
 
@@ -68,6 +29,16 @@
   pre_tasks:
     - name: Load secrets from Bitwarden Secrets Manager
       ansible.builtin.import_tasks: tasks/bws_load.yml
+      tags: [always]
+    # https://medium.com/opsops/ansible-default-ipv4-is-not-what-you-think-edb8ab154b10
+    - name: Gather local_ipv4
+      ansible.builtin.set_fact:
+        local_ipv4: "{{ '127.0.0.1' if (testing is defined and testing == 'true') else (ansible_default_ipv4.address | default(ansible_all_ipv4_addresses[0])) }}"
+      tags: [docker]
+    - name: For testing at github actions set username to "runner"
+      ansible.builtin.set_fact:
+        username: "runner"
+      when: testing is defined and testing == 'true'
       tags: [always]
 
   roles:
@@ -81,7 +52,7 @@
         linux_server_setup_login_password: "{{ password }}"
         linux_server_setup_login_user_uid: 1000
         linux_server_setup_login_user_gid: 1000
-        linux_server_setup_login_ssh_public_key: "{{ lookup('file', '{{ ssh_public_key_path }}') }}"
+        linux_server_setup_login_ssh_public_key: "{{ ssh_public_key }}"
         # The vps netdata child/parent pair talks to pi5 over the tailnet, and the
         # tailnet is also how a Mac/phone reaches the vps, so allow it explicitly.
         linux_server_setup_allow_subnets:
@@ -90,7 +61,6 @@
           - {port: "{{ ssh_port }}", protocol: "tcp", comment: "ssh"}
           - {port: 80, protocol: "tcp", comment: "http"}
           - {port: 443, protocol: "tcp", comment: "https"}
-          - {port: 30000, protocol: "tcp", comment: "foundryvtt"}
           - {port: 51413, protocol: "tcp", comment: "transmission peer"}
           - {port: 51413, protocol: "udp", comment: "transmission peer"}
 
@@ -168,7 +138,12 @@
         containers_setup_configs_dir: "{{ services_configs_dir }}"
         containers_setup_data_dir: "{{ services_data_dir }}"
         containers_setup_docker_compose_template: "files/vps/docker-compose.yml.j2"
+        # Gate the forward routes to the other hosts (files/shared/traefik-forward-routes.yml.j2).
+        traefik_forward_middlewares: ['authelia']  # noqa: var-naming[no-role-prefix]
         containers_setup_make_dirs:
+          - "{{ services_configs_dir }}/authelia"
+          - "{{ services_data_dir }}/authelia"
+          - "{{ services_configs_dir }}/homepage-config"
           - "{{ services_data_dir }}/traefik-letsencrypt"
           - "{{ services_configs_dir }}/pihole"
           - "{{ services_configs_dir }}/pihole-dnsmasq.d"
@@ -184,7 +159,15 @@
         containers_setup_touch_files: []
         containers_setup_secret_templates:
           files/vps/compose.env.j2: ".env"
+          files/vps/authelia-config.yml.j2: "authelia/configuration.yml"
+          files/vps/authelia-users.yml.j2: "authelia/users_database.yml"
         containers_setup_config_templates:
+          files/shared/homepage-docker.yaml.j2: "homepage-config/docker.yaml"
+          files/shared/homepage-settings.yaml.j2: "homepage-config/settings.yaml"
+          files/shared/homepage-services.yaml.j2: "homepage-config/services.yaml"
+          files/shared/homepage-widgets.yaml.j2: "homepage-config/widgets.yaml"
+          files/shared/homepage-custom.css.j2: "homepage-config/custom.css"
+          files/shared/tailnet-dns.conf.j2: "tailnet-dns.conf"
           files/vps/pihole-02-custom-dns.conf.j2: "pihole-dnsmasq.d/02-custom-dns.conf"
           # TODO: Pi-hole v6 ignores adlists.list (lists live in gravity.db); use the API or drop it.
           files/vps/pihole-adlists.list: "pihole/adlists.list"

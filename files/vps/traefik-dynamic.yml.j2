@@ -1,3 +1,21 @@
+http:
+  middlewares:
+    # Authelia forward auth. Attached per router (`middlewares=authelia@file`)
+    # to every service under {{ domain }} except Authelia itself and the
+    # forward routes' targets that carry their own login (none today).
+    authelia:
+      forwardAuth:
+        address: http://authelia:9091/api/authz/forward-auth
+        trustForwardHeader: true
+        authResponseHeaders:
+          - Remote-User
+          - Remote-Groups
+          - Remote-Email
+          - Remote-Name
+  # The fragment fills routers/services/serversTransports (other hosts over the tailnet).
+  routers:
+{% include 'files/shared/traefik-forward-routes.yml.j2' %}
+
 tls:
   stores:
     default:

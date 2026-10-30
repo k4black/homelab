@@ -1,0 +1,14 @@
+# {{ ansible_managed }}
+# Tailnet view of <host>.{{ domain }}: every name goes straight to that host's
+# tailnet IP (no Pi-hole, no LAN detour). Served on tailscale0 only; the
+# Tailscale admin console gets split DNS `{{ domain }}` -> every server's
+# tailnet IP by hand. Hosts without a tailnet IP (BWS value empty) are omitted.
+interface=tailscale0
+bind-dynamic
+except-interface=lo
+no-resolv
+server=1.1.1.1
+server=9.9.9.9
+{% for h in homelab_hosts if h.tailscale_ipv4 %}
+address=/{{ h.name }}.{{ domain }}/{{ h.tailscale_ipv4 }}
+{% endfor %}

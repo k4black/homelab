@@ -7,7 +7,8 @@ log:
 
 api:
   dashboard: true
-  insecure: true
+  # Served only through the `traefik` router (api@internal) behind Authelia.
+  insecure: false
 
 # Lightweight health endpoint used by `traefik healthcheck` (container healthcheck).
 ping: {}
@@ -25,6 +26,14 @@ entryPoints:
           priority: 1
   websecure:
     address: ":443"
+    # Keep X-Forwarded-For from the other hosts' Traefik (tailnet) and the
+    # docker bridges, so Authelia sees the real client IP for its bypass rule
+    # and its ban list. From anywhere else the header is replaced.
+    forwardedHeaders:
+      trustedIPs:
+{% for net in trusted_networks %}
+        - "{{ net }}"
+{% endfor %}
     http:
       tls:
         # Default cert from the cf resolver (wildcard *.vps.{{ domain }}). Routers
@@ -62,6 +71,7 @@ certificatesResolvers:
 
 providers:
   docker:
+    endpoint: tcp://docker-socket-proxy:2375
     exposedByDefault: false
   file:
     filename: /etc/traefik/dynamic.yml

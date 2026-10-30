@@ -1,0 +1,27 @@
+# {{ ansible_managed }}
+title: Homelab
+headerStyle: clean
+useEqualHeights: true
+hideVersion: false
+disableUpdateCheck: true
+showStats: false
+disableIndexing: true
+# Labels `homepage.instance.<host>.*` (widgets, pings that only resolve on the
+# host itself) apply to this instance only; every host shows every tile.
+instanceName: {{ homelab_host }}
+
+# Docker groups are flat and matched by exact name, so labels use
+# `homepage.group=<host>: <Category>` and the layout nests them per host.
+layout:
+  Servers:
+    style: row
+    columns: 4
+{% for h in homelab_hosts if h.name == homelab_host or h.tailscale_ipv4 %}
+  {{ h.name }}:
+    style: row
+    columns: 5
+{% for c in ['Services', 'Media', 'Storage', 'Networking', 'Monitoring'] %}
+    "{{ h.name }}: {{ c }}":
+      style: column
+{% endfor %}
+{% endfor %}
