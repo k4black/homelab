@@ -87,8 +87,7 @@
         linux_server_setup_allow_subnets:
           - {subnet: "100.64.0.0/10", comment: "Tailscale full access"}
         linux_server_setup_open_ports:  # IMPORTANT: DO NOT open no-auth endpoints
-          - {port: 22, protocol: "tcp", comment: "default ssh"}
-          - {port: "{{ ssh_port }}", protocol: "tcp", comment: "custom ssh"}
+          - {port: "{{ ssh_port }}", protocol: "tcp", comment: "ssh"}
           - {port: 80, protocol: "tcp", comment: "http"}
           - {port: 443, protocol: "tcp", comment: "https"}
           - {port: 30000, protocol: "tcp", comment: "foundryvtt"}
@@ -117,7 +116,7 @@
     - role: dotfiles
       tags: ["dotfiles"]
       vars:
-        dotfiles_repo_url: "https://github.com/k4black/dotfiles.git"
+        dotfiles_repo_url: "https://github.com/k4black/.dotfiles.git"
         dotfiles_dest: "~/.dotfiles"
         dotfiles_symlinks:
           .zshrc: "~/.zshrc"
@@ -154,8 +153,9 @@
 
     # Mint the one-off, tagged Tailscale key before the compose file is rendered.
     # Skipped in CI (testing=true): it needs the real OAuth client and a host.
+    # import_tasks (static), so the `docker` tag reaches the imported tasks.
     - name: Mint the Tailscale node auth key
-      ansible.builtin.include_tasks: tasks/tailscale_mint_key.yml
+      ansible.builtin.import_tasks: tasks/tailscale_mint_key.yml
       tags: [docker]
       when: testing is undefined or testing != 'true'
 

@@ -7,15 +7,16 @@
     destination = {{ vps_tailscale_ipv4 }}:19999
     api key = {{ netdata_stream_api_key }}
     send charts matching = *
+{% else %}
+# vps_tailscale_ipv4 (BWS) is empty: the pi5 does not stream until the vps
+# rejoins the tailnet. Accepting the vps stream below needs no address.
+{% endif %}
 
-# Accept streams from VPS
+# Accept streams from VPS. The api key is the credential; ufw limits :19999 to
+# the LAN and the tailnet.
 [{{ netdata_stream_api_key }}]
     enabled = yes
-    allow from = {{ vps_tailscale_ipv4 }}
+    allow from = *
     db = dbengine
     enable replication = yes
     replication period = 14d
-{% else %}
-# vps_tailscale_ipv4 is not set in vars/all.yml, so the vps side of the
-# active-active pair is disabled until the vps rejoins the tailnet.
-{% endif %}

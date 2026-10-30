@@ -34,7 +34,7 @@
   when: tailscale_needs_key | bool
   block:
     - name: Mint the key
-      ansible.builtin.include_tasks: tasks/tailscale_create_key.yml
+      ansible.builtin.import_tasks: tasks/tailscale_create_key.yml
 
     # A node that is already authenticated keeps its user-owned identity: with
     # TS_AUTH_ONCE the container will not log in again by itself, so an existing

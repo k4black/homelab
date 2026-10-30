@@ -45,11 +45,12 @@ cloudflare_api_token: "{{ bws.cloudflare_api_token }}"
 # domains
 vps_duckdns_subdomain: "{{ bws.vps_duckdns_subdomain }}"
 pi5_duckdns_subdomain: "{{ bws.pi5_duckdns_subdomain }}"
-pi5_tailscale_ipv4: "100.72.254.6"
-# Fill in when the vps rejoins the tailnet (admin console -> Machines, or
-# `tailscale status` on the vps). Used for netdata streaming and the pi5
-# homepage widgets that point at the vps.
-vps_tailscale_ipv4: ""
+# Tailnet IPs (admin console -> Machines). Hosts run tailscale with
+# --accept-dns=false, so MagicDNS names do not resolve there; the IPs are needed
+# for netdata streaming and the homepage widgets. vps_tailscale_ipv4 is an empty
+# BWS value until the vps rejoins the tailnet.
+pi5_tailscale_ipv4: "{{ bws.pi5_tailscale_ipv4 }}"
+vps_tailscale_ipv4: "{{ bws.vps_tailscale_ipv4 }}"
 duckdns_token: "{{ bws.duckdns_token }}"
 
 

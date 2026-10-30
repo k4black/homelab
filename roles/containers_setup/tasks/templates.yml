@@ -10,12 +10,14 @@
     group: "{{ containers_setup_user if (testing is undefined or testing != 'true') else omit }}"
   become: true
 
-# .env (compose interpolation) and any other file that holds secrets: 0600, no_log.
+# .env (compose interpolation) and any other file that holds secrets: no_log,
+# owner-only (the group is the user's private group). 0640, not 0600: Hermes
+# rewrites its config.yaml as 0640, so 0600 would flip to changed on every run.
 - name: Render secret files
   ansible.builtin.template:
     src: "{{ item.key }}"
     dest: "{{ containers_setup_configs_dir }}/{{ item.value }}"
-    mode: '0600'
+    mode: '0640'
     owner: "{{ containers_setup_user if (testing is undefined or testing != 'true') else omit }}"
     group: "{{ containers_setup_user if (testing is undefined or testing != 'true') else omit }}"
   become: true

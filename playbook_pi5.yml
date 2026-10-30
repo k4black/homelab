@@ -134,8 +134,8 @@
           - {subnet: "192.168.1.0/24", comment: "LAN full access"}
           - {subnet: "100.64.0.0/10", comment: "Tailscale full access"}
         linux_server_setup_open_ports:
-          - {port: 22, protocol: "tcp", comment: "default ssh"}
-          - {port: "{{ ssh_port }}", protocol: "tcp", comment: "custom ssh"}
+          # sshd listens on ssh_port only (geerlingguy.security); 22 stays closed.
+          - {port: "{{ ssh_port }}", protocol: "tcp", comment: "ssh"}
           - {port: 53, protocol: "udp", comment: "pihole dns"}
           - {port: 53, protocol: "tcp", comment: "pihole dns"}
           - {port: 80, protocol: "tcp", comment: "http"}
@@ -360,8 +360,9 @@
 
     # Mint the one-off, tagged Tailscale key before the compose file is rendered.
     # Skipped in CI (testing=true): it needs the real OAuth client and a host.
+    # import_tasks (static), so the `docker` tag reaches the imported tasks.
     - name: Mint the Tailscale node auth key
-      ansible.builtin.include_tasks: tasks/tailscale_mint_key.yml
+      ansible.builtin.import_tasks: tasks/tailscale_mint_key.yml
       tags: [docker]
       when: testing is undefined or testing != 'true'
 
@@ -400,6 +401,7 @@
           # containers_setup_user owns them (1000:1000). /backups is a sibling
           # for general personal backups (not bind-mounted into *arr containers).
           - "/mnt/storage/backups"
+          - "/mnt/storage/backups/timemachine"
           - "/mnt/storage/torrents"
           - "/mnt/storage/torrents/movies"
           - "/mnt/storage/torrents/tv"
@@ -590,10 +592,10 @@
 
     # Prowlarr/Radarr/Sonarr don't accept auth via env vars — auth lives in
     # /config/config.xml. Patch in-place after the apps create their initial
-    # config, then restart so the change takes effect. DisabledForLocalAddresses
-    # lets RFC1918/Docker-bridge clients in without a login; external clients
-    # (Tailscale/VPN-only here anyway) get the Forms login screen.
-    - name: Configure *arr auth (no auth for local addresses)
+    # config, then restart so the change takes effect. `External` = the app
+    # trusts the network/reverse proxy and shows no login of its own (Forms
+    # without a configured user would lock every non-local client out).
+    - name: Configure *arr auth (handled by the network / reverse proxy)
       tags: [docker, run_docker]
       become: true
       block:
@@ -609,29 +611,18 @@
         # Using ansible.builtin.replace (regex) instead of community.general.xml
         # to avoid the python3-lxml dependency on the remote. *arr config.xml is
         # a flat one-element-per-line format, so a tight regex is reliable.
-        - name: Set AuthenticationMethod = Forms for {{ item }}
+        - name: Set AuthenticationMethod = External for {{ item }}
           ansible.builtin.replace:
             path: "{{ services_data_dir }}/{{ item }}/config/config.xml"
             regexp: '<AuthenticationMethod>[^<]*</AuthenticationMethod>'
-            replace: '<AuthenticationMethod>Forms</AuthenticationMethod>'
+            replace: '<AuthenticationMethod>External</AuthenticationMethod>'
           loop:
             - prowlarr
             - radarr
             - sonarr
           register: arr_auth_method
 
-        - name: Set AuthenticationRequired = DisabledForLocalAddresses for {{ item }}
-          ansible.builtin.replace:
-            path: "{{ services_data_dir }}/{{ item }}/config/config.xml"
-            regexp: '<AuthenticationRequired>[^<]*</AuthenticationRequired>'
-            replace: '<AuthenticationRequired>DisabledForLocalAddresses</AuthenticationRequired>'
-          loop:
-            - prowlarr
-            - radarr
-            - sonarr
-          register: arr_auth_required
-
-        - name: Restart *arr containers if auth config changed
+        - name: Restart *arr containers if auth config changed  # noqa: no-handler (per-container, loop-indexed)
           ansible.builtin.command: docker restart {{ item }}
           loop:
             - prowlarr
@@ -639,7 +630,7 @@
             - sonarr
           loop_control:
             index_var: arr_idx
-          when: arr_auth_method.results[arr_idx].changed or arr_auth_required.results[arr_idx].changed
+          when: arr_auth_method.results[arr_idx].changed
           changed_when: true
 
     # Wire up Transmission as Radarr/Sonarr download client (+ root folders) and

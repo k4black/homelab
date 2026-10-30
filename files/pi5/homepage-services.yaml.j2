@@ -53,6 +53,6 @@
           version: 4
           metric: containers
 {% else %}
-    # vps_tailscale_ipv4 is not set in vars/all.yml, so the vps widgets are
-    # omitted instead of rendering an empty host.
+    # vps_tailscale_ipv4 (BWS) is empty, so the vps widgets are omitted
+    # instead of rendering an empty host.
 {% endif %}

@@ -88,7 +88,7 @@ skills:
 mcp_servers:
   # Official Doist Todoist MCP (npm @doist/todoist-mcp), run as a local stdio
   # subprocess via the image's npx. Full task/project/label capability, auth by
-  # the personal API token (todoist_api_token from BWS; this file is rendered 0600).
+  # the personal API token (todoist_api_token from BWS; this file is rendered owner-only).
   todoist:
     command: "npx"
     args: ["-y", "@doist/todoist-mcp"]

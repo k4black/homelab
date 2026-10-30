@@ -64,6 +64,13 @@ On a new Mac, run the MacBook playbook first: the pi5 and vps playbooks read `~/
      `https://www.duckdns.org/update?domains=[DOMAIN]&token=[TOKEN]&ip=<ipaddr>&ipv6=<ip6addr>`.
 4. Run the pi5 playbook.
 
+### Router (GL.iNet, draft)
+
+`playbook_router.yml` is a draft and has not run on a device yet. It replaces the
+FRITZ!Box steps above: static lease and port forward for the pi5, AdGuard Home as
+the LAN resolver, Tailscale subnet router + exit node. Store `pi5_mac_address` in BWS.
+Add the router's ssh public key under System -> Administration before the first run.
+
 ### Hermes (pi5)
 
 Store in BWS: `hermes_openrouter_api_key` ([OpenRouter](https://openrouter.ai/keys)),
@@ -117,6 +124,8 @@ ansible-playbook playbook_vps.yml --tags docker
 Rotate: change the value in BWS and rerun the playbook.
 BWS names that differ from the var: `base_domain` -> `domain`, `personal_email` -> `email`,
 `pi5_password` / `vps_password` -> `password`.
+Private identifiers live there too: `pi5_tailscale_ipv4`, `vps_tailscale_ipv4` (empty
+until the vps rejoins the tailnet), `pi5_mac_address`.
 
 ### Hermes
 

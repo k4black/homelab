@@ -277,7 +277,9 @@ services:
       VOLUME_SIZE_LIMIT: "0"  # unlimited
       DEBUG_LEVEL: 3
     volumes:
-        - /mnt/timemachine:/opt/timemachine
+        # On the storage disk (containers_setup_make_dirs creates it). A missing
+        # bind source would be auto-created on the SD card.
+        - /mnt/storage/backups/timemachine:/opt/timemachine
         - timemachine-var-lib-samba:/var/lib/samba
         - timemachine-var-cache-samba:/var/cache/samba
         - timemachine-run-samba:/run/samba
@@ -340,8 +342,7 @@ services:
     restart: unless-stopped
 
   # Indexer aggregator. Replaces Jackett; Radarr/Sonarr pull indexers from here.
-  # No auth by default — relies on LAN/VPN gating. To set a password later,
-  # visit Settings > General in the UI.
+  # Auth = External (set by the playbook): LAN/tailnet gating, no app login.
   prowlarr:
     image: linuxserver/prowlarr:2.6.5
     container_name: prowlarr

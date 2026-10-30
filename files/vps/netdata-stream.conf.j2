@@ -7,10 +7,11 @@
     api key = {{ netdata_stream_api_key }}
     send charts matching = *
 
-# Accept streams from Pi5
+# Accept streams from Pi5. The api key is the credential; ufw limits :19999 to
+# the tailnet.
 [{{ netdata_stream_api_key }}]
     enabled = yes
-    allow from = {{ pi5_tailscale_ipv4 }}
+    allow from = *
     db = dbengine
     enable replication = yes
     replication period = 14d

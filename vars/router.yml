@@ -1,0 +1,6 @@
+# DRAFT, see playbook_router.yml. One file per home router later
+# (vars/router-<home>.yml) with its own lan_subnet.
+device_name: "router"
+# GL.iNet defaults to 192.168.8.0/24; this keeps the FRITZ!Box numbering so
+# pi5_local_ipv4, the ufw LAN rule and the Traefik allow list stay valid.
+lan_subnet: "192.168.1.0/24"

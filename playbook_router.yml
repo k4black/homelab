@@ -1,0 +1,123 @@
+---
+# DRAFT: GL.iNet router (OpenWrt based, firmware 4.x). One router per home; the
+# second home gets its own host in inventory.ini and its own vars/<router>.yml.
+#
+# Flow: bootstrap python (OpenWrt ships none) -> LAN/DHCP -> AdGuard Home as the
+# LAN resolver (ad blocking + split-horizon for *.pi5.<domain>) -> Tailscale
+# subnet router (the LAN of each home is reachable from the whole tailnet) ->
+# port forward for the pi5 ssh port.
+#
+# TODO: verify every uci path on the device (`uci show adguardhome tailscale`),
+#       firmware 4.x names change between models. Nothing here has run yet.
+- name: Bootstrap python on the router
+  hosts: router
+  gather_facts: false
+  become: false  # ssh as root already
+
+  tasks:
+    - name: Install python3 for Ansible (opkg)
+      ansible.builtin.raw: command -v python3 || (opkg update && opkg install python3-light)
+      changed_when: false
+
+- name: Configure the GL.iNet router
+  hosts: router
+  become: false
+
+  vars_files:
+    - vars/all.yml
+    - vars/router.yml
+
+  pre_tasks:
+    - name: Load secrets from Bitwarden Secrets Manager
+      ansible.builtin.import_tasks: tasks/bws_load.yml
+      tags: [always]
+
+  tasks:
+    - name: Set hostname, timezone and LAN address
+      ansible.builtin.command: "uci set {{ item }}"
+      loop:
+        - "system.@system[0].hostname={{ device_name }}"
+        - "system.@system[0].zonename={{ timezone }}"
+        - "network.lan.ipaddr={{ router_local_ipv4 }}"
+      changed_when: false
+
+    # Static lease so pi5_local_ipv4 (vars/all.yml) stays true after a reboot.
+    # Replaces the FRITZ!Box "always assign the same IPv4 address" step.
+    - name: Reserve the pi5 address
+      ansible.builtin.shell: |
+        uci -q delete dhcp.pi5
+        uci set dhcp.pi5=host
+        uci set dhcp.pi5.name=pi5
+        uci set dhcp.pi5.mac={{ bws.pi5_mac_address }}
+        uci set dhcp.pi5.ip={{ pi5_local_ipv4 }}
+      changed_when: false
+      no_log: true
+
+    # Replaces the FRITZ!Box "Port Sharing" step: the pi5 ssh port only.
+    - name: Forward the pi5 ssh port
+      ansible.builtin.shell: |
+        uci -q delete firewall.pi5_ssh
+        uci set firewall.pi5_ssh=redirect
+        uci set firewall.pi5_ssh.name=pi5-ssh
+        uci set firewall.pi5_ssh.src=wan
+        uci set firewall.pi5_ssh.src_dport={{ pi5_ssh_port }}
+        uci set firewall.pi5_ssh.dest=lan
+        uci set firewall.pi5_ssh.dest_ip={{ pi5_local_ipv4 }}
+        uci set firewall.pi5_ssh.dest_port={{ pi5_ssh_port }}
+        uci set firewall.pi5_ssh.proto=tcp
+        uci set firewall.pi5_ssh.target=DNAT
+      changed_when: false
+
+    # AdGuard Home ships with firmware 4.x. Enabling it and letting it answer
+    # the clients makes it the LAN resolver (dnsmasq forwards to it).
+    # TODO: confirm the uci keys and the config path /etc/AdGuardHome/config.yaml.
+    - name: Enable AdGuard Home as the LAN resolver
+      ansible.builtin.command: "uci set {{ item }}"
+      loop:
+        - "adguardhome.config.enabled=1"
+        - "adguardhome.config.redirect_dns=1"  # "AdGuard Home handle client requests"
+      changed_when: false
+
+    # Split-horizon: *.pi5.<domain> -> pi5 LAN IP from inside the home, like the
+    # Pi-hole dnsmasq entry in files/pi5/pihole-02-custom-dns.conf.j2.
+    # TODO: AdGuard Home rewrites live in its config.yaml (filtering.rewrites) or
+    #       the API (POST /control/rewrite/add). Pick one once the device is here.
+    - name: Add the DNS rewrite for the pi5 services
+      ansible.builtin.debug:
+        msg: "TODO: rewrite *.pi5.{{ domain }} and pi5.{{ domain }} -> {{ pi5_local_ipv4 }}"
+
+    - name: Commit uci and reload
+      ansible.builtin.shell: uci commit && /etc/init.d/network reload && /etc/init.d/dnsmasq restart && /etc/init.d/adguardhome restart
+      changed_when: false
+
+    # Tailscale: firmware 4.x bundles tailscale/tailscaled. The node joins with a
+    # one-off tagged key (same OAuth flow as the servers), advertises the home
+    # LAN as a subnet route, and is an exit node. The key is minted on the Mac:
+    # the uri module needs python, and the router only gets python3-light.
+    - name: Tailscale node state
+      ansible.builtin.command: tailscale status --json
+      register: router_ts_status
+      changed_when: false
+      failed_when: false
+
+    - name: Join the tailnet
+      when: router_ts_status.rc != 0 or (router_ts_status.stdout | from_json).BackendState != 'Running'
+      block:
+        - name: Mint the key on the controller
+          ansible.builtin.import_tasks: tasks/tailscale_create_key.yml
+          delegate_to: localhost
+          vars:
+            tailscale_key_description: "ansible deploy {{ device_name }}"
+        - name: Start tailscaled
+          ansible.builtin.command: /etc/init.d/tailscale start
+          changed_when: true
+        - name: Tailscale up (subnet router + exit node)
+          ansible.builtin.command: >-
+            tailscale up --auth-key={{ tailscale_minted_key }}
+            --advertise-tags={{ tailscale_tag }}
+            --advertise-routes={{ lan_subnet }}
+            --advertise-exit-node --accept-dns=false
+          changed_when: true
+          no_log: true
+        # TODO: approve the route in the admin console, or add it to autoApprovers
+        #       in the ACL next to the exit-node TODO in vars/all.yml.
