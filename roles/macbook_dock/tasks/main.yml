@@ -1,0 +1,21 @@
+---
+- name: Show recent applications in the Dock
+  community.general.osx_defaults:
+    domain: com.apple.dock
+    key: show-recents
+    type: bool
+    value: true
+  notify: Restart Dock
+
+- name: Apply native Dock pins and the Downloads grid folder
+  ansible.builtin.command:
+    argv: >-
+      {{ [ansible_playbook_python, role_path + '/../../files/macbook/set-dock.py',
+          dockitems_persist | to_json] + (['--check'] if ansible_check_mode else []) }}
+  register: macbook_dock_update
+  changed_when: macbook_dock_update.stdout | trim != 'unchanged'
+  check_mode: false
+  notify: Restart Dock
+
+- name: Apply Dock changes before later roles can fail
+  ansible.builtin.meta: flush_handlers

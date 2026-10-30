@@ -8,6 +8,24 @@
     - vars/macbook.yml
 
   pre_tasks:
+    - name: Validate Bitwarden SSH authentication before provisioning
+      ansible.builtin.import_tasks: tasks/macbook_ssh_preflight.yml
+      when: testing is undefined or testing != 'true'
+      tags: [dotfiles, agents]
+    # -K authenticates Ansible's become plugin, but does not define the variable
+    # the Homebrew role passes to homebrew_cask's sudo_password / askpass helper.
+    - name: Share the become password with Homebrew cask installers
+      macbook_brew_password:
+      register: macbook_brew_credentials
+      no_log: true
+      tags: [homebrew]
+    - name: Keep the Homebrew sudo password in memory
+      ansible.builtin.set_fact:
+        ansible_become_password: "{{ macbook_brew_credentials.password }}"
+        cacheable: false
+      when: macbook_brew_credentials.password is defined
+      no_log: true
+      tags: [homebrew]
     - name: Load secrets from Bitwarden Secrets Manager
       ansible.builtin.import_tasks: tasks/bws_load.yml
       tags: [always]
@@ -18,27 +36,16 @@
     - name: Macos Admin Juggling
       ansible.builtin.include_tasks: tasks/macos_admin_juggling.yml
       when: macbook_setup_admin_juggling | bool and (testing is undefined or testing != 'true')
-    # Dock items are profile-scoped (Slack ships only with the work profile), so
-    # the position cannot live in vars: select for this profile, then number in
-    # order. dockutil --position needs a contiguous 1..N sequence.
-    - name: Select dock items for profile {{ macbook_profile }}
+    - name: Select Dock pins for profile {{ macbook_profile }}
       tags: [dock]
       ansible.builtin.set_fact:
-        macbook_dock_items: >-
+        dockitems_persist: >-
           {{ dockitems_persist_layout | selectattr('profile', 'in', ['all', macbook_profile]) | list }}
-    - name: Assign dock positions
-      tags: [dock]
-      ansible.builtin.set_fact:
-        dockitems_persist: "{{ dockitems_persist | default([]) + [item | combine({'pos': idx + 1})] }}"
-      loop: "{{ macbook_dock_items }}"
-      loop_control:
-        index_var: idx
-        label: "{{ item.name }}"
     - name: Create .ssh directory at ~/
       ansible.builtin.file:
         path: "~/.ssh"
         state: directory
-        owner: "{{ ansible_user_id }}"
+        owner: "{{ ansible_facts['user_id'] }}"
         mode: "0700"
       become: false
     - name: Check ~/.ssh/config before the dotfiles role links it
@@ -60,41 +67,72 @@
         path: /opt/homebrew/bin/brew
       register: _homebrew_check
 
+    - name: Install command line tools before repository checkouts
+      ansible.builtin.import_role:
+        name: elliotweiser.osx-command-line-tools
+    - name: Configure dotfiles before application installation
+      ansible.builtin.import_role:
+        name: dotfiles
+      become: false
+      tags: ["dotfiles"]
+      vars:
+        # SSH so the user's key auto-authenticates pulls (re-runs) and manual pushes.
+        # CI overrides this with the public HTTPS URL (see .github/workflows/test.yml).
+        dotfiles_repo_url: "git@github.com:k4black/.dotfiles.git"
+        dotfiles_dest: "/Users/{{ ansible_facts['user_id'] }}/Projects/personal/.dotfiles"
+        dotfiles_symlinks:
+          .zshrc: "/Users/{{ ansible_facts['user_id'] }}/.zshrc"
+          .gitconfig: "/Users/{{ ansible_facts['user_id'] }}/.gitconfig"
+          ssh_config: "/Users/{{ ansible_facts['user_id'] }}/.ssh/config"
+        dotfiles_system_scripts:
+          - "/Users/{{ ansible_facts['user_id'] }}/Projects/personal/.dotfiles/.macos.sh --system-only"
+        dotfiles_run_scripts:
+          - "/Users/{{ ansible_facts['user_id'] }}/Projects/personal/.dotfiles/.macos.sh"
+    - name: Clone agent configuration before application installation
+      ansible.builtin.import_role:
+        name: agents_setup
+        tasks_from: checkout
+      become: false
+      tags: [agents]
+
   roles:
-    - role: elliotweiser.osx-command-line-tools
     - role: geerlingguy.mac.homebrew
       tags: ["homebrew"]
       vars:
         # homebrew_upgrade_all_packages: true
         homebrew_cask_accept_external_apps: true
     - role: geerlingguy.mac.mas
-      when: mas_installed_apps or mas_uninstalled_apps
+      when: (mas_installed_apps | length > 0) or (mas_uninstalled_apps | length > 0)
       tags: ["mas"]
-    - role: geerlingguy.mac.dock
+    - role: macbook_dock
+      become: false
       tags: ["dock"]
-    - role: dotfiles
-      tags: ["dotfiles"]
-      vars:
-        # SSH so the user's key auto-authenticates pulls (re-runs) and manual pushes.
-        # CI overrides this with the public HTTPS URL (see .github/workflows/test.yml).
-        dotfiles_repo_url: "git@github.com:k4black/.dotfiles.git"
-        dotfiles_dest: "/Users/{{ ansible_user_id }}/Projects/personal/.dotfiles"
-        dotfiles_symlinks:
-          .zshrc: "/Users/{{ ansible_user_id }}/.zshrc"
-          .gitconfig: "/Users/{{ ansible_user_id }}/.gitconfig"
-          ssh_config: "/Users/{{ ansible_user_id }}/.ssh/config"
-        dotfiles_run_scripts:
-          - "/Users/{{ ansible_user_id }}/Projects/personal/.dotfiles/.macos.sh"
     - role: zsh_setup
       vars:
         zsh_setup_set_default_shell: true
-        zsh_setup_user: "{{ ansible_user_id }}"
+        zsh_setup_user: "{{ ansible_facts['user_id'] }}"
     # Installs the agent CLIs and runs k4black/.agents install.sh, which wires
     # skills, rules, plugins and harness config into every harness.
     - role: agents_setup
       tags: ["agents"]
 
   tasks:
+    - name: Configure applications to open at login
+      ansible.builtin.command:
+        argv:
+          - /usr/bin/osascript
+          - files/macbook/login-item.applescript
+          - "{{ item.name }}"
+          - "{{ item.path }}"
+      loop: "{{ macbook_login_apps }}"
+      loop_control:
+        label: "{{ item.name }}"
+      register: macbook_login_item
+      changed_when: macbook_login_item.stdout | trim == 'added'
+      become: false
+      when: testing is undefined or testing != 'true'
+      tags: [login]
+
     - name: Setup hostname
       ansible.builtin.hostname:
         name: "{{ device_name }}"
@@ -103,21 +141,21 @@
 
     - name: Create ~/Projects structure (opensource / personal / work)
       ansible.builtin.file:
-        path: "/Users/{{ ansible_user_id }}/Projects/{{ item }}"
+        path: "/Users/{{ ansible_facts['user_id'] }}/Projects/{{ item }}"
         state: directory
-        owner: "{{ ansible_user_id }}"
+        owner: "{{ ansible_facts['user_id'] }}"
         mode: "0755"
       loop: "{{ macbook_projects_subdirs }}"
     - name: Link ~/.dotfiles to the clone in ~/Projects/personal
       ansible.builtin.file:
-        src: "/Users/{{ ansible_user_id }}/Projects/personal/.dotfiles"
-        dest: "/Users/{{ ansible_user_id }}/.dotfiles"
+        src: "/Users/{{ ansible_facts['user_id'] }}/Projects/personal/.dotfiles"
+        dest: "/Users/{{ ansible_facts['user_id'] }}/.dotfiles"
         state: link
     - name: Create Applications directory at ~/
       ansible.builtin.file:
         path: "~/Applications"
         state: directory
-        owner: "{{ ansible_user_id }}"
+        owner: "{{ ansible_facts['user_id'] }}"
         mode: "0755"
     - name: Remove the ssh-agent line from localrc (it would hide the Bitwarden agent)
       ansible.builtin.lineinfile:
@@ -151,35 +189,12 @@
         mode: "0600"
       become: false
 
-    # Bitwarden's SSH agent holds the private keys. Git signing and the server
-    # playbooks read ~/.ssh/<key>.pub, so write each agent key whose comment
-    # (= the Bitwarden item name) starts with `id_` and has no .pub file yet.
-    - name: List keys in the Bitwarden SSH agent
-      ansible.builtin.command: ssh-add -L
-      environment:
-        SSH_AUTH_SOCK: "{{ bitwarden_ssh_agent_sock }}"
-      register: macbook_agent_keys
-      changed_when: false
-      failed_when: false
-      when: testing is undefined or testing != 'true'
-      become: false
-    - name: Write .pub files from the agent
-      ansible.builtin.copy:
-        content: "{{ item }}\n"
-        dest: "~/.ssh/{{ item.split(' ')[2] }}.pub"
-        mode: "0644"
-        force: false
-      loop: "{{ macbook_agent_keys.stdout_lines | default([]) | select('search', ' id_') | list }}"
-      loop_control:
-        label: "{{ item.split(' ')[2] }}"
-      become: false
-
     - name: Setup .gitconfig.local
       ansible.builtin.template:
         src: files/.gitconfig.local.j2
         dest: ~/.gitconfig.local
         mode: "0600"
-        owner: "{{ ansible_user_id }}"
+        owner: "{{ ansible_facts['user_id'] }}"
 
     - name: Setup MonitorControl
       when: not 'monitorcontrol' in homebrew_cask_apps

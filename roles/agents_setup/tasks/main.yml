@@ -15,22 +15,6 @@
     state: present
   when: agents_setup_brew_formulae | length > 0
 
-- name: Ensure the clone's parent directory exists
-  ansible.builtin.file:
-    path: "{{ agents_setup_dest | dirname }}"
-    state: directory
-    mode: "0755"
-
-- name: Checkout k4black/.agents (SSH — auto-authed pulls + pushes)
-  # CI overrides agents_setup_repo with the public HTTPS URL (see test.yml).
-  ansible.builtin.git:
-    repo: "{{ agents_setup_repo }}"
-    dest: "{{ agents_setup_dest }}"
-    version: "{{ agents_setup_version }}"
-    accept_hostkey: true
-    # force stays false (default): never discard local edits — fail loudly if the
-    # working tree is dirty rather than clobbering in-progress skill work.
-
 - name: Wire agent harnesses via install.sh (idempotent — safe to re-run)
   # Skipped in CI (testing=true): install.sh drives the claude/codex CLIs (marketplace
   # + plugin installs) which need interactive auth, so it cannot run on a runner.

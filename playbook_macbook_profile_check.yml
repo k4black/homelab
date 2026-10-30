@@ -20,12 +20,22 @@
         that:
           - (macbook_profile == 'work') == ('slack' in homebrew_cask_apps)
           - (macbook_profile == 'work') == ('azure-cli' in homebrew_installed_packages)
+          - (macbook_profile == 'personal') == ('tailscale-app' in homebrew_cask_apps)
         fail_msg: "Profile extras do not line up for {{ macbook_profile }}."
 
-    - name: Assert the personal profile adds tunnelblick and no Slack in the dock
+    - name: Assert excluded apps stay excluded and Dock matches the profile
       ansible.builtin.assert:
         that:
-          - (macbook_profile == 'personal') == ('tunnelblick' in homebrew_cask_apps)
+          - "'tunnelblick' not in homebrew_cask_apps"
+          - "'tunnelblick' in homebrew_cask_uninstalled_apps"
+          - "'cursor' not in homebrew_cask_apps"
+          - "'cursor' in homebrew_cask_uninstalled_apps"
+          - "'caffeine' in homebrew_cask_apps"
+          - "'notion' not in homebrew_cask_apps"
+          - "'sublime-text' not in homebrew_cask_apps"
+          - "'notion' in homebrew_cask_uninstalled_apps"
+          - "'sublime-text' in homebrew_cask_uninstalled_apps"
+          - "1444383602 not in (mas_installed_apps | map(attribute='id') | list)"
           - (macbook_profile == 'work') == ('Slack' in macbook_dock_items | map(attribute='name') | list)
           - macbook_dock_items | length == (11 if macbook_profile == 'work' else 10)
         fail_msg: "Dock selection does not line up for {{ macbook_profile }}."

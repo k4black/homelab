@@ -1,0 +1,37 @@
+---
+- name: Ensure the clone's parent directory exists
+  ansible.builtin.file:
+    path: "{{ agents_setup_dest | dirname }}"
+    state: directory
+    mode: "0755"
+
+- name: Check for an existing agent repository
+  ansible.builtin.stat:
+    path: "{{ agents_setup_dest }}/.git"
+  register: agents_setup_git_directory
+
+- name: Check for local agent repository changes
+  ansible.builtin.command:
+    argv: [git, status, --porcelain]
+    chdir: "{{ agents_setup_dest }}"
+  register: agents_setup_local_changes
+  changed_when: false
+  check_mode: false
+  when: agents_setup_git_directory.stat.exists
+
+- name: Report use of local agent repository changes
+  ansible.builtin.debug:
+    msg: "Local .agents changes exist. Skipping the repository update and using the local install.sh."
+  when: agents_setup_local_changes.stdout | default('') | length > 0
+
+- name: Checkout k4black/.agents (SSH — auto-authed pulls + pushes)
+  # CI overrides agents_setup_repo with the public HTTPS URL (see test.yml).
+  ansible.builtin.git:
+    repo: "{{ agents_setup_repo }}"
+    dest: "{{ agents_setup_dest }}"
+    version: "{{ agents_setup_version }}"
+    update: "{{ agents_setup_local_changes.stdout | default('') | length == 0 }}"
+    force: false
+    accept_newhostkey: true
+    ssh_opts: >-
+      -o IdentityAgent={{ bitwarden_ssh_agent_sock | quote }}

@@ -10,7 +10,7 @@ macbook_setup_admin_juggling: false
 
 # Bitwarden desktop (App Store build) SSH agent socket. Enable it in Bitwarden
 # Settings -> "Enable SSH agent". k4black/.dotfiles points ssh at the same path.
-bitwarden_ssh_agent_sock: "{{ ansible_env.HOME }}/Library/Containers/com.bitwarden.desktop/Data/.bitwarden-ssh-agent.sock"
+bitwarden_ssh_agent_sock: "{{ ansible_facts['env']['HOME'] }}/Library/Containers/com.bitwarden.desktop/Data/.bitwarden-ssh-agent.sock"
 
 # ~/Projects working-tree layout (mirrors the local Mac structure).
 macbook_projects_subdirs:
@@ -28,9 +28,8 @@ homebrew_cask_apps_common:
   # dev
   - zed
   - docker-desktop
-  - sublime-text
+  # - sublime-text  # excluded from all profiles
   - jetbrains-toolbox
-  - cursor
   - claude
   - claude-code
   # fun
@@ -44,7 +43,8 @@ homebrew_cask_apps_common:
   - the-unarchiver
   - lulu
   - basictex
-  - monitorcontrol  # TODO: add permissions to Accessibility and login item
+  - monitorcontrol  # TODO: add permissions to Accessibility
+  - caffeine
   # creative
   - affinity
   # - inkscape  # superseded by affinity (removed from the machine)
@@ -56,7 +56,7 @@ homebrew_cask_apps_common:
   - obsidian
   - zotero
   - chatgpt
-  - notion
+  # - notion  # excluded from all profiles
   # fonts
   - font-inter
   - font-roboto
@@ -67,10 +67,20 @@ homebrew_cask_apps_common:
 # Profile-specific cask apps
 homebrew_cask_apps_extra:
   personal:
-    - tunnelblick
+    - tailscale-app
   work:
     - slack
 homebrew_cask_apps: "{{ homebrew_cask_apps_common + homebrew_cask_apps_extra[macbook_profile] }}"
+homebrew_cask_uninstalled_apps:
+  - tunnelblick
+  - cursor
+  - notion
+  - sublime-text
+
+macbook_login_apps:
+  - {name: Bitwarden, path: /Applications/Bitwarden.app}
+  - {name: MonitorControl, path: /Applications/MonitorControl.app}
+  - {name: Caffeine, path: /Applications/Caffeine.app}
 homebrew_installed_packages_common:
   # dev
   - git
@@ -100,33 +110,11 @@ homebrew_installed_packages: "{{ homebrew_installed_packages_common + homebrew_i
 # homebrew/cask-fonts was deprecated; font casks are now in homebrew/cask
 homebrew_taps: []
 
-# error when installed this way, include in homebrew_installed_packages
-dockutil_install: true
-configure_dock: true
-# DOCK: mirrors the live dock of k4pro-m3 (macOS 27). Slack exists only with the
-# work profile, so items carry a `profile` (`all` or a profile name) and
-# playbook_macbook.yml selects + numbers them in list order. Positions are not
-# hardcoded: dockutil --position needs a contiguous 1..N sequence, and dropping
-# Slack from the personal profile would leave a hole.
+# Dock pins are selected for the active profile, in list order.
 # macOS 26/27 renames: Launchpad -> Apps (/System/Applications/Apps.app),
 # Mail/Calendar moved under /System/Applications, Zen Browser -> Zen.app.
-dockitems_remove:
-  - TV
-  - Podcasts
-  - "App Store"
-  - Safari
-  - Siri
-  - FaceTime
-  - Contacts
-  - Maps
-  - Messages
-  - News
-  - Music
-  - Photos
-  - Freeform
-  - Keynote
-  - Numbers
-  - Pages
+# The Dock role replaces all pinned items with this profile's list and hides
+# recent apps. Finder and Trash remain managed by macOS.
 dockitems_persist_layout:
   # NOTE: Finder is always first (pos 0, added by macOS itself)
   - {name: "Apps", path: "/System/Applications/Apps.app", profile: all}
@@ -144,7 +132,6 @@ dockitems_persist_layout:
 
 mas_installed_apps:
   - {id: 1352778147, name: "Bitwarden"}  # also the SSH agent, see bitwarden_ssh_agent_sock
-  - {id: 1444383602, name: "Goodnotes 6"}
   - {id: 1423210932, name: "Flow"}
 # required admin permissions
 mas_uninstalled_apps: []

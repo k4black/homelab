@@ -3,16 +3,33 @@
 #   ansible.builtin.file:
 #     path: "{{ dotfiles_dest }}"
 #     state: directory
-#     owner: "{{ ansible_user_id }}"
+#     owner: "{{ ansible_facts['user_id'] }}"
+
+- name: Check for a local dotfiles repository
+  ansible.builtin.stat:
+    path: "{{ dotfiles_dest }}/.git"
+  register: dotfiles_git_directory
+
+- name: Check for local dotfiles changes
+  ansible.builtin.command:
+    argv: [git, status, --porcelain]
+    chdir: "{{ dotfiles_dest }}"
+  register: dotfiles_local_changes
+  changed_when: false
+  check_mode: false
+  when: dotfiles_git_directory.stat.exists
 
 - name: Clone or update dotfiles repository
   ansible.builtin.git:
     repo: "{{ dotfiles_repo_url }}"
     dest: "{{ dotfiles_dest }}"
     version: main
-    force: true
-    update: true
+    force: false
+    update: "{{ dotfiles_local_changes.stdout | default('') | length == 0 }}"
     depth: 1
+    accept_newhostkey: true
+    ssh_opts: >-
+      -o IdentityAgent={{ bitwarden_ssh_agent_sock | quote }}
 
 - name: Symlink dotfiles
   ansible.builtin.file:
@@ -28,7 +45,7 @@
     path: "~/.localrc"
     state: touch
     mode: "0600"
-    owner: "{{ ansible_user_id }}"
+    owner: "{{ ansible_facts['user_id'] }}"
   changed_when: false
 
 - name: Make empty .gitconfig.local file
@@ -36,7 +53,7 @@
     path: "~/.gitconfig.local"
     state: touch
     mode: "0600"
-    owner: "{{ ansible_user_id }}"
+    owner: "{{ ansible_facts['user_id'] }}"
   changed_when: false
 
 # - name: Make all .sh/.zsh/.bash files executable
@@ -65,5 +82,12 @@
   with_items: "{{ dotfiles_run_scripts }}"
   args:
     chdir: "{{ dotfiles_dest }}"
+  become: false
+  changed_when: false
+
+- name: Run dotfiles system setup scripts
+  ansible.builtin.command: "{{ item }}"
+  loop: "{{ dotfiles_system_scripts | default([]) }}"
+  when: testing is undefined or testing != 'true'
   become: true
   changed_when: false

@@ -22,3 +22,7 @@ roles:
 collections:
   - name: geerlingguy.mac
     version: ">=5.0.0,<6.0.0"
+  - name: community.general
+    version: ">=13.0.0,<14.0.0"
+  - name: ansible.posix
+    version: ">=2.1.0,<3.0.0"

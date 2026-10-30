@@ -7,7 +7,7 @@
 # SSH so the user's key auto-authenticates pulls (re-runs) and manual pushes.
 # CI overrides this with the public HTTPS URL (see .github/workflows/test.yml).
 agents_setup_repo: "git@github.com:k4black/.agents.git"
-agents_setup_dest: "{{ ansible_env.HOME }}/Projects/personal/.agents"
+agents_setup_dest: "{{ ansible_facts['env']['HOME'] }}/Projects/personal/.agents"
 agents_setup_version: "main"
 
 # claude/claude-code are casks in vars/macbook.yml (geerlingguy.mac.homebrew role);

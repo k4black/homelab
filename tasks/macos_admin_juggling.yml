@@ -1,10 +1,10 @@
 ---
-# Check if current user (ansible_user_id) is admin.
+# Check if current user (ansible_facts['user_id']) is admin.
 # if so - add current user to sudoers, create new admin user from prompt (pause), and remove current user admin privileges
 # if not - assert that current user has sudo privileges
 
 - name: Macos Admin Juggling | Check current user is admin
-  ansible.builtin.command: dseditgroup -o checkmember -m {{ ansible_user_id }} admin
+  ansible.builtin.command: dseditgroup -o checkmember -m {{ ansible_facts['user_id'] }} admin
   register: _current_user_is_admin
   changed_when: false
   failed_when: false
@@ -43,17 +43,17 @@
     - name: Macos Admin Juggling | Add current user to sudoers
       ansible.builtin.lineinfile:
         path: /etc/sudoers
-        line: "{{ ansible_user_id }} ALL=(ALL) ALL"
+        line: "{{ ansible_facts['user_id'] }} ALL=(ALL) ALL"
         validate: "visudo -cf %s"
       become: true
 
     - name: Macos Admin Juggling | Remove current user from admin group
-      ansible.builtin.command: dseditgroup -o edit -d {{ ansible_user_id }} -t user admin
+      ansible.builtin.command: dseditgroup -o edit -d {{ ansible_facts['user_id'] }} -t user admin
       become: true
       changed_when: false
 
 - name: Macos Admin Juggling | Check current user admin status
-  ansible.builtin.command: dseditgroup -o checkmember -m {{ ansible_user_id }} admin
+  ansible.builtin.command: dseditgroup -o checkmember -m {{ ansible_facts['user_id'] }} admin
   changed_when: false
   failed_when: false
   register: _current_user_is_admin
@@ -61,7 +61,7 @@
 - name: Macos Admin Juggling | Assert current user is not admin
   ansible.builtin.assert:
     that: _current_user_is_admin.rc != 0
-    msg: "Current user {{ ansible_user_id }} is still an admin user"
+    msg: "Current user {{ ansible_facts['user_id'] }} is still an admin user"
 
 - name: Macos Admin Juggling | Try to use sudo
   ansible.builtin.command: ls /

@@ -1,0 +1,86 @@
+---
+- name: Check keys available through the Bitwarden SSH agent
+  ansible.builtin.command: /usr/bin/ssh-add -L
+  environment:
+    SSH_AUTH_SOCK: "{{ bitwarden_ssh_agent_sock }}"
+  register: macbook_agent_keys
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  become: false
+  no_log: true
+
+- name: Require an active Bitwarden SSH agent with keys
+  ansible.builtin.assert:
+    that: macbook_agent_keys.rc == 0
+    fail_msg: >-
+      Bitwarden SSH agent is unavailable or has no keys. Install Bitwarden from
+      the Mac App Store, open and unlock it, enable Settings > Enable SSH agent,
+      and add your SSH key to the vault. See README.md > SSH keys, then rerun.
+
+# SSH's IdentitiesOnly selects agent keys using these public files. Write them
+# before GitHub validation and before dotfiles installs the GitHub IdentityFile.
+- name: Ensure the SSH public key directory exists
+  ansible.builtin.file:
+    path: "{{ ansible_facts['env']['HOME'] }}/.ssh"
+    state: directory
+    mode: "0700"
+  become: false
+
+- name: Write public identity files from Bitwarden before cloning repositories
+  ansible.builtin.copy:
+    content: "{{ item }}\n"
+    dest: "{{ ansible_facts['env']['HOME'] }}/.ssh/{{ item.split()[2] }}.pub"
+    mode: "0644"
+    force: false
+  loop: >-
+    {{ macbook_agent_keys.stdout_lines | default([])
+       | select('search', ' id_[A-Za-z0-9_-]+$') | list }}
+  become: false
+  no_log: true
+
+- name: Check the public identity used by the dotfiles GitHub configuration
+  ansible.builtin.stat:
+    path: "{{ ansible_facts['env']['HOME'] }}/.ssh/id_ed25519.pub"
+  register: macbook_github_public_key
+  become: false
+
+- name: Require the GitHub public identity
+  ansible.builtin.assert:
+    that: macbook_github_public_key.stat.exists
+    fail_msg: >-
+      The GitHub SSH configuration requires ~/.ssh/id_ed25519.pub to select its
+      Bitwarden agent key. Name the corresponding Bitwarden SSH key item
+      id_ed25519 and rerun so the playbook can export its public key.
+
+- name: Verify GitHub authentication through Bitwarden
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/ssh
+      - -o
+      - "IdentityAgent={{ bitwarden_ssh_agent_sock }}"
+      - -o
+      - BatchMode=yes
+      - -o
+      - StrictHostKeyChecking=accept-new
+      - -o
+      - ConnectTimeout=15
+      - -T
+      - git@github.com
+  register: macbook_github_ssh_check
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  become: false
+  no_log: true
+
+- name: Require working GitHub SSH authentication
+  ansible.builtin.assert:
+    that:
+      - macbook_github_ssh_check.rc == 1
+      - "'successfully authenticated' in macbook_github_ssh_check.stderr"
+    fail_msg: >-
+      GitHub SSH authentication failed. Unlock Bitwarden, authorize SSH key use,
+      and ensure its public key is registered in GitHub Settings > SSH and GPG
+      keys. A changed known host key or network failure can also cause this;
+      run ssh -T git@github.com to inspect the error. See README.md > SSH keys.
