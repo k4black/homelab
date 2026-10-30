@@ -115,6 +115,13 @@ behind a pi5, or a docker bridge see no login. Store in BWS:
   `authelia_oidc_jellyfin_secret` (the password) + `authelia_oidc_jellyfin_secret_hash` (the digest),
   same for `authelia_oidc_homeassistant_*`.
 
+Jellyfin: the pi5 playbook installs the SSO plugin (9p4, archived upstream; a Jellyfin 12
+upgrade needs a replacement), adds provider `authelia` and a "Sign in with Authelia" button.
+Authelia group `admins` = Jellyfin admin. To rotate: Dashboard -> Plugins -> SSO-Auth ->
+delete the provider, rerun the playbook.
+Home Assistant (when enabled): install HACS, hass-oidc-auth and remote_homeassistant from the
+UI; the config is prerendered in `/srv/configs/home-assistant-config/`.
+
 Second factor: each user enrols a passkey or TOTP on first login. Identity mails land in
 `/srv/data/authelia/notification.txt` on the vps; pass the link on.
 
