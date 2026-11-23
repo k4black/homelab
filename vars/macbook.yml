@@ -34,10 +34,10 @@ homebrew_cask_apps_common:
   - claude-code
   # fun
   # - autodesk-fusion  # not installed; Fusion needs a manual seat + driver setup
-  - anki
-  - steam
-  - freecad
-  - flutter
+  # - anki
+  # - steam
+  # - freecad
+  # - flutter
   # utils
   - google-drive
   - the-unarchiver
@@ -45,10 +45,6 @@ homebrew_cask_apps_common:
   - basictex
   - monitorcontrol  # TODO: add permissions to Accessibility
   - caffeine
-  # creative
-  - affinity
-  # - inkscape  # superseded by affinity (removed from the machine)
-  # - gimp  # superseded by affinity (removed from the machine)
   # 3d printing
   # - prusaslicer  # not installed; Original Prusa Drivers must be installed manually
   # mix
@@ -68,6 +64,13 @@ homebrew_cask_apps_common:
 homebrew_cask_apps_extra:
   personal:
     - tailscale-app
+    - anki
+    - steam
+    - freecad
+    - flutter
+    - affinity
+    # - inkscape  # superseded by affinity (removed from the machine)
+    # - gimp  # superseded by affinity (removed from the machine)
   work:
     - slack
 homebrew_cask_apps: "{{ homebrew_cask_apps_common + homebrew_cask_apps_extra[macbook_profile] }}"
