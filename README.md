@@ -12,6 +12,7 @@ Related repos, cloned next to this one into `~/Projects/personal/` by the MacBoo
 | [k4black/.agents](https://github.com/k4black/.agents) | agent skills, rules, `install.sh` |
 
 This repo installs every binary. `.agents/install.sh` only wires config.
+The MacBook agent setup installs Crit from Homebrew for browser reviews.
 The MacBook playbook updates clean `.agents` checkouts. It preserves local changes,
 skips the repository update, and runs the local `install.sh` when changes exist.
 

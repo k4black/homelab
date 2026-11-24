@@ -25,10 +25,11 @@
     chdir: "{{ agents_setup_dest }}"
   register: agents_setup_install
   changed_when: >-
-    ('backed up' in agents_setup_install.stdout) or
-    ('added' in agents_setup_install.stdout) or
-    ('installed' in agents_setup_install.stdout) or
-    ('removed' in agents_setup_install.stdout)
+    ('backed up' in (agents_setup_install.stdout | lower)) or
+    ('added' in (agents_setup_install.stdout | lower)) or
+    ('installed' in (agents_setup_install.stdout | lower)) or
+    ('updated:' in (agents_setup_install.stdout | lower)) or
+    ('removed' in (agents_setup_install.stdout | lower))
 
 - name: Show install.sh summary
   when: agents_setup_install.stdout_lines is defined

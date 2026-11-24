@@ -17,6 +17,7 @@ agents_setup_version: "main"
 agents_setup_brew_casks:
   - codex  # OpenAI Codex CLI (installs a `codex` binary, not a .app)
 agents_setup_brew_formulae:
+  - crit             # local browser reviews of plans and diffs
   - jq               # install.sh merges JSON settings with it
   - opencode         # terminal AI coding agent
   - pi-coding-agent  # pi agent harness
