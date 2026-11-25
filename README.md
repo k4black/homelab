@@ -181,6 +181,7 @@ BWS names that differ from the var: `base_domain` -> `domain`, `personal_email` 
   The script shows battery percentage and hides Siri and Now Playing.
   The Dock sits on the right with 40-pixel icons.
 - Homebrew: the playbook installs, never upgrades. Run `brew upgrade` by hand.
+- The MacBook playbook installs `github/gh-stack` for the current user on both profiles.
 - Open at login: Bitwarden, MonitorControl, and Caffeine, configured through
   `macbook_login_apps` in `vars/macbook.yml`. Allow System Events automation if
   macOS prompts while the playbook adds these login items.

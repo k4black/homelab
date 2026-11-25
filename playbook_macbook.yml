@@ -117,6 +117,19 @@
       tags: ["agents"]
 
   tasks:
+    - name: Install the gh-stack extension
+      ansible.builtin.command:
+        argv:
+          - "{{ homebrew_brew_bin_path }}/gh"
+          - extension
+          - install
+          - github/gh-stack
+      register: macbook_gh_stack_install
+      changed_when: "'Extension github/gh-stack is already installed' not in macbook_gh_stack_install.stderr"
+      become: false
+      when: "'gh' in homebrew_installed_packages"
+      tags: [homebrew]
+
     - name: Configure applications to open at login
       ansible.builtin.command:
         argv:
